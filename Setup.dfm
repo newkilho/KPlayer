@@ -33,10 +33,17 @@ object FrmSetup: TFrmSetup
       TabOrder = 0
       object Label1: TLabel
         Left = 152
-        Top = 215
-        Width = 34
+        Top = 199
+        Width = 48
         Height = 15
-        Caption = 'Label1'
+        Caption = #51456#48708#51473' ...'
+      end
+      object Label2: TLabel
+        Left = 152
+        Top = 228
+        Width = 54
+        Height = 15
+        Caption = #44263' '#47564#45208#50836'.'
       end
     end
     object Card2: TCard

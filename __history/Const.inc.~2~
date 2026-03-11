@@ -1,4 +1,0 @@
-const
-  AppName = 'VideoPlayer';
-  AppCheck = 'https://startcleaner.kilho.net/api.init.php';
-

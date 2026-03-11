@@ -20,6 +20,7 @@ type
     BtnDefault: TSpeedButton;
     BtnVideo: TSpeedButton;
     BtnAudio: TSpeedButton;
+    Label2: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure BtnDefaultClick(Sender: TObject);
   private
@@ -42,9 +43,6 @@ end;
 
 procedure TFrmSetup.FormCreate(Sender: TObject);
 begin
-  //PostMessage(Self.Handle, WM_UPDATEUISTATE, MakeWParam(UIS_SET, UISF_HIDEFOCUS), 0);
-
-  //BorderIcons := [biSystemMenu];
   BorderStyle := bsDialog;
 end;
 

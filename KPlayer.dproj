@@ -141,11 +141,11 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
+        <DCCReference Include="MPVPlayer.pas"/>
         <DCCReference Include="Main.pas">
             <Form>FrmKPlayer</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="MPVPlayer.pas"/>
         <DCCReference Include="List.pas">
             <Form>FrmList</Form>
             <FormType>dfm</FormType>

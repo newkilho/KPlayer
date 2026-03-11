@@ -3,7 +3,6 @@
   Project : KPlayer
   Author  : Kilho, Oh
   Engine  : libmpv (GPL-2.0-or-later)
-  UI      : VCL (Delphi)
   Tree    : Virtual Treeview (MPL 1.1)
 
   This program links against libmpv (GPL-2.0-or-later).
@@ -98,8 +97,8 @@ begin
   RepeatMode := FConfig.ReadInteger('repeat', 0);
   RandomMode := FConfig.ReadInteger('random', 0);
 
+  if ReportMemoryLeaksOnShutDown then Theme := 'n:\Release\KPlayer.lua' else // Debug
   Theme := ExtractFilePath(ParamStr(0)) + 'KPlayer.lua';
-  Theme := 'n:\Release\KPlayer.lua';
 
   if not MPVLibLoaded(ExtractFilePath(ParamStr(0))) then
   begin
@@ -601,5 +600,4 @@ begin
 end;
 
 end.
-
 

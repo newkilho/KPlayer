@@ -1,4 +1,0 @@
-const
-  AppName = 'KPlayer';
-  AppCheck = 'https://kplayer.kilho.net/api.init.php';
-

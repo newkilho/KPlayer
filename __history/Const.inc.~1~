@@ -1,3 +1,0 @@
-const
-  UpdateURL = 'https://startcleaner.kilho.net/api.init.php';
-  AppName = 'VideoPlayer';

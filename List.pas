@@ -3,14 +3,12 @@
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, Winapi.Dwmapi, Winapi.UxTheme,
-  System.SysUtils, System.Variants, System.Classes, System.IOUtils, System.StrUtils,
-  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.FileCtrl,
-  VirtualTrees.BaseAncestorVCL, VirtualTrees.BaseTree, VirtualTrees.AncestorVCL, VirtualTrees.Types,
-  VirtualTrees,
-  K.DragFile,
-  VTScrollbar, SVGIconImage, System.ImageList, Vcl.ImgList,
-  SVGIconImageListBase, SVGIconImageList, Vcl.Menus;
+  Winapi.Windows, Winapi.Messages, Winapi.Dwmapi, Winapi.UxTheme, System.SysUtils,
+  System.Variants, System.Classes, System.IOUtils, System.StrUtils, System.Types,
+  System.ImageList, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls,
+  Vcl.FileCtrl, Vcl.Menus, Vcl.ImgList, VirtualTrees.BaseAncestorVCL, VirtualTrees.BaseTree,
+  VirtualTrees.AncestorVCL, VirtualTrees.Types,VirtualTrees, SVGIconImage, SVGIconImageListBase,
+  SVGIconImageList, VTScrollbar, K.DragFile;
 
 type
   TDeleteMode = (

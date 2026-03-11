@@ -1,20 +1,20 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <BorlandProject>
 	<Transactions>
-    <Transaction>1899-12-30 00:00:00.000.013,D:\Source\Delphi\Person\VideoPlayer\VideoPlayer.dproj=D:\Source\Delphi\Person\VideoPlayer\Project2.dproj</Transaction>
-    <Transaction>1899-12-30 00:00:00.000.171,D:\Source\Delphi\Person\VideoPlayer\Unit1.pas=D:\Source\Delphi\Person\VideoPlayer\Setup.pas</Transaction>
-    <Transaction>1899-12-30 00:00:00.000.158,D:\Source\Delphi\Person\VideoPlayer\Unit1.pas=D:\Source\Delphi\Person\VideoPlayer\List.pas</Transaction>
-    <Transaction>1899-12-30 00:00:00.000.502,D:\Source\Delphi\Person\VideoPlayer\MPVPlayer.pas=D:\Source\Delphi\Person\VideoPlayer\Unit1.pas</Transaction>
-    <Transaction>1899-12-30 00:00:00.000.715,=D:\Source\Delphi\Person\KPlayer\Const.inc</Transaction>
-    <Transaction>1899-12-30 00:00:00.000.158,D:\Source\Delphi\Person\VideoPlayer\Unit1.dfm=D:\Source\Delphi\Person\VideoPlayer\List.dfm</Transaction>
-    <Transaction>1899-12-30 00:00:00.000.171,D:\Source\Delphi\Person\VideoPlayer\Unit1.dfm=D:\Source\Delphi\Person\VideoPlayer\Setup.dfm</Transaction>
-    <Transaction>1899-12-30 00:00:00.000.178,=D:\Source\Delphi\Person\VideoPlayer\Unit1.pas</Transaction>
-    <Transaction>1899-12-30 00:00:00.000.623,D:\Source\Delphi\Person\VideoPlayer\Main.dfm=D:\Source\Delphi\Person\VideoPlayer\Unit2.dfm</Transaction>
-    <Transaction>1899-12-30 00:00:00.000.543,D:\Source\Delphi\Person\KPlayer\KPlayer.dproj=D:\Source\Delphi\Person\KPlayer\VideoPlayer.dproj</Transaction>
-    <Transaction>1899-12-30 00:00:00.000.022,=D:\Source\Delphi\Person\KPlayer\New1.inc</Transaction>
-    <Transaction>1899-12-30 00:00:00.000.623,D:\Source\Delphi\Person\VideoPlayer\Main.pas=D:\Source\Delphi\Person\VideoPlayer\Unit2.pas</Transaction>
-    <Transaction>1899-12-30 00:00:00.000.652,=D:\Source\Delphi\Person\VideoPlayer\Unit1.pas</Transaction>
     <Transaction>1899-12-30 00:00:00.000.278,=D:\Source\Delphi\Person\VideoPlayer\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.652,=D:\Source\Delphi\Person\VideoPlayer\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.178,=D:\Source\Delphi\Person\VideoPlayer\Unit1.pas</Transaction>
     <Transaction>1899-12-30 00:00:00.000.191,=D:\Source\Delphi\Person\VideoPlayer\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.715,=D:\Source\Delphi\Person\KPlayer\Const.inc</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.623,D:\Source\Delphi\Person\VideoPlayer\Unit2.pas=D:\Source\Delphi\Person\VideoPlayer\Main.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.623,D:\Source\Delphi\Person\VideoPlayer\Unit2.dfm=D:\Source\Delphi\Person\VideoPlayer\Main.dfm</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.502,D:\Source\Delphi\Person\VideoPlayer\Unit1.pas=D:\Source\Delphi\Person\VideoPlayer\MPVPlayer.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.543,D:\Source\Delphi\Person\KPlayer\VideoPlayer.dproj=D:\Source\Delphi\Person\KPlayer\KPlayer.dproj</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.022,=D:\Source\Delphi\Person\KPlayer\New1.inc</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.171,D:\Source\Delphi\Person\VideoPlayer\Setup.dfm=D:\Source\Delphi\Person\VideoPlayer\Unit1.dfm</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.158,D:\Source\Delphi\Person\VideoPlayer\List.pas=D:\Source\Delphi\Person\VideoPlayer\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.013,D:\Source\Delphi\Person\VideoPlayer\Project2.dproj=D:\Source\Delphi\Person\VideoPlayer\VideoPlayer.dproj</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.158,D:\Source\Delphi\Person\VideoPlayer\List.dfm=D:\Source\Delphi\Person\VideoPlayer\Unit1.dfm</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.171,D:\Source\Delphi\Person\VideoPlayer\Setup.pas=D:\Source\Delphi\Person\VideoPlayer\Unit1.pas</Transaction>
   </Transactions>
 </BorlandProject>

@@ -6,14 +6,16 @@ uses
   madListProcesses,
   madListModules,
   Vcl.Forms,
-  Main in 'Main.pas' {FrmKPlayer},
   MPVPlayer in 'MPVPlayer.pas',
+  Main in 'Main.pas' {FrmKPlayer},
   List in 'List.pas' {FrmList},
   Setup in 'Setup.pas' {FrmSetup};
 
 {$R *.res}
 
 begin
+  //ReportMemoryLeaksOnShutDown := True;
+
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TFrmKPlayer, FrmKPlayer);
