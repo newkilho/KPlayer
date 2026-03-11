@@ -1,0 +1,333 @@
+﻿unit Unit2;
+{
+  MPV Player 메인 폼
+  - TMPVPlayer (MPVPlayer.pas) 사용
+  - controls.lua 와 연동: script-message 이벤트 기반 처리
+    현재 지원 명령:
+      'close-requested' : X 버튼 → 플레이어 종료
+    추후 확장 예정:
+      'zoom-in'         : 확대
+      'zoom-out'        : 축소
+      'open-settings'   : 설정 창 열기
+      기타 ...
+}
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages,
+  System.SysUtils, System.Variants, System.Classes,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Vcl.StdCtrls, Vcl.ExtCtrls,
+  MPVBasePlayer,
+  MPVPlayer,
+  K.Theme, Vcl.Menus;
+
+type
+  TFrmVideoPlayer = class(TForm)
+    Menu: TPopupMenu;
+    procedure FormDestroy(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FormKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FormMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure FormMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+    procedure FormMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+  private
+    procedure OnScriptMessage(Sender: TObject; const Cmd: string; Args: TStrings);
+
+    procedure HandleCloseRequested;
+    procedure HandleZoomIn(sArgs: TStrings);
+    procedure HandleZoomOut(sArgs: TStrings);
+    procedure HandleOpenSettings;
+
+    procedure WMNCHitTest(var Msg: TWMNCHitTest); message WM_NCHITTEST;
+  public
+    MPVPlayer: TMPVPlayer;
+  end;
+
+var
+  FrmVideoPlayer: TFrmVideoPlayer;
+
+implementation
+
+{$R *.dfm}
+
+// ===================================================================
+// 키 변환 헬퍼
+// ===================================================================
+function KeyToMPV(Key: Word; Shift: TShiftState): string;
+begin
+  case Key of
+    VK_SPACE:  Result := 'SPACE';
+    VK_RETURN: Result := 'ENTER';
+    VK_ESCAPE: Result := 'ESC';
+    VK_LEFT:   Result := 'LEFT';
+    VK_RIGHT:  Result := 'RIGHT';
+    VK_UP:     Result := 'UP';
+    VK_DOWN:   Result := 'DOWN';
+    VK_DELETE: Result := 'DEL';
+    VK_BACK:   Result := 'BS';
+  else
+    Result := UpperCase(Chr(Key));
+  end;
+
+  if ssCtrl  in Shift then Result := 'Ctrl+'  + Result;
+  if ssShift in Shift then Result := 'Shift+' + Result;
+  if ssAlt   in Shift then Result := 'Alt+'   + Result;
+end;
+
+// ===================================================================
+// 폼 이벤트
+// ===================================================================
+
+procedure TFrmVideoPlayer.FormCreate(Sender: TObject);
+begin
+  BorderStyle := bsNone;
+  SetFormCorners(Handle);
+
+  if not MPVLibLoaded(ExtractFilePath(ParamStr(0))) then
+  begin
+    ShowMessage('MPV DLL 로드 실패');
+    Application.Terminate;
+    Exit;
+  end;
+
+  MPVPlayer := TMPVPlayer.Create;
+
+  // ── script-message 이벤트 핸들러 등록 ─────────────────────────
+  // controls.lua 에서 mp.commandv("script-message", "<cmd>", ...) 호출 시
+  // → MPVPlayer.DoEventClientMsg 에서 파싱
+  // → TThread.Synchronize 로 UI 스레드 전환
+  // → 이 핸들러 호출
+  MPVPlayer.OnScriptMessage := OnScriptMessage;  // ← 이제 정상 컴파일
+
+  MPVPlayer.SetOptionString('log-file', 'mpv.log');
+MPVPlayer.SetOptionString('msg-level', 'all=v');
+
+  MPVPlayer.InitPlayer(
+    IntToStr(Self.Handle),
+    '',
+    ExtractFilePath(ParamStr(0)) + 'config',
+    '',
+    True
+  );
+
+  //if FileExists('n:\Release\VideoPlayer.lua') then
+  //     Showmessage('1');
+
+  {
+  MPVPlayer.Command([
+    'load-script',
+    ExtractFilePath(ParamStr(0)) + 'controls.lua'
+    //'n:\Release\VideoPlayer.lua'
+  ]);
+  }
+
+  MPVPlayer.OpenFile('D:\Videos\MV\HMC_Girls'' generation - Gee 1080P.avi');
+  MPVPlayer.SetVolume(50);
+end;
+
+procedure TFrmVideoPlayer.FormDestroy(Sender: TObject);
+begin
+  FreeAndNil(MPVPlayer);
+end;
+
+// ===================================================================
+// script-message 라우터
+// controls.lua 에서 보내는 모든 명령이 이곳으로 집결
+// sCmd 값으로 분기 → 개별 핸들러 호출
+// ===================================================================
+procedure TFrmVideoPlayer.OnScriptMessage(Sender: TObject; const Cmd: string; Args: TStrings);
+begin
+  // ── 닫기 (X 버튼) ───────────────────────────────────────────────
+  if SameText(Cmd, 'close-requested') then
+  begin
+    HandleCloseRequested;
+    Exit;
+  end;
+
+  // ── 확대 ────────────────────────────────────────────────────────
+  // controls.lua: mp.commandv("script-message", "zoom-in")
+  // 배율 인자 가능: mp.commandv("script-message", "zoom-in", "0.2")
+  if SameText(Cmd, 'zoom-in') then
+  begin
+    HandleZoomIn(Args);
+    Exit;
+  end;
+
+  // ── 축소 ────────────────────────────────────────────────────────
+  if SameText(Cmd, 'zoom-out') then
+  begin
+    HandleZoomOut(Args);
+    Exit;
+  end;
+
+  // ── 설정 ────────────────────────────────────────────────────────
+  // controls.lua: mp.commandv("script-message", "open-settings")
+  if SameText(Cmd, 'open-settings') then
+  begin
+    HandleOpenSettings;
+    Exit;
+  end;
+
+  // ── 미등록 명령 (개발 중 디버그용) ──────────────────────────────
+  // 배포 시 ShowMessage 를 로그 기록으로 대체
+  ShowMessage('알 수 없는 script-message: ' + Cmd);
+end;
+
+procedure TFrmVideoPlayer.WMNCHitTest(var Msg: TWMNCHitTest);
+Const
+  ResizeBorder = 8;
+var
+  P: TPoint;
+begin
+  inherited;
+
+  if BorderStyle <> bsNone then
+    Exit;
+
+  P := ScreenToClient(Point(Msg.XPos, Msg.YPos));
+
+  // 좌상단
+  if (P.X <= ResizeBorder) and (P.Y <= ResizeBorder) then
+    Msg.Result := HTTOPLEFT
+
+  // 우상단
+  else if (P.X >= Width - ResizeBorder) and (P.Y <= ResizeBorder) then
+    Msg.Result := HTTOPRIGHT
+
+  // 좌하단
+  else if (P.X <= ResizeBorder) and (P.Y >= Height - ResizeBorder) then
+    Msg.Result := HTBOTTOMLEFT
+
+  // 우하단
+  else if (P.X >= Width - ResizeBorder) and (P.Y >= Height - ResizeBorder) then
+    Msg.Result := HTBOTTOMRIGHT
+
+  // 왼쪽
+  else if (P.X <= ResizeBorder) then
+    Msg.Result := HTLEFT
+
+  // 오른쪽
+  else if (P.X >= Width - ResizeBorder) then
+    Msg.Result := HTRIGHT
+
+  // 위
+  else if (P.Y <= ResizeBorder) then
+    Msg.Result := HTTOP
+
+  // 아래
+  else if (P.Y >= Height - ResizeBorder) then
+    Msg.Result := HTBOTTOM;
+end;
+
+// ===================================================================
+// 개별 명령 핸들러
+// 새 기능 추가 시 OnScriptMessage 에 분기 추가 + 아래 메서드 작성
+// ===================================================================
+
+// X 버튼 클릭
+procedure TFrmVideoPlayer.HandleCloseRequested;
+begin
+  MPVPlayer.Stop;
+  Close;
+end;
+
+// 확대 (zoom-in)
+procedure TFrmVideoPlayer.HandleZoomIn(sArgs: TStrings);
+var
+  fStep, fCur: Double;
+begin
+  fStep := 0.1;
+  if (sArgs <> nil) and (sArgs.Count > 0) then
+    fStep := StrToFloatDef(sArgs[0], 0.1);
+
+  fCur := 0;
+  MPVPlayer.GetPropertyDouble('video-zoom', fCur);
+  MPVPlayer.SetPropertyDouble('video-zoom', fCur + fStep);
+end;
+
+// 축소 (zoom-out)
+procedure TFrmVideoPlayer.HandleZoomOut(sArgs: TStrings);
+var
+  fStep, fCur: Double;
+begin
+  fStep := 0.1;
+  if (sArgs <> nil) and (sArgs.Count > 0) then
+    fStep := StrToFloatDef(sArgs[0], 0.1);
+
+  fCur := 0;
+  MPVPlayer.GetPropertyDouble('video-zoom', fCur);
+  MPVPlayer.SetPropertyDouble('video-zoom', fCur - fStep);
+end;
+
+// 설정 창 열기 (추후 구현)
+procedure TFrmVideoPlayer.HandleOpenSettings;
+begin
+  ShowMessage('설정 창 (미구현)');
+  // TODO: TFormSettings 등 별도 폼 연결
+end;
+
+// ===================================================================
+// 키보드 입력 → MPV 전달
+// ===================================================================
+
+procedure TFrmVideoPlayer.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if MPVPlayer = nil then Exit;
+  MPVPlayer.Command(['keypress', KeyToMPV(Key, Shift)]);
+end;
+
+procedure TFrmVideoPlayer.FormKeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if MPVPlayer = nil then Exit;
+  MPVPlayer.Command(['keyup', KeyToMPV(Key, Shift)]);
+end;
+
+// ===================================================================
+// 마우스 입력 → MPV 전달
+// ===================================================================
+
+procedure TFrmVideoPlayer.FormMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if Button = mbLeft then
+  begin
+    ReleaseCapture;
+    Perform(WM_SYSCOMMAND, $F012, 0);
+  end;
+
+  if MPVPlayer = nil then Exit;
+
+  case Button of
+    mbLeft:   MPVPlayer.Command(['keypress', 'MBTN_LEFT']);
+    //mbRight:  MPVPlayer.Command(['keypress', 'MBTN_RIGHT']);
+    mbMiddle: MPVPlayer.Command(['keypress', 'MBTN_MID']);
+  end;
+end;
+
+procedure TFrmVideoPlayer.FormMouseMove(Sender: TObject; Shift: TShiftState;
+  X, Y: Integer);
+begin
+  if MPVPlayer = nil then Exit;
+  MPVPlayer.Command(['mouse', IntToStr(X), IntToStr(Y)]);
+end;
+
+procedure TFrmVideoPlayer.FormMouseUp(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if MPVPlayer = nil then Exit;
+
+  case Button of
+    mbLeft:   MPVPlayer.Command(['keyup', 'MBTN_LEFT']);
+    //mbRight:  MPVPlayer.Command(['keyup', 'MBTN_RIGHT']);
+    mbMiddle: MPVPlayer.Command(['keyup', 'MBTN_MID']);
+  end;
+end;
+
+end.

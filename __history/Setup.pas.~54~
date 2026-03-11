@@ -1,0 +1,43 @@
+﻿unit Setup;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.CategoryButtons, Vcl.WinXPanels,
+  Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.ButtonGroup, Vcl.Buttons;
+
+type
+  TFrmSetup = class(TForm)
+    PnlMain: TCardPanel;
+    Card1: TCard;
+    Card2: TCard;
+    Card3: TCard;
+    Label1: TLabel;
+    Memo1: TMemo;
+    ListBox1: TListBox;
+    Panel1: TPanel;
+    SpeedButton1: TSpeedButton;
+    SpeedButton2: TSpeedButton;
+    procedure FormCreate(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  FrmSetup: TFrmSetup;
+
+implementation
+
+{$R *.dfm}
+
+procedure TFrmSetup.FormCreate(Sender: TObject);
+begin
+  // 포커스 점선 제거
+  //PostMessage(Self.Handle, WM_UPDATEUISTATE,
+  //  MakeWParam(UIS_SET, UISF_HIDEFOCUS), 0);
+end;
+
+end.

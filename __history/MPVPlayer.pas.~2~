@@ -1,0 +1,98 @@
+﻿unit MPVPlayer;
+
+// MPV Player - controls.lua X 버튼 통신
+//
+// 통신 방법: user-data 프로퍼티 감시 (ObserveProperty)
+//
+// [Lua] mp.set_property("user-data/close-requested", "1")
+//   → MPV _EVENT_PROPERTY_CHANGE (ID_CLOSE_REQUESTED)
+//   → [Delphi] DoEventPropertyChange → OnCloseRequested 이벤트
+//
+// 이 방식은 MPVClient.pas의 기존 ObserveProperty 인프라를 그대로 사용하므로
+// script-message 방식과 달리 별도 C API 클라이언트 이름 협의가 불필요합니다.
+
+interface
+
+uses
+  {$IFDEF MSWINDOWS}
+  Winapi.Windows,
+  {$ENDIF}
+  System.SysUtils, System.Classes, Vcl.Dialogs,
+  MPVBasePlayer, MPVClient;
+
+const
+  // ObserveProperty에 사용할 고유 ID (기존 ID_* 상수와 충돌하지 않는 큰 값)
+  ID_CLOSE_REQUESTED = 10001;
+
+  // MPV user-data 프로퍼티 이름 (Lua 쪽 mp.set_property 인자와 반드시 일치)
+  PROP_CLOSE_REQUESTED = 'user-data/close-requested';
+
+type
+  // X 버튼 클릭 시 호출될 이벤트 타입
+  TMPVCloseEvent = procedure(cSender: TObject) of object;
+
+  { TMPVPlayer }
+  TMPVPlayer = class(TMPVBasePlayer)
+  private
+    m_eOnCloseRequested: TMPVCloseEvent;
+
+  protected
+    // ── 프로퍼티 변경 이벤트 오버라이드 ────────────────────────────
+    // ID_CLOSE_REQUESTED 감지 시 OnCloseRequested 이벤트를 UI 스레드에서 발생
+    function DoEventPropertyChange(nID: MPVUInt64;
+      pEP: P_mpv_event_property): TMPVErrorCode; override;
+
+  public
+    // InitPlayer 호출 직후 이 함수를 반드시 호출 → user-data 프로퍼티 감시 등록
+    procedure RegisterCloseProperty;
+
+    // X 버튼 클릭 이벤트 (UI 스레드에서 호출됨)
+    property OnCloseRequested: TMPVCloseEvent
+      read  m_eOnCloseRequested
+      write m_eOnCloseRequested;
+  end;
+
+implementation
+
+{ TMPVPlayer }
+
+procedure TMPVPlayer.RegisterCloseProperty;
+begin
+  // Lua가 mp.set_property("user-data/close-requested", "1") 를 호출하면
+  // MPV_EVENT_PROPERTY_CHANGE + reply_userdata = ID_CLOSE_REQUESTED 가 발생
+  ObservePropertyString(PROP_CLOSE_REQUESTED, ID_CLOSE_REQUESTED);
+end;
+
+function TMPVPlayer.DoEventPropertyChange(nID: MPVUInt64;
+  pEP: P_mpv_event_property): TMPVErrorCode;
+var
+  eClose: TMPVCloseEvent;
+begin
+  // ID_CLOSE_REQUESTED 가 아닌 이벤트는 부모 클래스에 위임
+  if nID <> ID_CLOSE_REQUESTED then
+  begin
+    Result := inherited DoEventPropertyChange(nID, pEP);
+    Exit;
+  end;
+
+  Result := MPV_ERROR_SUCCESS;
+
+  // MPV_FORMAT_NONE 은 ObserveProperty 등록 직후 오는 초기화 알림 → 무시
+  if pEP^.format = MPV_FORMAT_NONE then
+    Exit;
+
+  // OnCloseRequested 핸들러를 UI 스레드에서 안전하게 호출
+  Lock;
+  eClose := m_eOnCloseRequested;
+  Unlock;
+
+  if Assigned(eClose) then
+  begin
+    TThread.Synchronize(nil, procedure
+    begin
+      eClose(Self);
+    end);
+  end;
+end;
+
+end.

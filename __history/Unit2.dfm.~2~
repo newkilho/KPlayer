@@ -1,0 +1,33 @@
+object Form2: TForm2
+  Left = 0
+  Top = 0
+  Caption = #44600#54840#54540#47112#51060#50612
+  ClientHeight = 586
+  ClientWidth = 674
+  Color = clBlack
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnKeyDown = FormKeyDown
+  OnKeyUp = FormKeyUp
+  OnMouseDown = FormMouseDown
+  OnMouseMove = FormMouseMove
+  OnMouseUp = FormMouseUp
+  TextHeight = 15
+  object Panel2: TPanel
+    Left = 0
+    Top = 0
+    Width = 674
+    Height = 586
+    Align = alClient
+    BevelOuter = bvNone
+    ParentColor = True
+    TabOrder = 0
+    OnMouseMove = Panel2MouseMove
+    OnMouseUp = Panel2MouseUp
+  end
+end

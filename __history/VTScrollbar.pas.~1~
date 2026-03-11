@@ -1,0 +1,333 @@
+﻿unit VTScrollbar;
+
+{
+  TVTDarkScrollbar - ssNone 기반 클라이언트 영역 오버레이 커스텀 스크롤바.
+
+  TVirtualStringTree.ScrollBarOptions.ScrollBars := ssNone 설정 후
+  클라이언트 영역 우측 FBarW(기본 8px)에 다크 스크롤바를 오버레이로 그린다.
+  NC 영역을 사용하지 않으므로 시스템 스크롤바 충돌 문제가 없다.
+
+  사용:
+    ListData.ScrollBarOptions.ScrollBars := ssNone;
+    FDarkSB := TVTDarkScrollbar.Create(ListData);
+    // 폼 소멸 시: FDarkSB.Free
+}
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages,
+  System.Classes, System.Math, System.Types,
+  Vcl.Graphics,
+  VirtualTrees;
+
+type
+  TVTDarkScrollbar = class
+  private
+    FTree    : TVirtualStringTree;
+    FOldWnd  : TWndMethod;
+    FBarW    : Integer;       // 스크롤바 너비 (px)
+
+    // 색상
+    FClrTrack : TColor;
+    FClrThumb : TColor;
+    FClrHot   : TColor;
+    FClrDrag  : TColor;
+
+    // 썸 드래그 상태
+    FDragging  : Boolean;
+    FDragScrY  : Integer;   // 드래그 시작 시 화면 Y
+    FDragPos0  : Integer;   // 드래그 시작 시 스크롤 위치
+
+    // 호버 상태
+    FHot: Boolean;
+
+    procedure TreeWndProc(var M: TMessage);
+    procedure PaintOverlay;
+
+    function  TrackR: TRect;         // 스크롤바 영역 (클라이언트 좌표)
+    function  ThumbR: TRect;         // 썸 영역
+    function  TotalH: Integer;       // 전체 콘텐츠 높이 (VT RangeY)
+    function  CurPos: Integer;       // 현재 스크롤 위치 (0 = 상단)
+    function  MaxScrollPos: Integer; // 최대 스크롤 위치
+    procedure ScrollTo(NewPos: Integer);
+  public
+    constructor Create(ATree: TVirtualStringTree);
+    destructor  Destroy; override;
+
+    property BarWidth  : Integer read FBarW     write FBarW;
+    property ColorTrack: TColor  read FClrTrack write FClrTrack;
+    property ColorThumb: TColor  read FClrThumb write FClrThumb;
+    property ColorHot  : TColor  read FClrHot   write FClrHot;
+    property ColorDrag : TColor  read FClrDrag  write FClrDrag;
+  end;
+
+implementation
+
+type
+  TVTAccess = class(TVirtualStringTree);
+
+{ TVTDarkScrollbar }
+
+constructor TVTDarkScrollbar.Create(ATree: TVirtualStringTree);
+begin
+  inherited Create;
+  FTree     := ATree;
+  FBarW     := 12;
+  FClrTrack := $00242424;
+  FClrThumb := $00606060;
+  FClrHot   := $008C8C8C;
+  FClrDrag  := $00B0B0B0;
+
+  FOldWnd          := ATree.WindowProc;
+  ATree.WindowProc := TreeWndProc;
+end;
+
+destructor TVTDarkScrollbar.Destroy;
+begin
+  if Assigned(FTree) then
+  begin
+    FTree.WindowProc := FOldWnd;
+    FTree := nil;
+  end;
+  inherited;
+end;
+
+// ──────────────────────────────────────────────
+// 레이아웃 헬퍼
+// ──────────────────────────────────────────────
+
+function TVTDarkScrollbar.TrackR: TRect;
+begin
+  Result := Rect(FTree.ClientWidth - FBarW, 0,
+                 FTree.ClientWidth, FTree.ClientHeight);
+end;
+
+// VT가 유지하는 세로 가상 범위(픽셀)를 그대로 사용
+function TVTDarkScrollbar.TotalH: Integer;
+begin
+  Result := TVTAccess(FTree).RangeY;
+end;
+
+// 현재 스크롤 위치 (0 = 상단, 양수 = 아래로 스크롤)
+// VT의 OffsetY는 상단 = 0, 아래로 갈수록 음수
+function TVTDarkScrollbar.CurPos: Integer;
+begin
+  Result := -FTree.OffsetY;
+end;
+
+function TVTDarkScrollbar.MaxScrollPos: Integer;
+begin
+  Result := Max(0, TotalH - FTree.ClientHeight);
+end;
+
+procedure TVTDarkScrollbar.ScrollTo(NewPos: Integer);
+begin
+  FTree.OffsetY := -Max(0, Min(NewPos, MaxScrollPos));
+end;
+
+function TVTDarkScrollbar.ThumbR: TRect;
+var
+  Track  : TRect;
+  Total  : Integer;
+  View   : Integer;
+  TrackH : Integer;
+  ThLen  : Integer;
+  ThOfs  : Integer;
+begin
+  Total := TotalH;
+  View  := FTree.ClientHeight;
+  if Total <= View then
+  begin
+    Result := TRect.Empty;
+    Exit;
+  end;
+  Track  := TrackR;
+  TrackH := Track.Height;
+  ThLen  := Max(20, MulDiv(TrackH, View, Total));
+  ThOfs  := MulDiv(CurPos, TrackH - ThLen, Max(1, Total - View));
+  Result := Rect(Track.Left,          Track.Top + ThOfs,
+                 Track.Right,         Track.Top + ThOfs + ThLen);
+  InflateRect(Result, -2, -2);
+end;
+
+// ──────────────────────────────────────────────
+// 그리기
+// ──────────────────────────────────────────────
+
+procedure TVTDarkScrollbar.PaintOverlay;
+var
+  DC            : HDC;
+  Track, Thumb  : TRect;
+  Br            : HBRUSH;
+  OldPen, OldBr : HGDIOBJ;
+  ThColor       : TColor;
+begin
+  if TotalH <= FTree.ClientHeight then Exit; // 스크롤 불필요
+
+  DC := GetDC(FTree.Handle);
+  if DC = 0 then Exit;
+  try
+    Track := TrackR;
+    Thumb := ThumbR;
+
+    // 트랙 배경
+    Br := CreateSolidBrush(ColorToRGB(FClrTrack));
+    FillRect(DC, Track, Br);
+    DeleteObject(Br);
+
+    if Thumb.IsEmpty then Exit;
+
+    // 썸 색상
+    if FDragging then
+      ThColor := FClrDrag
+    else if FHot then
+      ThColor := FClrHot
+    else
+      ThColor := FClrThumb;
+
+    // 둥근 썸 (테두리 없음)
+    Br     := CreateSolidBrush(ColorToRGB(ThColor));
+    OldPen := SelectObject(DC, GetStockObject(NULL_PEN));
+    OldBr  := SelectObject(DC, Br);
+    RoundRect(DC, Thumb.Left, Thumb.Top, Thumb.Right, Thumb.Bottom,
+              Min(4, Thumb.Width), Min(4, Thumb.Height));
+    SelectObject(DC, OldPen);
+    SelectObject(DC, OldBr);
+    DeleteObject(Br);
+  finally
+    ReleaseDC(FTree.Handle, DC);
+  end;
+end;
+
+// ──────────────────────────────────────────────
+// WndProc 인터셉트
+// ──────────────────────────────────────────────
+
+procedure TVTDarkScrollbar.TreeWndProc(var M: TMessage);
+var
+  X, Y      : Integer;
+  CursorPos : TPoint;
+  TrackH    : Integer;
+  ThLen     : Integer;
+  ThR       : TRect;
+  WasHot    : Boolean;
+  NewPos    : Integer;
+begin
+  case M.Msg of
+
+    // 클라이언트 페인트: 스크롤바 영역을 VT의 무효 영역에서 미리 제외한다.
+    // 제외하지 않으면 FOldWnd(VT 리페인트)가 오버레이를 지우고,
+    // PaintOverlay가 복원하는 사이에 DWM이 중간 프레임을 표시해 "튀는" 현상이 발생한다.
+    WM_PAINT:
+    begin
+      if TotalH > FTree.ClientHeight then
+      begin
+        var R := TrackR;
+        ValidateRect(FTree.Handle, @R); // 스크롤바 영역 = "이미 유효함"으로 표시
+      end;
+      FOldWnd(M);     // VT는 스크롤바 영역을 건드리지 않음
+      PaintOverlay;   // 스크롤바만 그리기
+      Exit;
+    end;
+
+    // 크기 변경
+    WM_SIZE:
+    begin
+      FOldWnd(M);
+      Exit;
+    end;
+
+    // 클릭: 스크롤바 영역이면 직접 처리
+    WM_LBUTTONDOWN:
+    begin
+      X := SmallInt(LoWord(M.LParam));
+      Y := SmallInt(HiWord(M.LParam));
+      if PtInRect(TrackR, Point(X, Y)) then
+      begin
+        ThR := ThumbR;
+        if PtInRect(ThR, Point(X, Y)) then
+        begin
+          // 썸 드래그 시작
+          FDragging := True;
+          GetCursorPos(CursorPos);
+          FDragScrY := CursorPos.Y;
+          FDragPos0 := CurPos;
+          SetCapture(FTree.Handle);
+          PaintOverlay;
+        end
+        else
+        begin
+          // 트랙 클릭: 페이지 스크롤
+          if Y < ThR.Top then
+            ScrollTo(CurPos - FTree.ClientHeight)
+          else
+            ScrollTo(CurPos + FTree.ClientHeight);
+        end;
+        M.Result := 0;
+        Exit;
+      end;
+      FOldWnd(M);
+      Exit;
+    end;
+
+    // 마우스 이동: 드래그 처리 또는 호버 업데이트
+    WM_MOUSEMOVE:
+    begin
+      X := SmallInt(LoWord(M.LParam));
+      Y := SmallInt(HiWord(M.LParam));
+
+      if FDragging then
+      begin
+        GetCursorPos(CursorPos);
+        TrackH := TrackR.Height;
+        ThLen  := Max(20, MulDiv(TrackH, FTree.ClientHeight, TotalH));
+        NewPos := FDragPos0 + MulDiv(CursorPos.Y - FDragScrY,
+                                     MaxScrollPos, Max(1, TrackH - ThLen));
+        ScrollTo(NewPos);
+        PaintOverlay;
+        M.Result := 0;
+        Exit;
+      end;
+
+      WasHot := FHot;
+      FHot   := PtInRect(TrackR, Point(X, Y));
+      if FHot <> WasHot then
+        PaintOverlay;
+      FOldWnd(M);
+      Exit;
+    end;
+
+    // 버튼 해제: 드래그 종료
+    WM_LBUTTONUP:
+    begin
+      if FDragging then
+      begin
+        FDragging := False;
+        ReleaseCapture;
+        PaintOverlay;
+        M.Result := 0;
+        Exit;
+      end;
+      FOldWnd(M);
+      Exit;
+    end;
+
+    // 마우스 이탈: 호버 해제
+    WM_MOUSELEAVE:
+    begin
+      if FHot then
+      begin
+        FHot := False;
+        PaintOverlay;
+      end;
+      FOldWnd(M);
+      Exit;
+    end;
+
+  end;
+
+  FOldWnd(M);
+end;
+
+end.

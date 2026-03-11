@@ -1,0 +1,369 @@
+﻿unit VTScrollbar;
+
+interface
+
+uses
+  Winapi.Windows,
+  Winapi.Messages,
+  Winapi.CommCtrl,
+  System.Classes,
+  System.Math,
+  System.Types,
+  Vcl.Graphics,
+  VirtualTrees;
+
+type
+  TVTDarkScrollbar = class
+  private
+    FTree   : TVirtualStringTree;
+    FOldWnd : TWndMethod;
+    FBarW   : Integer;
+
+    FClrTrack : TColor;
+    FClrThumb : TColor;
+    FClrHot   : TColor;
+    FClrDrag  : TColor;
+
+    FDragging : Boolean;
+    FDragScrY : Integer;
+    FDragPos0 : Integer;
+    FHot      : Boolean;
+
+    // 안정화용
+    FStableTotal : Integer;
+
+    procedure TreeWndProc(var M: TMessage);
+    procedure PaintOverlay;
+    procedure UpdateStableTotal;
+    procedure RequestMouseLeave;
+
+    function TrackR: TRect;
+    function ThumbR: TRect;
+    function CurPos: Integer;
+    function MaxScrollPos: Integer;
+    procedure ScrollTo(NewPos: Integer);
+
+  public
+    constructor Create(ATree: TVirtualStringTree);
+    destructor Destroy; override;
+
+    property BarWidth: Integer read FBarW write FBarW;
+  end;
+
+implementation
+
+type
+  TVTAccess = class(TVirtualStringTree);
+
+{ -------------------- Constructor -------------------- }
+
+constructor TVTDarkScrollbar.Create(ATree: TVirtualStringTree);
+begin
+  inherited Create;
+
+  FTree := ATree;
+  FBarW := 12;
+
+  FClrTrack := $00242424;
+  FClrThumb := $00606060;
+  FClrHot   := $008C8C8C;
+  FClrDrag  := $00B0B0B0;
+
+  UpdateStableTotal;
+
+  FOldWnd := ATree.WindowProc;
+  ATree.WindowProc := TreeWndProc;
+end;
+
+destructor TVTDarkScrollbar.Destroy;
+begin
+  if Assigned(FTree) then
+    FTree.WindowProc := FOldWnd;
+  inherited;
+end;
+
+{ -------------------- Layout -------------------- }
+
+procedure TVTDarkScrollbar.UpdateStableTotal;
+begin
+  FStableTotal :=
+    MaxScrollPos + FTree.ClientHeight;
+end;
+
+function TVTDarkScrollbar.TrackR: TRect;
+begin
+  Result := Rect(
+    FTree.ClientWidth - FBarW,
+    0,
+    FTree.ClientWidth,
+    FTree.ClientHeight
+  );
+end;
+
+function TVTDarkScrollbar.CurPos: Integer;
+begin
+  Result := -FTree.OffsetY;
+end;
+
+function TVTDarkScrollbar.MaxScrollPos: Integer;
+begin
+  Result :=
+    Max(0,
+      TVTAccess(FTree).RangeY -
+      FTree.ClientHeight);
+end;
+
+procedure TVTDarkScrollbar.ScrollTo(NewPos: Integer);
+var
+  R: TRect;
+begin
+  FTree.OffsetY :=
+    -Max(0, Min(NewPos, MaxScrollPos));
+
+  R := TrackR;
+  InvalidateRect(FTree.Handle, @R, False);
+end;
+
+function TVTDarkScrollbar.ThumbR: TRect;
+var
+  Track  : TRect;
+  View   : Integer;
+  TrackH : Integer;
+  ThLen  : Integer;
+  ThOfs  : Integer;
+begin
+  View := FTree.ClientHeight;
+
+  if FStableTotal <= View then
+    Exit(TRect.Empty);
+
+  Track  := TrackR;
+  TrackH := Track.Height;
+
+  ThLen :=
+    Max(20,
+      MulDiv(TrackH, View, FStableTotal));
+
+  ThOfs :=
+    MulDiv(
+      CurPos,
+      TrackH - ThLen,
+      Max(1, FStableTotal - View)
+    );
+
+  Result :=
+    Rect(
+      Track.Left,
+      Track.Top + ThOfs,
+      Track.Right,
+      Track.Top + ThOfs + ThLen
+    );
+
+  InflateRect(Result, -2, -2);
+end;
+
+{ -------------------- Painting -------------------- }
+
+procedure TVTDarkScrollbar.PaintOverlay;
+var
+  DC: HDC;
+  Track, Thumb: TRect;
+  Br: HBRUSH;
+  OldPen, OldBr: HGDIOBJ;
+  ThColor: TColor;
+begin
+  if FStableTotal <= FTree.ClientHeight then
+    Exit;
+
+  DC := GetDC(FTree.Handle);
+  if DC = 0 then Exit;
+
+  try
+    Track := TrackR;
+    Thumb := ThumbR;
+
+    Br := CreateSolidBrush(ColorToRGB(FClrTrack));
+    FillRect(DC, Track, Br);
+    DeleteObject(Br);
+
+    if Thumb.IsEmpty then Exit;
+
+    if FDragging then
+      ThColor := FClrDrag
+    else if FHot then
+      ThColor := FClrHot
+    else
+      ThColor := FClrThumb;
+
+    Br := CreateSolidBrush(ColorToRGB(ThColor));
+    OldPen := SelectObject(DC, GetStockObject(NULL_PEN));
+    OldBr  := SelectObject(DC, Br);
+
+    RoundRect(
+      DC,
+      Thumb.Left,
+      Thumb.Top,
+      Thumb.Right,
+      Thumb.Bottom,
+      4,
+      4
+    );
+
+    SelectObject(DC, OldPen);
+    SelectObject(DC, OldBr);
+    DeleteObject(Br);
+
+  finally
+    ReleaseDC(FTree.Handle, DC);
+  end;
+end;
+
+{ -------------------- Mouse Leave -------------------- }
+
+procedure TVTDarkScrollbar.RequestMouseLeave;
+var
+  TME: TTrackMouseEvent;
+begin
+  TME.cbSize := SizeOf(TME);
+  TME.dwFlags := TME_LEAVE;
+  TME.hwndTrack := FTree.Handle;
+  TME.dwHoverTime := 0;
+  TrackMouseEvent(TME);
+end;
+
+{ -------------------- WndProc -------------------- }
+
+procedure TVTDarkScrollbar.TreeWndProc(var M: TMessage);
+var
+  X, Y: Integer;
+  CursorPos: TPoint;
+  TrackH, ThLen, NewPos: Integer;
+  ThR: TRect;
+  WasHot: Boolean;
+begin
+  case M.Msg of
+
+    WM_ERASEBKGND:
+      begin
+        M.Result := 1;
+        Exit;
+      end;
+
+    WM_SIZE:
+      begin
+        UpdateStableTotal;
+        FOldWnd(M);
+        Exit;
+      end;
+
+    WM_PAINT:
+      begin
+        FOldWnd(M);
+        PaintOverlay;
+        Exit;
+      end;
+
+    WM_LBUTTONDOWN:
+      begin
+        X := SmallInt(LoWord(M.LParam));
+        Y := SmallInt(HiWord(M.LParam));
+
+        if PtInRect(TrackR, Point(X, Y)) then
+        begin
+          ThR := ThumbR;
+
+          if PtInRect(ThR, Point(X, Y)) then
+          begin
+            FDragging := True;
+            GetCursorPos(CursorPos);
+            FDragScrY := CursorPos.Y;
+            FDragPos0 := CurPos;
+            SetCapture(FTree.Handle);
+            PaintOverlay;
+          end
+          else
+          begin
+            if Y < ThR.Top then
+              ScrollTo(CurPos - FTree.ClientHeight)
+            else
+              ScrollTo(CurPos + FTree.ClientHeight);
+          end;
+
+          M.Result := 0;
+          Exit;
+        end;
+
+        FOldWnd(M);
+        Exit;
+      end;
+
+    WM_MOUSEMOVE:
+      begin
+        X := SmallInt(LoWord(M.LParam));
+        Y := SmallInt(HiWord(M.LParam));
+
+        if FDragging then
+        begin
+          GetCursorPos(CursorPos);
+
+          TrackH := TrackR.Height;
+          ThLen := Max(20,
+            MulDiv(TrackH,
+              FTree.ClientHeight,
+              FStableTotal));
+
+          NewPos :=
+            FDragPos0 +
+            MulDiv(
+              CursorPos.Y - FDragScrY,
+              MaxScrollPos,
+              Max(1, TrackH - ThLen)
+            );
+
+          ScrollTo(NewPos);
+          Exit;
+        end;
+
+        WasHot := FHot;
+        FHot := PtInRect(TrackR, Point(X, Y));
+
+        if (not WasHot) and FHot then
+          RequestMouseLeave;
+
+        if FHot <> WasHot then
+          PaintOverlay;
+
+        FOldWnd(M);
+        Exit;
+      end;
+
+    WM_LBUTTONUP:
+      begin
+        if FDragging then
+        begin
+          FDragging := False;
+          ReleaseCapture;
+          PaintOverlay;
+          Exit;
+        end;
+
+        FOldWnd(M);
+        Exit;
+      end;
+
+    WM_MOUSELEAVE:
+      begin
+        if FHot then
+        begin
+          FHot := False;
+          PaintOverlay;
+        end;
+        Exit;
+      end;
+
+  end;
+
+  FOldWnd(M);
+end;
+
+end.
