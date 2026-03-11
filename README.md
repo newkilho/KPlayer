@@ -1,3 +1,5 @@
+![KPlayer](https://kilho.net/wp-content/uploads/2026/03/K-949.png)
+
 # KPlayer
 
 A clean Windows media player — no ads, no adware, no bloat.  
