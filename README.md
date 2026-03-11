@@ -16,4 +16,4 @@ Freeware · Open Source · Free to redistribute
 
 ## Author
 
-**Kilho.net** · [kilho.net](https://kilho.net)
+**Kilho.net** · [kilho.net](https://global.kilho.net)
