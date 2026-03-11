@@ -86,12 +86,14 @@ uses List, Setup;
 
 procedure TFrmKPlayer.FormCreate(Sender: TObject);
 begin
-  FConfig := TConfig.Create(AppName);
+  Application.Title := Caption;
 
   BorderStyle := bsNone;
   SetFormCorners(Handle, True);
   Width := 640;
   Height := 400;
+
+  FConfig := TConfig.Create(AppName);
 
   Volume := FConfig.ReadDouble('volume', 100);
   RepeatMode := FConfig.ReadInteger('repeat', 0);
