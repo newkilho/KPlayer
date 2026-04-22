@@ -10,6 +10,13 @@
   source code must be made available under the GPL.
 
   Icon: https://www.flaticon.com/free-icon/play_2377793
+
+  History:
+    0.9.1
+    [*] 렌더링 및 디코딩 기본 옵션 추가 - vo=gpu, hwdec=auto-safe, gpu-api=auto 설정 추가
+    [*] 화면 동기화 옵션 추가 - video-sync=display-resample 설정 추가
+    [*] 인터레이싱 처리 방식 변경 - deinterlace=yes → deinterlace=auto 로 변경
+    [*] 스케일링 옵션 조정 - scale=bilinear → scale=lanczos 변경, cscale=bilinear 유지
   ==============================================================
 }
 
@@ -118,8 +125,26 @@ begin
 
   MPVPlayer := TMPVPlayer.Create;
   MPVPlayer.OnScriptMessage := OnScriptMessage;
+
+  // 파일 없어도 플레이어 종료 방지
   MPVPlayer.SetOptionString('idle', 'yes');
+
+  // 렌더링 및 호환성 안정화
+  MPVPlayer.SetOptionString('vo', 'gpu'); // gpu-next 대신 안정 버전
+  MPVPlayer.SetOptionString('hwdec', 'auto-safe');
+  MPVPlayer.SetOptionString('gpu-api', 'auto');
+  MPVPlayer.SetOptionString('video-sync', 'display-resample');
+
+  // 영상 안정화 (필요시만 적용)
+  MPVPlayer.SetOptionString('deinterlace', 'auto');
+
+  // 스케일링 (품질/안정 균형)
+  MPVPlayer.SetOptionString('scale', 'lanczos');
+  MPVPlayer.SetOptionString('cscale', 'bilinear');
+
+  // 초기화
   MPVPlayer.InitPlayer(IntToStr(Handle), '', '', '', True);
+
   MPVPlayer.Command(['set', 'screenshot-directory', ExtractFilePath(ParamStr(0))]);
   MPVPlayer.Command(['set', 'screenshot-template', '%f-%n']);
   MPVPlayer.Command(['set', 'screenshot-format', 'jpg']);

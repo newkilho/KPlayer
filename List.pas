@@ -82,6 +82,7 @@ type
   
     function FindActiveNode: PVirtualNode;
     procedure UpdateButtonColor(Btn: TSVGIconImage; Hover: Boolean);
+    procedure WMScrollFocusedNode(var Msg: TMessage); message WM_APP + 1;
   public
     procedure AddFile(AFileName: string);
     procedure DelFile(AMode: TDeleteMode);
@@ -95,6 +96,8 @@ type
   end;
 
 const
+  WM_SCROLL_FOCUSED_NODE = WM_APP + 1;
+
   COLOR_BG_MAIN          = $00202020;
   COLOR_TEXT_NORMAL      = $00E0E0E0;
   COLOR_TEXT_ACTIVE      = $0000FFFF;
@@ -152,6 +155,7 @@ begin
   ListData.TreeOptions.PaintOptions := ListData.TreeOptions.PaintOptions + [toHideFocusRect] - [toShowRoot, toShowTreeLines]; // , toUseExplorerTheme
   ListData.TreeOptions.SelectionOptions := ListData.TreeOptions.SelectionOptions + [toFullRowSelect, toMultiSelect, toExtendedFocus];
   ListData.TreeOptions.MiscOptions := ListData.TreeOptions.MiscOptions + [toReportMode, toVariableNodeHeight, toWheelPanning] - [toAcceptOLEDrop];
+
 
   ListData.Color := COLOR_BG_MAIN;
   ListData.Font.Color := COLOR_TEXT_NORMAL;
@@ -523,6 +527,12 @@ begin
   end;
 end;
 
+procedure TFrmList.WMScrollFocusedNode(var Msg: TMessage);
+begin
+  if Assigned(ListData.FocusedNode) then
+    ListData.ScrollIntoView(ListData.FocusedNode, False);
+end;
+
 procedure TFrmList.AddFile(AFileName: string);
 const
   SupportedExt: array[0..6] of string =
@@ -695,7 +705,7 @@ begin
   end;
 
   if Assigned(ListData.FocusedNode) then
-    ListData.ScrollIntoView(ListData.FocusedNode, False);
+    PostMessage(Handle, WM_SCROLL_FOCUSED_NODE, 0, 0);
   FrmKPlayer.HandlePlay(AFileName);
 end;
 

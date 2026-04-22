@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{385D1838-A66B-40D7-A985-7B7E3C16A249}</ProjectGuid>
         <ProjectVersion>20.1</ProjectVersion>
@@ -135,13 +135,14 @@
         <DCC_ExeOutput>z:\Release</DCC_ExeOutput>
         <VerInfo_MajorVer>0</VerInfo_MajorVer>
         <VerInfo_MinorVer>9</VerInfo_MinorVer>
-        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=0.9.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=0.9.1.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=0.9.1.0;Comments=</VerInfo_Keys>
+        <VerInfo_Release>1</VerInfo_Release>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="MPVPlayer.pas"/>
+        <DCCReference Include="MPVPlayer.pas" />
         <DCCReference Include="Main.pas">
             <Form>FrmKPlayer</Form>
             <FormType>dfm</FormType>
@@ -154,7 +155,7 @@
             <Form>FrmSetup</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <None Include="Const.inc"/>
+        <None Include="Const.inc" />
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -187,7 +188,7 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="Win32\Debug\Project2.exe" Configuration="Debug" Class="ProjectOutput"/>
+                <DeployFile LocalName="Win32\Debug\Project2.exe" Configuration="Debug" Class="ProjectOutput" />
                 <DeployFile LocalName="z:\Release\KPlayer.exe" Configuration="Release" Class="ProjectOutput">
                     <Platform Name="Win64">
                         <RemoteName>KPlayer.exe</RemoteName>
@@ -1138,19 +1139,19 @@
                         <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
-                <ProjectRoot Platform="Android" Name="$(PROJECTNAME)"/>
-                <ProjectRoot Platform="Android64" Name="$(PROJECTNAME)"/>
-                <ProjectRoot Platform="iOSDevice32" Name="$(PROJECTNAME).app"/>
-                <ProjectRoot Platform="iOSDevice64" Name="$(PROJECTNAME).app"/>
-                <ProjectRoot Platform="iOSSimARM64" Name="$(PROJECTNAME).app"/>
-                <ProjectRoot Platform="iOSSimulator" Name="$(PROJECTNAME).app"/>
-                <ProjectRoot Platform="Linux64" Name="$(PROJECTNAME)"/>
-                <ProjectRoot Platform="OSX32" Name="$(PROJECTNAME).app"/>
-                <ProjectRoot Platform="OSX64" Name="$(PROJECTNAME).app"/>
-                <ProjectRoot Platform="OSXARM64" Name="$(PROJECTNAME).app"/>
-                <ProjectRoot Platform="Win32" Name="$(PROJECTNAME)"/>
-                <ProjectRoot Platform="Win64" Name="$(PROJECTNAME)"/>
-                <ProjectRoot Platform="Win64x" Name="$(PROJECTNAME)"/>
+                <ProjectRoot Platform="Android" Name="$(PROJECTNAME)" />
+                <ProjectRoot Platform="Android64" Name="$(PROJECTNAME)" />
+                <ProjectRoot Platform="iOSDevice32" Name="$(PROJECTNAME).app" />
+                <ProjectRoot Platform="iOSDevice64" Name="$(PROJECTNAME).app" />
+                <ProjectRoot Platform="iOSSimARM64" Name="$(PROJECTNAME).app" />
+                <ProjectRoot Platform="iOSSimulator" Name="$(PROJECTNAME).app" />
+                <ProjectRoot Platform="Linux64" Name="$(PROJECTNAME)" />
+                <ProjectRoot Platform="OSX32" Name="$(PROJECTNAME).app" />
+                <ProjectRoot Platform="OSX64" Name="$(PROJECTNAME).app" />
+                <ProjectRoot Platform="OSXARM64" Name="$(PROJECTNAME).app" />
+                <ProjectRoot Platform="Win32" Name="$(PROJECTNAME)" />
+                <ProjectRoot Platform="Win64" Name="$(PROJECTNAME)" />
+                <ProjectRoot Platform="Win64x" Name="$(PROJECTNAME)" />
             </Deployment>
             <Platforms>
                 <Platform value="Win32">True</Platform>
@@ -1159,7 +1160,7 @@
         </BorlandProject>
         <ProjectFileVersion>12</ProjectFileVersion>
     </ProjectExtensions>
-    <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
-    <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
-    <Import Project="$(MSBuildProjectName).deployproj" Condition="Exists('$(MSBuildProjectName).deployproj')"/>
+    <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')" />
+    <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')" />
+    <Import Project="$(MSBuildProjectName).deployproj" Condition="Exists('$(MSBuildProjectName).deployproj')" />
 </Project>
