@@ -174,6 +174,8 @@ begin
     for var S in Files do
       FrmList.AddFile(S);
   end);
+
+  FrmKPlayer.HandleStartupParams;
 end;
 
 procedure TFrmList.FormDestroy(Sender: TObject);

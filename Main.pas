@@ -74,6 +74,7 @@ type
     procedure HandlePlay(const AFile: string);
     procedure HandleStop;
     procedure HandlePause;
+    procedure HandleStartupParams;
 
     property Volume: Double read FVolume write SetVolume;
     property RepeatMode: Integer read FRepeatMode write SetRepeatMode;
@@ -377,6 +378,30 @@ begin
 
     FrmList.Show;
   end;
+end;
+
+procedure TFrmKPlayer.HandleStartupParams;
+var
+  I: Integer;
+  FileName: string;
+  FirstFile: string;
+begin
+  FirstFile := '';
+
+  for I := 1 to ParamCount do
+  begin
+    FileName := ParamStr(I);
+    if not FileExists(FileName) then
+      Continue;
+
+    FrmList.AddFile(FileName);
+
+    if FirstFile = '' then
+      FirstFile := FileName;
+  end;
+
+  if (FirstFile <> '') and not IsPlay then
+    FrmList.Play(FirstFile);
 end;
 
 procedure TFrmKPlayer.HandleSettings;
