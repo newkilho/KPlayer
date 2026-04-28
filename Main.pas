@@ -12,6 +12,12 @@
   Icon: https://www.flaticon.com/free-icon/play_2377793
 
   History:
+    0.9.3
+    [+] 오디오 노멀라이징(음량 평준화) 추가
+
+    0.9.2
+    [*] 실행 인자에 전달된 기존 파일을 재생 목록에 추가하고 첫 파일을 자동 재생하도록 처리
+
     0.9.1
     [*] 렌더링 및 디코딩 기본 옵션 추가 - vo=gpu, hwdec=auto-safe, gpu-api=auto 설정 추가
     [*] 화면 동기화 옵션 추가 - video-sync=display-resample 설정 추가
@@ -150,6 +156,8 @@ begin
   MPVPlayer.Command(['set', 'screenshot-template', '%f-%n']);
   MPVPlayer.Command(['set', 'screenshot-format', 'jpg']);
   MPVPlayer.Command(['set', 'volume', FloatToStr(Volume)]);
+  MPVPlayer.Command(['set', 'af', 'lavfi=[dynaudnorm=f=75:g=7:p=0.95:r=0.20:n=1]']);
+
   MPVPlayer.Command(['load-script', Theme]);
 
   TDragFile.Create(Self,
