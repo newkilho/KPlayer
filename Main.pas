@@ -1,30 +1,40 @@
-﻿{
-  ==============================================================
-  Project : KPlayer
-  Author  : Kilho, Oh
-  Engine  : libmpv (GPL-2.0-or-later)
-  Tree    : Virtual Treeview (MPL 1.1)
+﻿{===============================================================================
 
-  This program links against libmpv (GPL-2.0-or-later).
-  When distributed in binary form, the complete corresponding
-  source code must be made available under the GPL.
+Project : KPlayer
+Author  : Kilho, Oh
+Engine  : libmpv (GPL-2.0-or-later)
+Tree    : Virtual Treeview (MPL 1.1)
 
-  Icon: https://www.flaticon.com/free-icon/play_2377793
+This program links against libmpv (GPL-2.0-or-later).
+When distributed in binary form, the complete corresponding
+source code must be made available under the GPL.
 
-  History:
-    0.9.3
-    [+] 오디오 노멀라이징(음량 평준화) 추가
+Icon: https://www.flaticon.com/free-icon/play_2377793
 
-    0.9.2
-    [*] 실행 인자에 전달된 기존 파일을 재생 목록에 추가하고 첫 파일을 자동 재생하도록 처리
+History:
+========
+  0.9.3
+  [+] 키보드 배속 조절 추가 - Z(1.0 리셋)/X(-0.1)/C(+0.1), 수식키 없을 때만, 0.1 단위 정규화·0.25~4.0 clamp (SetSpeed, AddSpeed, FormKeyDown)
+  [+] 배속 변경 시 화면 중앙 OSD 토스트 표시 (KPlayer.lua: draw_speed_toast, show_speed_toast, speed observer)
+  [+] 자막 토글 버튼 추가 - 트랙 유무로 활성/비활성, 클릭 시 표시 토글 (KPlayer.lua: icons.sub, sub_btn, sid observer, render, click handler)
+  [+] 랜덤 재생 중복 방지(셔플) - 사이클 내 미재생 곡만 선택 (Rand, PickRandomUnplayed, ResetShuffle, PruneShuffleMissing, FShuffleHistory/FShufflePos/FCyclePlayed)
+  [*] 랜덤 중 이전곡을 셔플 순서상 실제 이전 곡으로 변경 (Prev)
+  [+] 전체화면 마우스 커서 자동 숨김 - 컨트롤바 표시에 동기화 (KPlayer.lua: update_cursor / OnScriptMessage 'cursor', HandleFullScreen)
+  [*] 전체화면 해제를 mpv fullscreen 속성으로 일원화 (FormKeyDown: VK_ESCAPE)
+  [*] 재생 목록 노드 높이 고정 처리 방식 변경 - toVariableNodeHeight 제거, DefaultNodeHeight := 24 설정 (TFrmList.FormCreate)
+  [*] 노드 추가 시 높이값 직접 지정 - ListData.NodeHeight[Node] := 24 추가 (TFrmList.AddFile)
+  [+] 오디오 노멀라이징(음량 평준화) 추가
 
-    0.9.1
-    [*] 렌더링 및 디코딩 기본 옵션 추가 - vo=gpu, hwdec=auto-safe, gpu-api=auto 설정 추가
-    [*] 화면 동기화 옵션 추가 - video-sync=display-resample 설정 추가
-    [*] 인터레이싱 처리 방식 변경 - deinterlace=yes → deinterlace=auto 로 변경
-    [*] 스케일링 옵션 조정 - scale=bilinear → scale=lanczos 변경, cscale=bilinear 유지
-  ==============================================================
-}
+  0.9.2
+  [*] 실행 인자에 전달된 기존 파일을 재생 목록에 추가하고 첫 파일을 자동 재생하도록 처리
+
+  0.9.1
+  [*] 렌더링 및 디코딩 기본 옵션 추가 - vo=gpu, hwdec=auto-safe, gpu-api=auto 설정 추가
+  [*] 화면 동기화 옵션 추가 - video-sync=display-resample 설정 추가
+  [*] 인터레이싱 처리 방식 변경 - deinterlace=yes → deinterlace=auto 로 변경
+  [*] 스케일링 옵션 조정 - scale=bilinear → scale=lanczos 변경, cscale=bilinear 유지
+
+================================================================================}
 
 unit Main;
 
@@ -71,6 +81,9 @@ type
     procedure SetVolume(const Value: Double);
     procedure SetRandomMode(const Value: Integer);
     procedure SetRepeatMode(const Value: Integer);
+
+    procedure SetSpeed(const Value: Double);
+    procedure AddSpeed(const Delta: Double);
   public
     MPVPlayer: TMPVPlayer;
     Theme: string;
@@ -135,6 +148,9 @@ begin
 
   // 파일 없어도 플레이어 종료 방지
   MPVPlayer.SetOptionString('idle', 'yes');
+
+  // 자막 기본 비활성 (자막 버튼으로 켜야 표시됨)
+  MPVPlayer.SetOptionString('sub-visibility', 'no');
 
   // 렌더링 및 호환성 안정화
   MPVPlayer.SetOptionString('vo', 'gpu'); // gpu-next 대신 안정 버전
@@ -230,6 +246,19 @@ begin
     Exit;
   end;
 
+  // 전체화면에서 컨트롤바 표시 여부에 맞춰 마우스 커서 표시/숨김
+  if SameText(ACommand, 'cursor') then
+  begin
+    if AParams.Count > 0 then
+    begin
+      if SameText(AParams[0], 'hide') then
+        Screen.Cursor := crNone
+      else
+        Screen.Cursor := crDefault;
+    end;
+    Exit;
+  end;
+
   if SameText(ACommand, 'prev') then
   begin
     FrmList.Prev;
@@ -274,6 +303,26 @@ procedure TFrmKPlayer.SetVolume(const Value: Double);
 begin
   FVolume := Value;
   FConfig.WriteDouble('volume', Value);
+end;
+
+const
+  SpeedMin = 0.25;
+  SpeedMax = 4.0;
+
+// Set playback speed, clamped to [SpeedMin, SpeedMax]
+procedure TFrmKPlayer.SetSpeed(const Value: Double);
+begin
+  MPVPlayer.SetPropertyDouble('speed', EnsureRange(Value, SpeedMin, SpeedMax));
+end;
+
+// Add Delta to current speed, normalized to 0.1 steps (avoids float drift)
+procedure TFrmKPlayer.AddSpeed(const Delta: Double);
+var
+  LCur: Double;
+begin
+  LCur := 1.0;
+  MPVPlayer.GetPropertyDouble('speed', LCur);
+  SetSpeed(Round((LCur + Delta) * 10) / 10);
 end;
 
 procedure TFrmKPlayer.WMNCHitTest(var Msg: TWMNCHitTest);
@@ -333,6 +382,7 @@ begin
     //FormStyle   := fsNormal;
     WindowState := wsNormal;
     SetFormCorners(Handle, True);
+    Screen.Cursor := crDefault;   // 창모드에선 항상 커서 표시 (안전장치)
   end;
 end;
 
@@ -438,6 +488,8 @@ end;
 // Keyboard input
 procedure TFrmKPlayer.FormKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
+var
+  LSpeed: Double;
 begin
   if MPVPlayer = nil then Exit;
 
@@ -510,21 +562,40 @@ begin
       end;
 
     // Playback speed
-    VK_OEM_4: // [
+    VK_OEM_4: // [ : -10% (clamp)
       begin
-        MPVPlayer.Command(['multiply', 'speed', '0.9091']);
+        LSpeed := 1.0;
+        MPVPlayer.GetPropertyDouble('speed', LSpeed);
+        SetSpeed(LSpeed * 0.9091);
         Key := 0;
       end;
 
-    VK_OEM_6: // ]
+    VK_OEM_6: // ] : +10% (clamp)
       begin
-        MPVPlayer.Command(['multiply', 'speed', '1.1']);
+        LSpeed := 1.0;
+        MPVPlayer.GetPropertyDouble('speed', LSpeed);
+        SetSpeed(LSpeed * 1.1);
         Key := 0;
       end;
 
-    VK_BACK: // Backspace: reset speed
+    Ord('Z'): // reset speed to 1.0 (PotPlayer style)
+      if Shift = [] then
       begin
-        MPVPlayer.Command(['set', 'speed', '1.0']);
+        SetSpeed(1.0);
+        Key := 0;
+      end;
+
+    Ord('X'): // speed -0.1
+      if Shift = [] then
+      begin
+        AddSpeed(-0.1);
+        Key := 0;
+      end;
+
+    Ord('C'): // speed +0.1
+      if Shift = [] then
+      begin
+        AddSpeed(0.1);
         Key := 0;
       end;
 
@@ -579,8 +650,9 @@ begin
 
     VK_ESCAPE:
       begin
+        // mpv fullscreen 속성을 단일 상태원으로 유지 (observer가 HandleFullScreen 호출)
         if WindowState = wsMaximized then
-          HandleFullScreen(False);
+          MPVPlayer.Command(['set', 'fullscreen', 'no']);
         Key := 0;
       end;
 

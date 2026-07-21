@@ -61,8 +61,6 @@ type
     procedure ListDataFreeNode(Sender: TBaseVirtualTree; Node: PVirtualNode);
     procedure ListDataGetText(Sender: TBaseVirtualTree; Node: PVirtualNode;
       Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
-    procedure ListDataMeasureItem(Sender: TBaseVirtualTree;
-      TargetCanvas: TCanvas; Node: PVirtualNode; var NodeHeight: TDimension);
     procedure ListDataPaintText(Sender: TBaseVirtualTree;
       const TargetCanvas: TCanvas; Node: PVirtualNode; Column: TColumnIndex;
       TextType: TVSTTextType);
@@ -79,10 +77,22 @@ type
     FDragNode: PVirtualNode;
     FDragStart: TPoint;
     FSavedSelection: TArray<PVirtualNode>;
-  
+
+    // Shuffle (random-without-repeat) state
+    FShuffleHistory: TArray<string>;  // actual play order (for Prev navigation)
+    FShufflePos: Integer;             // index into FShuffleHistory of current track (-1 = none)
+    FCyclePlayed: TStringList;        // filenames already played in the current no-repeat cycle
+
     function FindActiveNode: PVirtualNode;
     procedure UpdateButtonColor(Btn: TSVGIconImage; Hover: Boolean);
     procedure WMScrollFocusedNode(var Msg: TMessage); message WM_APP + 1;
+
+    function CurrentActiveFileName: string;
+    function PlaylistContains(const AFileName: string): Boolean;
+    function PickRandomUnplayed: string;
+    procedure ResetShuffle;
+    procedure AppendShuffleHistory(const AFileName: string);
+    procedure PruneShuffleMissing;
   public
     procedure AddFile(AFileName: string);
     procedure DelFile(AMode: TDeleteMode);
@@ -130,6 +140,12 @@ procedure TFrmList.FormCreate(Sender: TObject);
 begin
   Randomize;
 
+  FCyclePlayed := TStringList.Create;
+  FCyclePlayed.Sorted := True;
+  FCyclePlayed.Duplicates := dupIgnore;
+  FCyclePlayed.CaseSensitive := False;
+  FShufflePos := -1;
+
   // Windows
   BorderIcons := [biSystemMenu];
   SetDarkTitleBar(Handle);
@@ -154,7 +170,8 @@ begin
   ListData.TreeOptions.AutoOptions := ListData.TreeOptions.AutoOptions + [toAutoScroll];
   ListData.TreeOptions.PaintOptions := ListData.TreeOptions.PaintOptions + [toHideFocusRect] - [toShowRoot, toShowTreeLines]; // , toUseExplorerTheme
   ListData.TreeOptions.SelectionOptions := ListData.TreeOptions.SelectionOptions + [toFullRowSelect, toMultiSelect, toExtendedFocus];
-  ListData.TreeOptions.MiscOptions := ListData.TreeOptions.MiscOptions + [toReportMode, toVariableNodeHeight, toWheelPanning] - [toAcceptOLEDrop];
+  ListData.TreeOptions.MiscOptions := ListData.TreeOptions.MiscOptions + [toReportMode, toWheelPanning] - [toAcceptOLEDrop, toVariableNodeHeight];
+  ListData.DefaultNodeHeight := 24;
 
 
   ListData.Color := COLOR_BG_MAIN;
@@ -180,6 +197,7 @@ end;
 
 procedure TFrmList.FormDestroy(Sender: TObject);
 begin
+  FCyclePlayed.Free;
   FDarkSB.Free;
 end;
 
@@ -300,13 +318,6 @@ begin
   case Column of
     0: CellText := Text;
   end;
-end;
-
-procedure TFrmList.ListDataMeasureItem(Sender: TBaseVirtualTree;
-  TargetCanvas: TCanvas; Node: PVirtualNode; var NodeHeight: TDimension);
-begin
-  if NodeHeight <> ScaleValue(24) then
-    NodeHeight := ScaleValue(24);
 end;
 
 procedure TFrmList.ListDataPaintText(Sender: TBaseVirtualTree;
@@ -576,6 +587,7 @@ begin
 
   Node := ListData.AddChild(nil);
   Item := ListData.GetNodeData(Node);
+  ListData.NodeHeight[Node] := 24;
   Item^.FileName := AFileName;
   Item^.IsActive := False;
 end;
@@ -643,6 +655,8 @@ begin
     ListData.EndUpdate;
   end;
 
+  PruneShuffleMissing;   // drop deleted files from the shuffle history/cycle
+
   if not ActiveDeleted then
     Exit;
 
@@ -667,6 +681,7 @@ end;
 procedure TFrmList.SetRandom;
 begin
   FrmKPlayer.RandomMode := 1 - FrmKPlayer.RandomMode;
+  ResetShuffle;   // start a fresh no-repeat cycle (seeds the currently playing track)
   UpdateButtonColor(BtnRandom, True);
 end;
 
@@ -719,7 +734,12 @@ var
 begin
   if FrmKPlayer.RandomMode = 1 then
   begin
-    Rand;
+    // Move back through the actual shuffle play order
+    if FShufflePos > 0 then
+    begin
+      Dec(FShufflePos);
+      Play(FShuffleHistory[FShufflePos]);
+    end;
     Exit;
   end;
 
@@ -770,27 +790,175 @@ begin
   end;
 end;
 
-procedure TFrmList.Rand;
+function TFrmList.CurrentActiveFileName: string;
 var
   Node: PVirtualNode;
   Item: PItemData;
-  Count: Integer;
-  Pick: Integer;
-  I: Integer;
 begin
-  Count := ListData.RootNodeCount;
-  if Count = 0 then
-    Exit;
+  Result := '';
+  Node := FindActiveNode;
+  if Assigned(Node) then
+  begin
+    Item := ListData.GetNodeData(Node);
+    if Assigned(Item) then
+      Result := Item^.FileName;
+  end;
+end;
 
-  Pick := Random(Count);
+function TFrmList.PlaylistContains(const AFileName: string): Boolean;
+var
+  Node: PVirtualNode;
+  Item: PItemData;
+begin
+  Result := False;
+  Node := ListData.GetFirst;
+  while Assigned(Node) do
+  begin
+    Item := ListData.GetNodeData(Node);
+    if Assigned(Item) and SameText(Item^.FileName, AFileName) then
+      Exit(True);
+    Node := ListData.GetNext(Node);
+  end;
+end;
+
+// Random track from the playlist that has not been played this cycle
+// (and is not the one currently playing). '' when nothing is left.
+function TFrmList.PickRandomUnplayed: string;
+var
+  Node: PVirtualNode;
+  Item: PItemData;
+  Cur: string;
+  Candidates: TArray<string>;
+  N: Integer;
+begin
+  Result := '';
+  Cur := CurrentActiveFileName;
+  SetLength(Candidates, ListData.RootNodeCount);
+  N := 0;
 
   Node := ListData.GetFirst;
-  for I := 1 to Pick do
+  while Assigned(Node) do
+  begin
+    Item := ListData.GetNodeData(Node);
+    if Assigned(Item)
+      and (FCyclePlayed.IndexOf(Item^.FileName) < 0)
+      and not SameText(Item^.FileName, Cur) then
+    begin
+      Candidates[N] := Item^.FileName;
+      Inc(N);
+    end;
     Node := ListData.GetNext(Node);
+  end;
 
-  Item := ListData.GetNodeData(Node);
-  if Assigned(Item) then
-    Play(Item^.FileName);
+  if N > 0 then
+    Result := Candidates[Random(N)];
+end;
+
+procedure TFrmList.AppendShuffleHistory(const AFileName: string);
+begin
+  SetLength(FShuffleHistory, Length(FShuffleHistory) + 1);
+  FShuffleHistory[High(FShuffleHistory)] := AFileName;
+  FShufflePos := High(FShuffleHistory);
+end;
+
+// Begin a fresh no-repeat cycle, seeding the currently playing track as "played"
+procedure TFrmList.ResetShuffle;
+var
+  Cur: string;
+begin
+  SetLength(FShuffleHistory, 0);
+  FShufflePos := -1;
+  FCyclePlayed.Clear;
+
+  Cur := CurrentActiveFileName;
+  if Cur <> '' then
+  begin
+    AppendShuffleHistory(Cur);
+    FCyclePlayed.Add(Cur);
+  end;
+end;
+
+// Drop history/cycle entries whose file is no longer in the playlist
+procedure TFrmList.PruneShuffleMissing;
+var
+  I, W, RemovedBeforePos: Integer;
+  NewHist: TArray<string>;
+begin
+  W := 0;
+  RemovedBeforePos := 0;
+  SetLength(NewHist, Length(FShuffleHistory));
+  for I := 0 to High(FShuffleHistory) do
+  begin
+    if PlaylistContains(FShuffleHistory[I]) then
+    begin
+      NewHist[W] := FShuffleHistory[I];
+      Inc(W);
+    end
+    else if I <= FShufflePos then
+      Inc(RemovedBeforePos);
+  end;
+  SetLength(NewHist, W);
+  FShuffleHistory := NewHist;
+
+  FShufflePos := FShufflePos - RemovedBeforePos;
+  if FShufflePos > High(FShuffleHistory) then
+    FShufflePos := High(FShuffleHistory);
+  if FShufflePos < -1 then
+    FShufflePos := -1;
+
+  for I := FCyclePlayed.Count - 1 downto 0 do
+    if not PlaylistContains(FCyclePlayed[I]) then
+      FCyclePlayed.Delete(I);
+end;
+
+procedure TFrmList.Rand;
+var
+  Cur: string;
+  Pick: string;
+begin
+  if ListData.RootNodeCount = 0 then
+    Exit;
+
+  // If we previously navigated back with Prev, walk forward through history first
+  if (FShufflePos >= 0) and (FShufflePos < High(FShuffleHistory)) then
+  begin
+    Inc(FShufflePos);
+    Play(FShuffleHistory[FShufflePos]);
+    Exit;
+  end;
+
+  Cur := CurrentActiveFileName;
+  if Cur <> '' then
+    FCyclePlayed.Add(Cur);
+
+  Pick := PickRandomUnplayed;
+
+  if Pick = '' then
+  begin
+    // Every track has been played once -> cycle complete
+    if FrmKPlayer.RepeatMode = 1 then
+    begin
+      // Repeat-all: reshuffle for a new cycle (avoid immediately repeating current)
+      FCyclePlayed.Clear;
+      if Cur <> '' then
+        FCyclePlayed.Add(Cur);
+      Pick := PickRandomUnplayed;
+      // Single-track playlist: allow replaying the only track
+      if (Pick = '') and (Cur <> '') then
+        Pick := Cur;
+    end;
+  end;
+
+  if Pick = '' then
+  begin
+    // Repeat off (or nothing else to play) -> stop after the full cycle
+    FrmKPlayer.HandleStop;
+    Exit;
+  end;
+
+  FCyclePlayed.Add(Pick);
+  AppendShuffleHistory(Pick);
+  Play(Pick);
 end;
 
 procedure TFrmList.Stop;
@@ -802,6 +970,26 @@ var
 begin
   ActiveNode := FindActiveNode;
 
+  // Repeat current track: applies regardless of random
+  if FrmKPlayer.RepeatMode = 2 then
+  begin
+    if Assigned(ActiveNode) then
+    begin
+      Item := ListData.GetNodeData(ActiveNode);
+      if Assigned(Item) then
+        Play(Item^.FileName);
+    end;
+    Exit;
+  end;
+
+  // Random: Rand handles no-repeat (stop at cycle end) and repeat-all (reshuffle)
+  if FrmKPlayer.RandomMode = 1 then
+  begin
+    Rand;
+    Exit;
+  end;
+
+  // Linear playback
   case FrmKPlayer.RepeatMode of
     0: // No repeat
     begin
@@ -828,16 +1016,6 @@ begin
       if Assigned(FirstNode) then
       begin
         Item := ListData.GetNodeData(FirstNode);
-        if Assigned(Item) then
-          Play(Item^.FileName);
-      end;
-    end;
-
-    2: // Repeat current video
-    begin
-      if Assigned(ActiveNode) then
-      begin
-        Item := ListData.GetNodeData(ActiveNode);
         if Assigned(Item) then
           Play(Item^.FileName);
       end;

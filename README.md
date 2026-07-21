@@ -16,6 +16,17 @@ Built on the open-source media engine **libmpv**.
 - Reorder playlist items by dragging
 - Repeat and shuffle playback
 
+## Playback Speed
+
+| Key | Action |
+|-----|--------|
+| `Z` | Reset to normal speed (1.0×) |
+| `X` | Slow down (−0.1×) |
+| `C` | Speed up (+0.1×) |
+| `[` / `]` | Fine adjust (−10% / +10%) |
+
+Speed is limited to the 0.25×–4.0× range, and the current value is shown briefly on screen when changed.
+
 ## License
 
 Freeware · Open Source · Free to redistribute

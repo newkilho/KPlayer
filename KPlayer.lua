@@ -47,13 +47,19 @@ local state = {
     autohide_timer = nil,
     chapter_list = {},
     speed = 1.0,
-    sub_visible = true,
+    speed_toast_text = "",
+    speed_toast_until = nil,
+    speed_toast_timer = nil,
+    sub_visible = false,
+    has_sub = false,
+    cursor_hidden = false,
     filename = "",
     hover_close = false,
     hover_topbar_min = false,
     hover_topbar_fs = false,
     hover_list = false,
     hover_settings = false,
+    hover_sub = false,
     hover_prev = false,
     hover_next = false,
 }
@@ -120,6 +126,7 @@ local icons = {
     prev     = "{\\p1}m 0 0 m 24 24 m 6 6 l 8 6 l 8 18 l 6 18 m 9.5 12 l 18 18 l 18 6{\\p0}",
     set      = "{\\p1}m 0 0 m 24 24 m 19.14 12.94 b 19.18 12.64 19.2 12.33 19.2 12 b 19.2 11.68 19.18 11.36 19.13 11.06 l 21.16 9.48 b 21.34 9.34 21.39 9.07 21.28 8.87 l 19.36 5.55 b 19.24 5.33 18.99 5.26 18.77 5.33 l 16.38 6.29 b 15.88 5.91 15.35 5.59 14.76 5.34 l 14.4 2.81 b 14.36 2.57 14.16 2.4 13.92 2.4 l 10.08 2.4 b 9.84 2.4 9.65 2.57 9.61 2.81 l 9.25 5.34 b 8.66 5.59 8.12 5.92 7.63 6.29 l 5.24 5.33 b 5.01 5.25 4.76 5.33 4.64 5.55 l 2.72 8.87 b 2.6 9.08 2.66 9.34 2.86 9.48 l 4.84 11.06 b 4.8 11.36 4.8 11.69 4.8 12 b 4.8 12.31 4.82 12.64 4.87 12.94 l 2.84 14.52 b 2.66 14.66 2.61 14.93 2.72 15.13 l 4.64 18.45 b 4.76 18.67 5.01 18.74 5.24 18.67 l 7.63 17.71 b 8.13 18.09 8.66 18.41 9.25 18.66 l 9.61 21.19 b 9.65 21.43 9.84 21.6 10.08 21.6 l 13.92 21.6 b 14.16 21.6 14.36 21.43 14.4 21.19 l 14.76 18.66 b 15.35 18.41 15.89 18.08 16.38 17.71 l 18.77 18.67 b 19 18.75 19.25 18.67 19.37 18.45 l 21.29 15.13 b 21.4 14.92 21.34 14.66 21.14 14.52 l 19.14 12.94 m 12 15.6 b 10.02 15.6 8.4 13.98 8.4 12 b 8.4 10.02 10.02 8.4 12 8.4 b 13.98 8.4 15.6 10.02 15.6 12 b 15.6 13.98 13.98 15.6 12 15.6{\\p0}",
     min      = "{\\p1}m 0 0 m 24 24 m 5 11 l 19 11 l 19 13 l 5 13{\\p0}",
+    sub      = "{\\p1}m 0 0 m 24 24 m 2 5 l 22 5 l 22 19 l 2 19 m 4 7 l 4 17 l 20 17 l 20 7 m 6 13 l 11 13 l 11 15 l 6 15 m 13 13 l 18 13 l 18 15 l 13 15{\\p0}",
 }
 
 -- Layout
@@ -194,6 +201,7 @@ local function calc_layout()
         cx = 128, cy = btn_cy,
     }
     layout.time_text   = { x = 128 + options.volume_width + 12, y = btn_cy }
+    layout.sub_btn      = { cx = W - 98, cy = btn_cy }
     layout.settings_btn = { cx = W - 68, cy = btn_cy }
     layout.list_btn     = { cx = W - 38, cy = btn_cy }
 end
@@ -234,6 +242,9 @@ local function check_hover()
     end
     if L.settings_btn then
         state.hover_settings = in_rect(mx, my, L.settings_btn.cx - 9, L.settings_btn.cy - 9, 18, 18)
+    end
+    if L.sub_btn then
+        state.hover_sub = in_rect(mx, my, L.sub_btn.cx - 9, L.sub_btn.cy - 9, 18, 18)
     end
     if L.prev_btn then
         state.hover_prev = in_rect(mx, my, L.prev_btn.cx - 9, L.prev_btn.cy - 9, 18, 18)
@@ -329,8 +340,41 @@ local function hcol(flag)
 end
 
 -- Render
+-- Speed toast: "재생 속도 N×" shown for ~1s at the exact screen center.
+-- Background uses the same semi-transparent style as the caption. Drawn
+-- regardless of control visibility.
+local function draw_speed_toast(a, W, H)
+    if not state.speed_toast_until or mp.get_time() >= state.speed_toast_until then return end
+    local bw, bh = 180, 34
+    local bx = W / 2 - bw / 2   -- horizontally centered
+    local by = H / 2 - bh / 2   -- vertically centered
+    draw_rounded_rect(a, bx, by, bw, bh, 6, color.dark_bar, alpha.bar_bg)
+    a:new_event(); a:pos(W / 2, H / 2); a:an(5)
+    a:append(string.format("{\\fn%s\\fs%d\\bord0\\shad0\\1c&H%s&\\1a&H00&\\b1}%s",
+        "Arial", 22, color.white, ass_escape(state.speed_toast_text)))
+end
+
+-- In fullscreen, keep the mouse cursor visibility in sync with the control bar.
+-- (mpv's own cursor-autohide does not work when embedded into a foreign window,
+--  so the actual OS cursor is toggled by the Delphi host via a script-message.)
+local function update_cursor()
+    local hide = state.fullscreen and (not state.visible)
+    if hide ~= state.cursor_hidden then
+        state.cursor_hidden = hide
+        mp.commandv("script-message", "cursor", hide and "hide" or "show")
+    end
+end
+
 local function render()
-    if not state.visible then mp.set_osd_ass(state.osd_w, state.osd_h, ""); return end
+    update_cursor()
+
+    if not state.visible then
+        -- controls hidden: still draw the speed toast if active
+        local a = assdraw.ass_new()
+        draw_speed_toast(a, state.osd_w, state.osd_h)
+        mp.set_osd_ass(state.osd_w, state.osd_h, a.text)
+        return
+    end
 
     calc_layout()
     check_hover()
@@ -447,6 +491,12 @@ local function render()
     -- playlist button
     draw_icon(a, icons.list, L.list_btn.cx, L.list_btn.cy, 18, hcol(state.hover_list), "00")
 
+    -- subtitle toggle button:
+    --   active (a subtitle track exists) and shown -> bright
+    --   otherwise (no track, or toggled off)       -> dimmed/inactive
+    local sub_col = (state.has_sub and state.sub_visible) and hcol(state.hover_sub) or color.gray
+    draw_icon(a, icons.sub, L.sub_btn.cx, L.sub_btn.cy, 18, sub_col, "00")
+
     -- settings button
     draw_icon(a, icons.set, L.settings_btn.cx, L.settings_btn.cy, 18, hcol(state.hover_settings), "00")
 
@@ -462,11 +512,31 @@ local function render()
             "Arial Bold", options.font_size - 1, color.white, seek_time))
     end
 
+    draw_speed_toast(a, W, H)
+
     mp.set_osd_ass(W, H, a.text)
 end
 
 local function request_render()
     render()
+end
+
+-- "1.00" -> "1", "1.50" -> "1.5", "0.75" -> "0.75"
+local function format_speed(v)
+    local s = string.format("%.2f", v)
+    s = s:gsub("0+$", "")
+    s = s:gsub("%.$", "")
+    return s
+end
+
+local function show_speed_toast(v)
+    state.speed_toast_text = "재생 속도 " .. format_speed(v) .. "×"
+    state.speed_toast_until = mp.get_time() + 1.0
+    if state.speed_toast_timer then state.speed_toast_timer:kill() end
+    state.speed_toast_timer = mp.add_timeout(1.0, function()
+        state.speed_toast_until = nil
+        request_render()
+    end)
 end
 
 local function update_sub_margin()
@@ -580,6 +650,13 @@ mp.add_key_binding("MOUSE_BTN0", "controls-click", function(e)
         return
     end
 
+    -- subtitle toggle button (only when a subtitle track exists)
+    if state.hover_sub then
+        if state.has_sub then mp.command("cycle sub-visibility") end
+        start_autohide()
+        return
+    end
+
     -- settings button -> send to Delphi
     if state.hover_settings then
         mp.commandv("script-message", "settings")
@@ -624,8 +701,9 @@ mp.observe_property("fullscreen", "bool", function(_, v)
     end
 end)
 mp.observe_property("idle-active",    "bool",   function(_, v) v = v or false; if state.idle       ~= v then state.idle       = v; request_render() end end)
-mp.observe_property("speed",          "number", function(_, v) v = v or 1.0;   if state.speed      ~= v then state.speed      = v; request_render() end end)
+mp.observe_property("speed",          "number", function(_, v) v = v or 1.0;   if state.speed      ~= v then state.speed      = v; show_speed_toast(v); request_render() end end)
 mp.observe_property("sub-visibility", "bool",   function(_, v) if state.sub_visible ~= v then state.sub_visible = v; request_render() end end)
+mp.observe_property("sid",            "native", function(_, v) local has = (v ~= nil and v ~= false); if state.has_sub ~= has then state.has_sub = has; request_render() end end)
 mp.observe_property("chapter-list",   "native", function(_, v) state.chapter_list = v or {}; request_render() end)
 mp.observe_property("osd-width",  "number", function(_, v) if v and v > 0 and state.osd_w ~= v then state.osd_w = v; request_render() end end)
 mp.observe_property("osd-height", "number", function(_, v) if v and v > 0 and state.osd_h ~= v then state.osd_h = v; update_sub_margin(); request_render() end end)
@@ -652,23 +730,8 @@ for i = 0, 9 do
     end)
 end
 
-local speeds = {0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0}
-
-mp.add_key_binding(">", "yt-speed-up", function()
-    local cur = state.speed
-    for _, s in ipairs(speeds) do
-        if s > cur then mp.set_property_number("speed", s); mp.osd_message("재생 속도: " .. s .. "x", 1); break end
-    end
-    show_controls()
-end)
-
-mp.add_key_binding("<", "yt-speed-down", function()
-    local cur = state.speed
-    for i = #speeds, 1, -1 do
-        if speeds[i] < cur then mp.set_property_number("speed", speeds[i]); mp.osd_message("재생 속도: " .. speeds[i] .. "x", 1); break end
-    end
-    show_controls()
-end)
+-- Playback speed is controlled from Delphi (Z / X / C / [ / ]); the toast is
+-- driven by the speed observer above, so no mpv key bindings are needed here.
 
 -- Events
 mp.register_event("file-loaded", function()

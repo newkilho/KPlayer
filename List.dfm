@@ -20,7 +20,7 @@ object FrmList: TFrmList
     Width = 198
     Height = 280
     Align = alClient
-    DefaultNodeHeight = 19
+    DefaultNodeHeight = 24
     Header.AutoSizeIndex = 0
     Header.Height = 15
     Header.MainColumn = -1
@@ -30,7 +30,6 @@ object FrmList: TFrmList
     OnFreeNode = ListDataFreeNode
     OnGetText = ListDataGetText
     OnPaintText = ListDataPaintText
-    OnMeasureItem = ListDataMeasureItem
     OnMouseDown = ListDataMouseDown
     OnMouseMove = ListDataMouseMove
     OnMouseUp = ListDataMouseUp
