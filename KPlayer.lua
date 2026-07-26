@@ -88,6 +88,13 @@ local state = {
     speed_toast_text = "",
     speed_toast_until = nil,
     speed_toast_timer = nil,
+
+    -- 중앙 알림 (델파이가 script-message alert 로 보낸다)
+    alert_text  = "",
+    alert_color = nil,
+    alert_from  = nil,
+    alert_until = nil,
+    alert_timer = nil,
     -- 화면 중앙 인디케이터(반투명 원 + 아이콘, 볼륨일 때는 상단에 숫자까지).
     -- 볼륨 조절과 재생/일시정지에서 잠깐 뜬다.
     bezel_icon = nil,
@@ -881,9 +888,71 @@ local function alpha_scale(base, f)
     return string.format("%02X", 255 - math.floor((255 - tonumber(base, 16)) * f + 0.5))
 end
 
+-- ── 중앙 알림 ────────────────────────────────────────────────
+-- 델파이에서 script-message alert <메시지> <색상> 으로 보낸다.
+--   FrmKPlayer.Alert('파일을 찾을 수 없습니다 — a.mp4', ALERT_ERROR);
+-- 색상은 RGB 16진수 문자열이고, ASS 는 BGR 이라 여기서 뒤집는다.
+local alert_ui = {
+    show      = 4.5,    -- 총 표시 시간 (페이드 포함)
+    fade_in   = 0.15,
+    fade_out  = 0.6,    -- 마지막에 천천히 사라진다
+    font_size = 20,
+    height    = 38,
+    pad_x     = 18,
+    radius    = 8,
+    -- 정중앙은 재생/볼륨 인디케이터(원)가 쓰므로 조금 아래에 둔다.
+    -- 둘이 동시에 뜨는 경우가 있다 (파일을 건너뛰면 곧 재생이 시작된다).
+    dy        = 96,
+}
+
+local function rgb_to_ass(rgb)
+    rgb = tostring(rgb or ""):gsub("[^%x]", "")
+    if #rgb ~= 6 then return color.white end
+    return rgb:sub(5, 6) .. rgb:sub(3, 4) .. rgb:sub(1, 2)
+end
+
+local function alert_fade()
+    local u, fin = alert_ui, state.alert_until
+    if not fin then return 0 end
+    local now = mp.get_time()
+    if now >= fin then return 0 end
+
+    local f = 1
+    local since = now - (state.alert_from or now)
+    if u.fade_in > 0 and since < u.fade_in then f = since / u.fade_in end
+    local left = fin - now
+    if u.fade_out > 0 and left < u.fade_out then f = math.min(f, left / u.fade_out) end
+    return clamp(f, 0, 1)
+end
+
+local function draw_alert(a, W, H)
+    local f = alert_fade()
+    if f <= 0.002 or state.alert_text == "" then return end
+    local u = alert_ui
+
+    local bw = approx_text_w(state.alert_text, u.font_size) + u.pad_x * 2
+    local bx = W / 2 - bw / 2
+    local by = H / 2 + u.dy - u.height / 2
+
+    draw_rounded_rect(a, bx, by, bw, u.height, u.radius, color.dark_bar,
+                      alpha_scale(alpha.bar_bg, f))
+
+    a:new_event(); a:pos(W / 2, by + u.height / 2); a:an(5)
+    a:append(string.format("{\\fn%s\\fs%d\\bord0\\shad0\\1c&H%s&\\1a&H%s&\\b1}%s",
+        options.topbar_font or options.num_font, u.font_size,
+        state.alert_color or color.white, alpha_scale("00", f),
+        ass_escape(state.alert_text)))
+end
+
 local function draw_bezel(a, W, H)
     local f = bezel_fade()
     if f <= 0.002 or not state.bezel_icon then return end
+
+    -- 재생 전(idle)에는 아무것도 띄우지 않는다. 화면 한가운데에 로고(원 + 재생
+    -- 삼각형 + KPlayer)가 그려져 있어 중앙 원과 겹치고, 볼륨 알약도 그 위에
+    -- 얹히면 어수선하다. 컨트롤바의 음량 슬라이더로 값은 확인할 수 있다.
+    if state.idle then return end
+
     local u = bezel_ui
 
     -- 중앙 원 + 아이콘
@@ -948,6 +1017,7 @@ local function render()
         local t = assdraw.ass_new()
         draw_speed_toast(t, state.osd_w, state.osd_h)
         draw_bezel(t, state.osd_w, state.osd_h)
+        draw_alert(t, state.osd_w, state.osd_h)
         put(ov_bot, state.osd_w, state.osd_h, t.text)
         return
     end
@@ -1121,6 +1191,7 @@ local function render()
 
     draw_speed_toast(a, W, H)
     draw_bezel(a, W, H)
+    draw_alert(a, W, H)
 
     put(ov_bot, W, H, a.text)
 end
@@ -1149,6 +1220,7 @@ local function tick()
     -- 토스트가 떠 있는 동안에도 계속 그려야 사라질 때 갱신된다
     local toast = (state.speed_toast_until and now < state.speed_toast_until)
                or (state.bezel_until   and now < state.bezel_until)
+               or (state.alert_until   and now < state.alert_until)
     if anim_pending() or toast then request_render() end
 end
 
@@ -1159,6 +1231,7 @@ local function nothing_to_draw()
     if state.visible or state.opacity > 0.002 then return false end
     if state.speed_toast_until and mp.get_time() < state.speed_toast_until then return false end
     if state.bezel_until   and mp.get_time() < state.bezel_until   then return false end
+    if state.alert_until   and mp.get_time() < state.alert_until   then return false end
     return not anim_pending()
 end
 
@@ -1202,6 +1275,26 @@ local function show_speed_toast(v)
 end
 
 -- icon: icons.* 중 하나 / text: 숫자 알약에 쓸 문자열(없으면 nil)
+local function show_alert(text, col)
+    state.alert_text  = tostring(text or "")
+    state.alert_color = rgb_to_ass(col)
+    state.alert_from  = mp.get_time()
+    state.alert_until = state.alert_from + alert_ui.show
+
+    if state.alert_timer then state.alert_timer:kill() end
+    state.alert_timer = mp.add_timeout(alert_ui.show, function()
+        state.alert_until = nil
+        state.alert_text  = ""
+        request_render()
+    end)
+
+    request_render()
+end
+
+mp.register_script_message("alert", function(text, col)
+    show_alert(text, col)
+end)
+
 local function show_bezel(icon, text)
     local now = mp.get_time()
 
@@ -1425,6 +1518,11 @@ mp.add_key_binding("MOUSE_BTN0", "controls-click", function(e)
     if state.hover_play then
         if state.idle then
             mp.commandv("script-message", "next")
+        elseif mp.get_property_bool("eof-reached", false) then
+            -- 끝에 멈춰 있다 (keep-open). pause 만 풀면 곧바로 다시 끝에 닿아
+            -- 아무 일도 일어나지 않으므로, 처음으로 되돌린 뒤 재생한다.
+            mp.commandv("seek", 0, "absolute", "exact")
+            mp.set_property_bool("pause", false)
         else
             mp.command("cycle pause")
         end

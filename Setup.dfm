@@ -246,8 +246,8 @@ object FrmSetup: TFrmSetup
             OnChange = ControlChange
             Items.Strings = (
               #48152#48373' '#50630#51020
-              #54620' '#44257' '#48152#48373
-              #51204#52404' '#48152#48373)
+              #51204#52404' '#48152#48373
+              #54620' '#44257' '#48152#48373)
           end
           object CboRandom: TComboBox
             Left = 473
@@ -280,6 +280,23 @@ object FrmSetup: TFrmSetup
             Caption = #52286#44592
             TabOrder = 3
             OnClick = BtnShotDirClick
+          end
+          object LblTopMost: TLabel
+            Left = 24
+            Top = 261
+            Width = 51
+            Height = 15
+            Caption = #54637#49345' '#50948
+            Transparent = True
+          end
+          object ChkTopMost: TCheckBox
+            Left = 622
+            Top = 258
+            Width = 21
+            Height = 20
+            Anchors = [akTop, akRight]
+            TabOrder = 4
+            OnClick = ControlChange
           end
           object CboShotFmt: TComboBox
             Left = 473

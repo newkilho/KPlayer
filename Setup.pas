@@ -170,6 +170,8 @@ type
     BtnShotDir: TButton;
     LblShotFmt: TLabel;
     CboShotFmt: TComboBox;
+    LblTopMost: TLabel;
+    ChkTopMost: TCheckBox;
     CardVideo: TCard;
     BoxVideo: TScrollBox;
     LblHwdec: TLabel;
@@ -1174,6 +1176,7 @@ begin
   Config.WriteInteger('random', 0);
   Config.WriteString('shot_dir', DesktopPath);
   Config.WriteInteger('shot_format', 0);
+  Config.WriteInteger('topmost', 0);
 
   Config.WriteInteger('hwdec', 0);
   Config.WriteInteger('vo', 0);
@@ -1256,6 +1259,7 @@ begin
     CboRandom.ItemIndex := EnsureRange(CfgInt('random', 0), 0, CboRandom.Items.Count - 1);
     EdtShotDir.Text := CfgStr('shot_dir', DesktopPath);
     CboShotFmt.ItemIndex := EnsureRange(CfgInt('shot_format', 0), 0, CboShotFmt.Items.Count - 1);
+  ChkTopMost.Checked := CfgInt('topmost', 0) <> 0;
 
     CboHwdec.ItemIndex := EnsureRange(CfgInt('hwdec', 0), 0, CboHwdec.Items.Count - 1);
     CboVo.ItemIndex := EnsureRange(CfgInt('vo', 0), 0, CboVo.Items.Count - 1);
@@ -1296,6 +1300,7 @@ begin
   // 나중에 기본 폴더를 바꿔도 이미 박힌 값 때문에 반영되지 않는다.
   // 폴더는 [찾기]로 실제 선택했을 때만 BtnShotDirClick 에서 기록한다.
   Config.WriteInteger('shot_format', CboShotFmt.ItemIndex);
+  Config.WriteInteger('topmost', Ord(ChkTopMost.Checked));
 
   Config.WriteInteger('hwdec', CboHwdec.ItemIndex);
   Config.WriteInteger('vo', CboVo.ItemIndex);
@@ -1321,6 +1326,9 @@ var
   SubVis: string;
 begin
   if FrmKPlayer = nil then Exit;
+
+  // 항상 위는 mpv 와 무관하다 — 플레이어가 없어도 적용해야 하므로 먼저 처리한다.
+  FrmKPlayer.SetTopMost(ChkTopMost.Checked);
 
   MPV := FrmKPlayer.MPVPlayer;
   if MPV = nil then Exit;

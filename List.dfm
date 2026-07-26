@@ -10,6 +10,7 @@ object FrmList: TFrmList
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
+  ShowHint = True
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnResize = FormResize
@@ -20,7 +21,7 @@ object FrmList: TFrmList
     Width = 198
     Height = 280
     Align = alClient
-    DefaultNodeHeight = 24
+    DefaultNodeHeight = 19
     Header.AutoSizeIndex = 0
     Header.Height = 15
     Header.MainColumn = -1
@@ -30,6 +31,7 @@ object FrmList: TFrmList
     OnFreeNode = ListDataFreeNode
     OnGetText = ListDataGetText
     OnPaintText = ListDataPaintText
+    OnKeyDown = ListDataKeyDown
     OnMouseDown = ListDataMouseDown
     OnMouseMove = ListDataMouseMove
     OnMouseUp = ListDataMouseUp
@@ -84,6 +86,7 @@ object FrmList: TFrmList
       Top = 12
       Width = 16
       Height = 16
+      Hint = #52628#44032' '#8212' '#54028#51068' / '#54260#45908
       AutoSize = False
       ImageList = ListIcon
       ImageIndex = 3
@@ -100,6 +103,7 @@ object FrmList: TFrmList
       Top = 12
       Width = 16
       Height = 16
+      Hint = #49325#51228' '#8212' '#49440#53469' / '#49440#53469' '#50808' / '#51204#52404' / '#50630#45716' '#54028#51068' (Del '#53412': '#49440#53469' '#54637#47785')'
       AutoSize = False
       ImageList = ListIcon
       ImageIndex = 4

@@ -14,6 +14,10 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 History:
 ========
   0.9.4
+  [*] 랜덤 재생이 한 바퀴 끝나면 반복 설정과 무관하게 새 사이클을 시작 (List.pas: Rand)
+  [+] 없는 파일은 재생 시 목록에서 빼고 다음 곡으로 (List.pas: SkipMissing)
+  [+] 목록에서 Del 키로 선택 항목 삭제 (List.pas: ListDataKeyDown)
+  [+] 환경설정 '일반' 에 항상 위 - SetWindowPos 방식 (Main.pas: SetTopMost)
   [+] 환경설정 '연결' 카드 추가 - 확장자 38종을 KPlayer 로 연결/해제, 체크 즉시 반영 (Setup.pas: CardAssoc/TreeAssoc, AssocExts, AssocRegister/AssocUnregister)
   [+] 시작 시 등록된 파일 연결의 exe 경로 갱신 - 포터블 폴더 이동 대응 (Setup.pas: SyncFileAssoc / Main.FormCreate)
   [*] 지원 확장자를 AssocExts 하나로 통일 - AddFile 의 하드코딩 7종 제거 (List.pas: IsMediaFile)
@@ -61,6 +65,13 @@ uses
   System.Types, System.Math, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Menus, MPVBasePlayer, MPVPlayer,
   K.Theme, K.DragFile, K.Config.INI, K.Update;
+
+const
+  // Lua 의 중앙 알림 색상 (RGB 16진수). KPlayer.lua 가 ASS 용 BGR 로 뒤집는다.
+  // 기본 파라미터에서 쓰므로 클래스 선언보다 앞에 있어야 한다.
+  ALERT_INFO  = 'FFFFFF';
+  ALERT_WARN  = 'FFC048';
+  ALERT_ERROR = 'FF5555';
 
 type
   TFrmKPlayer = class(TForm)
@@ -113,11 +124,16 @@ type
     Theme: string;
 
     function IsPlay: Boolean;
+    function IsLoaded: Boolean;
+    function IsEOF: Boolean;
+    procedure SetPause(AState: Boolean);
+    procedure Alert(const AMsg: string; const AColor: string = ALERT_INFO);
 
     procedure HandlePlay(const AFile: string);
     procedure HandleStop;
     procedure HandlePause;
     procedure HandleStartupParams;
+    procedure SetTopMost(AState: Boolean);
 
     property Config: TConfig read FConfig;
     property Volume: Double read FVolume write SetVolume;
@@ -212,6 +228,12 @@ begin
 
   MPVPlayer.Command(['set', 'screenshot-directory',
     FConfig.ReadString('shot_dir', DesktopPath)]);
+  // 파일이 끝나면 마지막 프레임에서 일시정지한다.
+  // 래퍼(MPVBasePlayer.InitPlayer)는 keep-open=yes + keep-open-pause=no 로 넣는데,
+  // 그러면 끝에 도달해도 pause=false 로 남아 OSD 는 재생 중처럼 보이면서 아무 것도
+  // 진행되지 않는다. yes 로 바꿔 '끝에서 멈춤' 을 명확한 상태로 만든다.
+  MPVPlayer.Command(['set', 'keep-open-pause', 'yes']);
+
   MPVPlayer.Command(['set', 'screenshot-template', '%f-%n']);
   MPVPlayer.Command(['set', 'screenshot-format', CfgOpt('shot_format', ShotFmtValues)]);
   MPVPlayer.Command(['set', 'volume', FloatToStr(Volume)]);
@@ -234,9 +256,13 @@ begin
     for var S in Files do
       FrmList.AddFile(S);
 
+    // FrmList.Play 로 넘긴다. HandlePlay 를 직접 부르면 mpv 만 재생하고
+    // 목록의 '재생 중' 표시(노란 글자)가 서지 않는다.
     if not IsPlay then
-      HandlePlay(Files[0]);
+      FrmList.Play(Files[0]);
   end);
+
+  SetTopMost(FConfig.ReadInteger('topmost', 0) <> 0);
 
   // 등록해 둔 파일 연결의 exe 경로를 현재 위치로 다시 기록한다.
   // 포터블이라 폴더를 옮기면 등록된 실행 명령이 옛 경로를 가리켜
@@ -318,7 +344,7 @@ begin
   // 우리가 KPlayer.lua 로 보낸 메시지다. script-message 는 스크립트뿐 아니라
   // 이쪽(호스트)에도 그대로 전달되므로 여기서 무시한다.
   if SameText(ACommand, 'mbtn') or SameText(ACommand, 'ui-font')
-  or SameText(ACommand, 'dpi') then
+  or SameText(ACommand, 'dpi') or SameText(ACommand, 'alert') then
     Exit;
 
   // 커서가 컨트롤 위에 있는지 (창 드래그 억제용)
@@ -343,7 +369,7 @@ begin
 
   if SameText(ACommand, 'finished') then
   begin
-    FrmList.Stop;
+    FrmList.TrackFinished;
     Exit;
   end;
 
@@ -367,12 +393,20 @@ procedure TFrmKPlayer.SetRandomMode(const Value: Integer);
 begin
   FRandomMode := Value;
   FConfig.WriteInteger('random', Value);
+
+  if FrmList <> nil then
+    FrmList.UpdateModeIcons;
 end;
 
 procedure TFrmKPlayer.SetRepeatMode(const Value: Integer);
 begin
   FRepeatMode := Value;
   FConfig.WriteInteger('repeat', Value);
+
+  // 목록 창 아이콘을 바로 맞춘다 (환경설정에서 바꾼 경우).
+  // FormCreate 에서 INI 를 읽을 때는 FrmList 가 아직 없다.
+  if FrmList <> nil then
+    FrmList.UpdateModeIcons;
 end;
 
 procedure TFrmKPlayer.SetVolume(const Value: Double);
@@ -442,6 +476,30 @@ begin
   WindowState := wsMinimized;
 end;
 
+// 항상 위 (환경설정 '일반').
+//
+// FormStyle := fsStayOnTop 을 쓰지 않는다. VCL 이 FormStyle 을 바꿀 때 창 핸들을
+// 다시 만들 수 있고, 그러면 mpv 에 넘긴 wid(Handle)가 무효가 되어 영상이 사라진다.
+// SetWindowPos 는 핸들을 건드리지 않는다.
+//
+// 재생목록 창도 같이 올린다. 본체만 최상위면 목록 창이 본체 뒤로 숨는다.
+procedure TFrmKPlayer.SetTopMost(AState: Boolean);
+const
+  SWP_FLAGS = SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE;
+var
+  LAfter: HWND;
+begin
+  if AState then
+    LAfter := HWND_TOPMOST
+  else
+    LAfter := HWND_NOTOPMOST;
+
+  SetWindowPos(Handle, LAfter, 0, 0, 0, 0, SWP_FLAGS);
+
+  if (FrmList <> nil) and FrmList.HandleAllocated then
+    SetWindowPos(FrmList.Handle, LAfter, 0, 0, 0, 0, SWP_FLAGS);
+end;
+
 procedure TFrmKPlayer.HandleFullScreen(AState: Boolean);
 begin
   if AState then
@@ -477,6 +535,48 @@ begin
   LCur := 0;
   MPVPlayer.GetPropertyDouble('video-zoom', LCur);
   MPVPlayer.SetPropertyDouble('video-zoom', LCur - AStep);
+end;
+
+// mpv 에 파일이 열려 있는가 (일시정지 중이어도 True).
+// IsPlay 와 달리 '정지/idle 상태인지' 를 가리는 데 쓴다.
+function TFrmKPlayer.IsLoaded: Boolean;
+var
+  LName: string;
+begin
+  Result := False;
+  if MPVPlayer = nil then Exit;
+
+  MPVPlayer.GetPropertyString('filename', LName);
+  Result := LName <> '';
+end;
+
+// 파일이 끝에 도달해 멈춰 있는가 (keep-open 으로 마지막 프레임을 붙들고 있는 상태).
+function TFrmKPlayer.IsEOF: Boolean;
+var
+  LEOF: string;
+begin
+  Result := False;
+  if MPVPlayer = nil then Exit;
+
+  MPVPlayer.GetPropertyString('eof-reached', LEOF);
+  Result := SameText(LEOF, 'yes');
+end;
+
+// 화면 중앙에 잠시 뜨는 알림. 표시/사라짐은 KPlayer.lua 가 처리한다.
+// 색상은 RGB 16진수 문자열 ('FF5555') — 위 ALERT_* 상수를 쓴다.
+procedure TFrmKPlayer.Alert(const AMsg: string; const AColor: string);
+begin
+  if (MPVPlayer = nil) or (AMsg = '') then Exit;
+
+  MPVPlayer.Command(['script-message', 'alert', AMsg, AColor]);
+end;
+
+procedure TFrmKPlayer.SetPause(AState: Boolean);
+const
+  YesNo: array[Boolean] of string = ('no', 'yes');
+begin
+  if MPVPlayer <> nil then
+    MPVPlayer.Command(['set', 'pause', YesNo[AState]]);
 end;
 
 function TFrmKPlayer.IsPlay: Boolean;
@@ -676,12 +776,6 @@ begin
     VK_SPACE:
       begin
         FrmList.Play('');
-        Key := 0;
-      end;
-
-    Ord('P'):
-      begin
-        MPVPlayer.Command(['cycle', 'pause']);
         Key := 0;
       end;
 
