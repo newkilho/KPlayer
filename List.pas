@@ -75,6 +75,8 @@ type
   private
     FDarkSB: TVTDarkScrollbar;
     FDragNode: PVirtualNode;
+    FDragFile: TDragFile;
+    FPlaylistDepth: Integer;   // 재생목록이 서로를 가리킬 때 무한 재귀 방지
     FDragStart: TPoint;
     FSavedSelection: TArray<PVirtualNode>;
 
@@ -93,6 +95,7 @@ type
     procedure ResetShuffle;
     procedure AppendShuffleHistory(const AFileName: string);
     procedure PruneShuffleMissing;
+    procedure AddPlaylist(const AFileName: string);
   public
     procedure AddFile(AFileName: string);
     procedure DelFile(AMode: TDeleteMode);
@@ -126,7 +129,7 @@ implementation
 
 {$R *.dfm}
 
-uses Main;
+uses Main, Setup;
 
 procedure SetDarkTitleBar(AHandle: HWND);
 var
@@ -185,11 +188,11 @@ begin
   // Helpers
   FDarkSB := TVTDarkScrollbar.Create(ListData);
 
-  TDragFile.Create(ListData,
+  FDragFile := TDragFile.Create(ListData,
   procedure(const Files: TArray<string>)
   begin
     for var S in Files do
-      FrmList.AddFile(S);
+      AddFile(S);
   end);
 
   FrmKPlayer.HandleStartupParams;
@@ -197,8 +200,9 @@ end;
 
 procedure TFrmList.FormDestroy(Sender: TObject);
 begin
-  FCyclePlayed.Free;
+  FDragFile.Free;
   FDarkSB.Free;
+  FCyclePlayed.Free;
 end;
 
 procedure TFrmList.FormResize(Sender: TObject);
@@ -546,10 +550,106 @@ begin
     ListData.ScrollIntoView(ListData.FocusedNode, False);
 end;
 
-procedure TFrmList.AddFile(AFileName: string);
+// 재생목록 파일을 읽는다. .m3u8 은 UTF-8 이 규격이지만 .m3u 은 ANSI(CP949)도
+// 흔하다. BOM 이 있으면 그것을 따르고, 없으면 UTF-8 로 해석해 본 뒤 되돌려
+// 인코딩했을 때 바이트 수가 달라지면(= 깨진 바이트가 있었다) ANSI 로 읽는다.
+function ReadPlaylistText(const AFileName: string): string;
+var
+  LBytes: TBytes;
+  LEncoding: TEncoding;
+  LPreamble: Integer;
+begin
+  Result := '';
+
+  LBytes := TFile.ReadAllBytes(AFileName);
+  if Length(LBytes) = 0 then
+    Exit;
+
+  LEncoding := nil;
+  LPreamble := TEncoding.GetBufferEncoding(LBytes, LEncoding, TEncoding.UTF8);
+
+  if (LPreamble = 0) and
+     (Length(TEncoding.UTF8.GetBytes(TEncoding.UTF8.GetString(LBytes))) <> Length(LBytes)) then
+    LEncoding := TEncoding.ANSI;
+
+  Result := LEncoding.GetString(LBytes, LPreamble, Length(LBytes) - LPreamble);
+end;
+
+// TPath.Combine 은 잘못된 문자가 있으면 예외를 던지므로 쓰지 않는다
+// (재생목록에는 URL 이나 이상한 줄이 섞여 들어온다).
+function IsAbsolutePath(const APath: string): Boolean;
+begin
+  Result := ((Length(APath) >= 3) and (APath[2] = ':') and
+             CharInSet(APath[3], ['\', '/'])) or
+            ((Length(APath) >= 2) and (APath[1] = '\') and (APath[2] = '\'));
+end;
+
+procedure TFrmList.AddPlaylist(const AFileName: string);
 const
-  SupportedExt: array[0..6] of string =
-    ('.mp3', '.mp4', '.avi', '.mkv', '.asf', '.mov', '.wmv');
+  MaxDepth = 3;   // 재생목록 안의 재생목록
+var
+  Lines: TStringList;
+  Dir, Line, Path: string;
+  IsPls: Boolean;
+  Eq, I: Integer;
+begin
+  if FPlaylistDepth >= MaxDepth then
+    Exit;
+
+  Inc(FPlaylistDepth);
+  try
+    Dir := ExtractFilePath(AFileName);
+    IsPls := SameText(ExtractFileExt(AFileName), '.pls');
+
+    Lines := TStringList.Create;
+    try
+      Lines.Text := ReadPlaylistText(AFileName);
+
+      for I := 0 to Lines.Count - 1 do
+      begin
+        Line := Trim(Lines[I]);
+        if Line = '' then
+          Continue;
+
+        if IsPls then
+        begin
+          // [playlist] 섹션의 File1=... 만 경로다 (Title1=, Length1= 등은 건너뛴다)
+          if not StartsText('File', Line) then
+            Continue;
+
+          Eq := Pos('=', Line);
+          if Eq = 0 then
+            Continue;
+
+          Line := Trim(Copy(Line, Eq + 1, MaxInt));
+        end
+        else if Line.StartsWith('#') then
+          Continue;   // #EXTM3U, #EXTINF 같은 주석/지시자
+
+        if Line = '' then
+          Continue;
+
+        // 스트리밍 URL 은 건너뛴다 — 재생목록 창은 파일 경로를 기준으로 동작한다
+        // (없는 파일 취급되어 어차피 목록에 들어가지 못한다).
+        if Line.Contains('://') then
+          Continue;
+
+        if IsAbsolutePath(Line) then
+          Path := Line
+        else
+          Path := ExpandFileName(Dir + Line);   // 상대경로는 재생목록 위치 기준
+
+        AddFile(Path);   // 확장자 필터/중복 검사는 AddFile 이 한다
+      end;
+    finally
+      Lines.Free;
+    end;
+  finally
+    Dec(FPlaylistDepth);
+  end;
+end;
+
+procedure TFrmList.AddFile(AFileName: string);
 var
   Node: PVirtualNode;
   Item: PItemData;
@@ -573,8 +673,18 @@ begin
   if not FileExists(AFileName) then
     Exit;
 
-  if IndexText(TPath.GetExtension(AFileName), SupportedExt) < 0 then
+  // 지원 확장자 목록은 Setup.pas 의 AssocExts 하나다 (파일 연결 카드와 공용).
+  if not IsMediaFile(AFileName) then
     Exit;
+
+  // 재생목록은 그 파일을 항목으로 넣지 않고 안의 경로들을 펼친다.
+  // 넣어버리면 목록에는 한 줄만 보이는데 mpv 는 내부 재생목록을 따로 돌려서
+  // 다음/이전 버튼이 실제 재생과 어긋난다.
+  if IsPlaylistFile(AFileName) then
+  begin
+    AddPlaylist(AFileName);
+    Exit;
+  end;
 
   Node := ListData.GetFirst;
   while Assigned(Node) do

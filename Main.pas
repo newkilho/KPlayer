@@ -13,6 +13,22 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 History:
 ========
+  0.9.4
+  [+] 환경설정 '연결' 카드 추가 - 확장자 38종을 KPlayer 로 연결/해제, 체크 즉시 반영 (Setup.pas: CardAssoc/TreeAssoc, AssocExts, AssocRegister/AssocUnregister)
+  [+] 시작 시 등록된 파일 연결의 exe 경로 갱신 - 포터블 폴더 이동 대응 (Setup.pas: SyncFileAssoc / Main.FormCreate)
+  [*] 지원 확장자를 AssocExts 하나로 통일 - AddFile 의 하드코딩 7종 제거 (List.pas: IsMediaFile)
+  [+] 재생목록 파일(.m3u/.m3u8/.pls) 을 항목으로 펼침 - 상대경로/ANSI·UTF-8 판별 (List.pas: AddPlaylist)
+  [+] 환경설정 전면 개편 - 디자이너 배치, 카드별 즉시 적용, 기본값 복원을 좌측 메뉴로 (Setup.pas/Setup.dfm)
+  [+] 키보드 볼륨/재생 조작 시 화면 중앙 인디케이터 - 페이드 인·아웃 + 아이콘 줌 (KPlayer.lua: draw_bezel, show_bezel)
+  [+] OSD 글꼴을 윈도우 UI 기본 폰트로 맞춤 - script-message ui-font (Main.FormCreate / KPlayer.lua)
+  [*] 캡처 기본 저장 폴더를 바탕화면으로 - 미지정 시 exe 폴더를 쓰지 않는다 (Setup.pas: DesktopPath)
+  [*] 자막 트랙이 없으면 자막 버튼을 만들지 않음 (KPlayer.lua: calc_layout)
+  [*] Lua 메시지를 영어로, 배속 토스트는 '1.5x' 형식으로 (KPlayer.lua)
+  [*] 키보드 조작 시 상단/하단 컨트롤바가 뜨지 않게 - seek/playback-restart 이벤트 제거 (KPlayer.lua)
+  [*] 대화상자를 TaskMessageDlg 로 - 버튼 캡션/아이콘을 OS 가 제공 (Setup.pas)
+  [-] TDragFile 이 해제되지 않던 문제 수정 (List.pas: FDragFile)
+  [-] 마우스 이동 등 불필요한 로그 제거, mpv 로그 파일은 기본 미사용 (Main.pas, MPVPlayer.pas)
+
   0.9.3
   [+] 키보드 배속 조절 추가 - Z(1.0 리셋)/X(-0.1)/C(+0.1), 수식키 없을 때만, 0.1 단위 정규화·0.25~4.0 clamp (SetSpeed, AddSpeed, FormKeyDown)
   [+] 배속 변경 시 화면 중앙 OSD 토스트 표시 (KPlayer.lua: draw_speed_toast, show_speed_toast, speed observer)
@@ -62,10 +78,16 @@ type
       Shift: TShiftState; X, Y: Integer);
   private
     FConfig: TConfig;
+    FDragFile: TDragFile;
     FVolume: Double;
     FRepeatMode: Integer;
     FRandomMode: Integer;
+    FOverControl: Boolean;
+    FLastMouseX: Integer;
+    FLastMouseY: Integer;
+    FLeftDown: Boolean;
 
+    procedure SendLeftButton(ADown: Boolean);
     procedure OnScriptMessage(ASender: TObject; const ACommand: string; AParams: TStrings);
 
     procedure HandleClose;
@@ -84,6 +106,8 @@ type
 
     procedure SetSpeed(const Value: Double);
     procedure AddSpeed(const Delta: Double);
+
+    function CfgOpt(const AKey: string; const AValues: array of string): string;
   public
     MPVPlayer: TMPVPlayer;
     Theme: string;
@@ -95,6 +119,7 @@ type
     procedure HandlePause;
     procedure HandleStartupParams;
 
+    property Config: TConfig read FConfig;
     property Volume: Double read FVolume write SetVolume;
     property RepeatMode: Integer read FRepeatMode write SetRepeatMode;
     property RandomMode: Integer read FRandomMode write SetRandomMode;
@@ -112,6 +137,8 @@ uses List, Setup;
 {$I Const.inc}
 
 procedure TFrmKPlayer.FormCreate(Sender: TObject);
+var
+  LLogFile: string;
 begin
   Application.Title := Caption;
 
@@ -119,6 +146,9 @@ begin
   SetFormCorners(Handle, True);
   Width := 640;
   Height := 400;
+
+  FLastMouseX := -1;
+  FLastMouseY := -1;
 
   FConfig := TConfig.Create(AppName);
 
@@ -149,44 +179,69 @@ begin
   // 파일 없어도 플레이어 종료 방지
   MPVPlayer.SetOptionString('idle', 'yes');
 
-  // 자막 기본 비활성 (자막 버튼으로 켜야 표시됨)
-  MPVPlayer.SetOptionString('sub-visibility', 'no');
+  // 자막 기본 표시 여부 (기본값은 비활성 — 자막 버튼으로 켜야 표시됨)
+  if FConfig.ReadInteger('sub_visible', 0) <> 0 then
+    MPVPlayer.SetOptionString('sub-visibility', 'yes')
+  else
+    MPVPlayer.SetOptionString('sub-visibility', 'no');
 
-  // 렌더링 및 호환성 안정화
-  MPVPlayer.SetOptionString('vo', 'gpu'); // gpu-next 대신 안정 버전
-  MPVPlayer.SetOptionString('hwdec', 'auto-safe');
-  MPVPlayer.SetOptionString('gpu-api', 'auto');
-  MPVPlayer.SetOptionString('video-sync', 'display-resample');
+  MPVPlayer.SetOptionString('sub-font-size', IntToStr(FConfig.ReadInteger('sub_size', 55)));
+  MPVPlayer.SetOptionString('slang', FConfig.ReadString('sub_lang', 'ko,kor,en,eng'));
+
+  // 렌더링 및 호환성 안정화 — 환경설정 '영상' 카드의 값 (재시작 시에만 반영)
+  MPVPlayer.SetOptionString('vo', CfgOpt('vo', VoValues)); // 기본은 gpu-next 대신 안정 버전
+  MPVPlayer.SetOptionString('hwdec', CfgOpt('hwdec', HwdecValues));
+  MPVPlayer.SetOptionString('gpu-api', CfgOpt('gpu_api', GpuApiValues));
+  MPVPlayer.SetOptionString('video-sync', CfgOpt('video_sync', VideoSyncValues));
 
   // 영상 안정화 (필요시만 적용)
-  MPVPlayer.SetOptionString('deinterlace', 'auto');
+  MPVPlayer.SetOptionString('deinterlace', CfgOpt('deinterlace', DeintValues));
 
   // 스케일링 (품질/안정 균형)
-  MPVPlayer.SetOptionString('scale', 'lanczos');
+  MPVPlayer.SetOptionString('scale', CfgOpt('scale', ScaleValues));
   MPVPlayer.SetOptionString('cscale', 'bilinear');
 
-  // 초기화
-  MPVPlayer.InitPlayer(IntToStr(Handle), '', '', '', True);
+  // mpv 로그 파일. 평소에는 쓰지 않는다.
+  LLogFile := '';
+  {$IFDEF DEBUG}
+  //LLogFile := ExtractFilePath(ParamStr(0)) + 'KPlayer.log';
+  {$ENDIF}
 
-  MPVPlayer.Command(['set', 'screenshot-directory', ExtractFilePath(ParamStr(0))]);
+  // 초기화 (4번째 인자 = 로그 파일 경로, 빈 문자열이면 기록하지 않음)
+  MPVPlayer.InitPlayer(IntToStr(Handle), '', '', LLogFile, True);
+
+  MPVPlayer.Command(['set', 'screenshot-directory',
+    FConfig.ReadString('shot_dir', DesktopPath)]);
   MPVPlayer.Command(['set', 'screenshot-template', '%f-%n']);
-  MPVPlayer.Command(['set', 'screenshot-format', 'jpg']);
+  MPVPlayer.Command(['set', 'screenshot-format', CfgOpt('shot_format', ShotFmtValues)]);
   MPVPlayer.Command(['set', 'volume', FloatToStr(Volume)]);
-  MPVPlayer.Command(['set', 'af', 'lavfi=[dynaudnorm=f=75:g=7:p=0.95:r=0.20:n=1]']);
+
+  // 음량 평준화 (환경설정 '음성' 카드)
+  if FConfig.ReadInteger('normalize', 1) <> 0 then
+    MPVPlayer.Command(['set', 'af',
+      NormFilters[EnsureRange(FConfig.ReadInteger('norm_level', 1), 0, High(NormFilters))]]);
 
   MPVPlayer.Command(['load-script', Theme]);
 
-  TDragFile.Create(Self,
+  // OSD 글자를 윈도우 UI 기본 폰트로 맞춘다.
+  MPVPlayer.Command(['script-message', 'ui-font', Screen.MessageFont.Name]);
+
+  FDragFile := TDragFile.Create(Self,
   procedure(const Files: TArray<string>)
   begin
     if Length(Files) = 0 then Exit;
-    
+
     for var S in Files do
       FrmList.AddFile(S);
 
     if not IsPlay then
       HandlePlay(Files[0]);
   end);
+
+  // 등록해 둔 파일 연결의 exe 경로를 현재 위치로 다시 기록한다.
+  // 포터블이라 폴더를 옮기면 등록된 실행 명령이 옛 경로를 가리켜
+  // 더블클릭이 '파일을 찾을 수 없음' 으로 끝난다. (Setup.pas)
+  SyncFileAssoc;
 
   CheckUpdate(procedure(Quit: Boolean; Data: string)
   begin
@@ -201,6 +256,7 @@ end;
 procedure TFrmKPlayer.FormDestroy(Sender: TObject);
 begin
   FreeAndNil(MPVPlayer);
+  FreeAndNil(FDragFile);
   FreeAndNil(FConfig);
 end;
 
@@ -210,7 +266,7 @@ begin
   Resize := (NewWidth >= 384) and (NewHeight >= 216);
 end;
 
-// Script-message dispatcher
+// ScriptMessage 처리하기
 procedure TFrmKPlayer.OnScriptMessage(ASender: TObject; const ACommand: string; AParams: TStrings);
 begin
   if SameText(ACommand, 'close') then
@@ -259,6 +315,20 @@ begin
     Exit;
   end;
 
+  // 우리가 KPlayer.lua 로 보낸 메시지다. script-message 는 스크립트뿐 아니라
+  // 이쪽(호스트)에도 그대로 전달되므로 여기서 무시한다.
+  if SameText(ACommand, 'mbtn') or SameText(ACommand, 'ui-font')
+  or SameText(ACommand, 'dpi') then
+    Exit;
+
+  // 커서가 컨트롤 위에 있는지 (창 드래그 억제용)
+  if SameText(ACommand, 'hit') then
+  begin
+    if AParams.Count > 0 then
+      FOverControl := (AParams[0] = '1');
+    Exit;
+  end;
+
   if SameText(ACommand, 'prev') then
   begin
     FrmList.Prev;
@@ -287,6 +357,12 @@ begin
   ShowMessage('알 수 없는 script-message: ' + ACommand);
 end;
 
+// 환경설정에 콤보 인덱스로 저장된 값을 mpv 옵션 문자열로 바꾼다.
+function TFrmKPlayer.CfgOpt(const AKey: string; const AValues: array of string): string;
+begin
+  Result := AValues[EnsureRange(FConfig.ReadInteger(AKey, 0), 0, High(AValues))];
+end;
+
 procedure TFrmKPlayer.SetRandomMode(const Value: Integer);
 begin
   FRandomMode := Value;
@@ -309,13 +385,11 @@ const
   SpeedMin = 0.25;
   SpeedMax = 4.0;
 
-// Set playback speed, clamped to [SpeedMin, SpeedMax]
 procedure TFrmKPlayer.SetSpeed(const Value: Double);
 begin
   MPVPlayer.SetPropertyDouble('speed', EnsureRange(Value, SpeedMin, SpeedMax));
 end;
 
-// Add Delta to current speed, normalized to 0.1 steps (avoids float drift)
 procedure TFrmKPlayer.AddSpeed(const Delta: Double);
 var
   LCur: Double;
@@ -357,7 +431,6 @@ begin
   else if IsBottom             then Msg.Result := HTBOTTOM;
 end;
 
-// Handler
 procedure TFrmKPlayer.HandleClose;
 begin
   MPVPlayer.Stop;
@@ -693,31 +766,61 @@ begin
   Msg.Result := 1;
 end;
 
+// 왼쪽 버튼 상태를 KPlayer.lua 로. 바뀔 때만 보낸다.
+procedure TFrmKPlayer.SendLeftButton(ADown: Boolean);
+begin
+  if FLeftDown = ADown then Exit;
+  FLeftDown := ADown;
+
+  if MPVPlayer = nil then Exit;
+  if ADown then
+    MPVPlayer.Command(['script-message', 'mbtn', '1'])
+  else
+    MPVPlayer.Command(['script-message', 'mbtn', '0']);
+end;
+
 procedure TFrmKPlayer.FormMouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
+var
+  Dragging: Boolean;
 begin
+  Dragging := False;
+
   if Button = mbLeft then
   begin
-    if WindowState <> wsMaximized then
+    if (WindowState <> wsMaximized) and (not FOverControl) then
     begin
+      Dragging := True;
       ReleaseCapture;
       Perform(WM_NCLBUTTONDOWN, HTCAPTION, 0);
     end;
   end;
 
   if MPVPlayer = nil then Exit;
+  if Dragging then Exit;
 
   case Button of
-    mbLeft:   MPVPlayer.Command(['keypress', 'MBTN_LEFT']);
-    mbMiddle: MPVPlayer.Command(['keypress', 'MBTN_MID']);
+    mbLeft:   MPVPlayer.Command(['keydown', 'MBTN_LEFT']);
+    mbMiddle: MPVPlayer.Command(['keydown', 'MBTN_MID']);
   end;
+
+  if Button = mbLeft then
+    SendLeftButton(True);
 end;
 
 procedure TFrmKPlayer.FormMouseMove(Sender: TObject; Shift: TShiftState;
   X, Y: Integer);
 begin
   if MPVPlayer = nil then Exit;
-  MPVPlayer.Command(['mouse', IntToStr(X), IntToStr(Y)]);
+
+  if (X <> FLastMouseX) or (Y <> FLastMouseY) then
+  begin
+    FLastMouseX := X;
+    FLastMouseY := Y;
+    MPVPlayer.Command(['mouse', IntToStr(X), IntToStr(Y)]);
+  end;
+
+  SendLeftButton(ssLeft in Shift);
 end;
 
 procedure TFrmKPlayer.FormMouseUp(Sender: TObject; Button: TMouseButton;
@@ -729,7 +832,9 @@ begin
     mbLeft:   MPVPlayer.Command(['keyup', 'MBTN_LEFT']);
     mbMiddle: MPVPlayer.Command(['keyup', 'MBTN_MID']);
   end;
+
+  if Button = mbLeft then
+    SendLeftButton(False);
 end;
 
 end.
-

@@ -37,6 +37,12 @@ type
     // args[0] = 명령 식별자, args[1..N] = 추가 인자
     function DoEventClientMsg(pCM: P_mpv_event_client_message): TMPVErrorCode; override;
 
+    // mpv 로그를 IDE 로 흘린다. 기반 클래스는 MPV_EVENT_LOG_MESSAGE 를 받아
+    // Log() 를 부르는데 그 기본 구현이 빈 메서드라 지금까지 다 버려졌다.
+    // 창에 임베드해 쓰는 구조라 터미널이 없으므로 이렇게라도 봐야 한다.
+    // KPlayer.lua 의 msg.info 출력도 여기로 들어온다.
+    procedure Log(const sMsg: string; bError: Boolean); override;
+
   public
     // script-message 수신 이벤트 (UI 스레드에서 호출됨)
     property OnScriptMessage: TMPVScriptMessageEvent
@@ -47,6 +53,17 @@ type
 implementation
 
 { TMPVPlayer }
+
+// Debug 빌드에서만 내보낸다. IDE 의 View > Debug Windows > Event Log 창에 찍히고,
+// DebugView 같은 도구로도 볼 수 있다. Release 에서는 호출 자체가 사라진다.
+procedure TMPVPlayer.Log(const sMsg: string; bError: Boolean);
+begin
+{$IFDEF DEBUG}
+  {$IFDEF MSWINDOWS}
+  OutputDebugString(PChar('[mpv] ' + sMsg));
+  {$ENDIF}
+{$ENDIF}
+end;
 
 function TMPVPlayer.DoEventClientMsg(pCM: P_mpv_event_client_message): TMPVErrorCode;
 var
