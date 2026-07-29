@@ -81,6 +81,6 @@ __recovery/
 # Boss dependency manager vendor folder https://github.com/HashLoad/boss
 modules/
 
-Const.inc
-CLAUDE.md
 TODO.txt
+CLAUDE.md
+Const.inc

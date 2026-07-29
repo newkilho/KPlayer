@@ -1,20 +1,28 @@
-program KPlayer;
+﻿program KPlayer;
 
 uses
   madExcept,
   madLinkDisAsm,
   madListProcesses,
   madListModules,
+  System.SysUtils,
   Vcl.Forms,
   MPVPlayer in 'MPVPlayer.pas',
   Main in 'Main.pas' {FrmKPlayer},
   List in 'List.pas' {FrmList},
-  Setup in 'Setup.pas' {FrmSetup};
+  Setup in 'Setup.pas' {FrmSetup},
+  Assoc in 'Assoc.pas';
 
 {$R *.res}
 
 begin
   //ReportMemoryLeaksOnShutDown := True;
+
+  if FindCmdLineSwitch('uninst', ['/'], True) then
+  begin
+    AssocUnregisterAll;
+    Exit;
+  end;
 
   Application.Initialize;
   Application.MainFormOnTaskbar := True;

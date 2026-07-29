@@ -1,6 +1,6 @@
 ﻿-- ==============================================================
--- Project : KPlayer
--- Author  : Kilho, Oh
+-- 프로젝트 : KPlayer
+-- 작성자   : Kilho, Oh
 -- ==============================================================
 
 local mp = require 'mp'
@@ -8,7 +8,7 @@ local assdraw = require 'mp.assdraw'
 local opt = require 'mp.options'
 local msg = require 'mp.msg'
 
--- Options
+-- 옵션
 local options = {
     -- 하단 컨트롤 전체 높이 = 진행바 16 + 간격 2 + 버튼줄 48 + 아래 여백 8
     bar_height = 74,
@@ -27,40 +27,24 @@ local options = {
     -- 아래쪽이 짙어지는 그라데이션을 깐다.
     bottom_scrim_alpha = 0,
     topbar_height = 32,
-    -- 제목(텍스트)용 폰트. 한글·영문을 한 폰트로 그린다. 지정하지 않으면 영문은
-    -- 기본 OSD 폰트, 한글은 폴백 폰트가 맡는데 두 폰트의 em 대비 글자 크기가 달라
-    -- 같은 \fs 에서도 한글만 작아 보인다.
-    --
-    -- 여기 값은 기본값(=한국어 윈도우 캡션바 폰트)일 뿐이다. mpv/Lua 는 윈도우
-    -- UI 기본 폰트를 알 방법이 없으므로, 실제 값은 Delphi 가 시작할 때
-    -- Screen.MessageFont.Name 을 script-message ui-font 로 넘겨 준다.
-    -- 그러면 국가별 기본 폰트를 그대로 따라간다
-    -- (한국 맑은 고딕 / 일본 Yu Gothic UI / 영문 Segoe UI ...).
+    -- 제목용. 한글·영문을 한 폰트로 그려야 같은 \fs 에서 한글만 작아 보이지
+    -- 않는다. 실제 값은 Delphi 가 시작할 때 script-message ui-font 로 넘긴다
+    -- (OS UI 기본 폰트). 여기 값은 그때까지 쓰는 기본값이다.
     topbar_font = "Malgun Gothic",
-    -- 숫자(시간·볼륨·배속)용 폰트. 텍스트 폰트와 따로 두는 이유:
-    --   * approx_text_w() 의 글자폭 근사가 Arial 숫자 기준(0.56em)이라
-    --     이걸 바꾸면 시간 칩·툴팁 폭이 어긋난다.
-    --   * 숫자만 쓰므로 국가별로 바꿀 이유가 없다.
+    -- 숫자(시간·볼륨·배속)용. approx_text_w() 의 글자폭 근사가 Arial 숫자
+    -- 기준(0.56em)이라 바꾸면 시간 칩·툴팁 폭이 어긋난다.
     num_font = "Arial",
-    -- ASS \fs 값. 이 값은 em 크기가 아니다 — libass 는 요청 크기를 em 이 아니라
-    -- 줄 높이(ascent+descent) 기준으로 잡아, 줄 높이가 em 보다 훨씬 큰 폰트에서는
-    -- 글자가 그만큼 작게 나온다. 맑은 고딕은 upem 2048 / 줄높이 2724 다.
-    -- 실측 앵커: \fs 20 이 DirectWrite em 13px 과 같은 크기로 보인다 (100% DPI).
-    --
-    -- 기준은 윈도우 캡션 기본 폰트 크기 — NONCLIENTMETRICS.lfCaptionFont 는
-    -- 96 DPI 에서 lfHeight = -12, 즉 em 12px(9pt)다. 앵커로 환산하면 18.5 지만
-    -- 실제로 캡션바와 나란히 놓고 보니 그래도 커서 17 로 내렸다 (≈ em 11).
-    -- (AraView 의 CAPTION_PX_LOGICAL 13 은 캡션바보다 한 단계 큰 값이다.)
-    -- 폰트를 바꾸면 앵커가 달라지므로 이 값도 다시 실측해야 한다.
+    -- \fs 는 em 이 아니라 줄 높이(ascent+descent) 기준이다 — 맑은 고딕은
+    -- upem 2048 / 줄높이 2724 이고 \fs 20 이 em 13px 로 보인다(100% DPI).
+    -- 캡션바와 나란히 놓고 맞춘 값이라 폰트를 바꾸면 다시 재야 한다.
     topbar_font_size = 18,
-    -- 상단바 배율. 0 이면 display-hidpi-scale 을 따른다.
-    -- mpv 가 다른 프로그램 창에 임베드되면(--wid) 창을 소유하지 않아 이 속성이
-    -- 1.0 으로 보고되는 경우가 있다. 그러면 여기에 실제 배율(1.25, 1.5 …)을 적는다.
+    -- 상단바 배율. 0 이면 display-hidpi-scale 을 따른다 — 창에 임베드(--wid)되면
+    -- 그 속성이 1.0 으로 보고되는 경우가 있어, 그때만 실제 배율을 적는다.
     topbar_scale = 0,
 }
 opt.read_options(options, "controls")
 
--- State
+-- 상태
 local state = {
     visible = false,
     mouse_x = 0,
@@ -130,7 +114,7 @@ local state = {
     opacity = 0,
 }
 
--- Utilities
+-- 유틸리티
 local function clamp(val, min, max)
     if val < min then return min end
     if val > max then return max end
@@ -210,7 +194,7 @@ local function apply_ui_scale()
     msg.info(string.format("topbar scale %.2f - bar %dpx, title %dpx", s, tb.h, tb.font_px))
 end
 
--- Colors
+-- 색상
 local color = {
     red         = "0000FF",
     red_hover   = "1A1AFF",
@@ -220,24 +204,47 @@ local color = {
     dark_bar    = "141414",
     gray        = "888888",
     gray_light  = "AAAAAA",
-    -- 하단 컨트롤의 트랙·칩 배경은 고정색이 아니라 흰색/검정 + 알파다
-    -- (유튜브가 rgba(255,255,255,0.25) 처럼 반투명으로 쌓는 방식과 같다)
+    -- 하단 컨트롤의 트랙·칩 배경은 고정색이 아니라 흰색/검정 + 알파다.
     -- 상단바 (ASS 색상은 BGR 순서)
-    scrim       = "0A0A0A",  -- #0A0A0A 스크림
-    -- 제목은 순백. #CCCCCC 는 선형 밝기가 0.60 에서 잘려 반투명 스크림 위에서 대비가
-    -- 부족하다 — 획이 1px 남짓이라 그 차이가 곧 선명도 차이로 보인다.
+    scrim       = "0A0A0A",
+    -- 제목은 순백. #CCCCCC 는 반투명 스크림 위에서 1px 획의 대비가 부족하다.
     title       = "FFFFFF",
-    cap_idle    = "CCCCCC",  -- 캡션 글리프 평상시 (#CCCCCC)
+    cap_idle    = "CCCCCC",  -- 캡션 글리프 평상시
     cap_hover   = "FFFFFF",  -- 캡션 글리프 hover
     close_bg    = "2311E8",  -- 닫기 hover 배경 #E81123
+    logo_mark   = "222222",  -- 시작 화면 워드마크
 }
 
+-- ASS 알파는 0 이 불투명이라 값이 클수록 흐리다. 또 알파는 색을 흐리게 만드는
+-- 게 아니라 배경색에 섞으므로, 검정 배경에서는 색을 밝게 잡아야 보인다.
 local alpha = {
     bar_bg   = string.format("%02X", math.floor((1 - options.bg_alpha) * 255)),
     full     = "00",
     half     = "80",
     hidden   = "FF",
+    logo_mark       = "80",   -- 배경 워드마크
+    -- 아이콘을 받치는 원은 워드마크보다 어둡게, 삼각형은 한 단계만 밝게.
+    -- 밝기 순서가 뒤집히면 글자가 원 앞으로 지나가는 것처럼 보인다.
+    logo_disc       = "E0",
+    logo_play       = "AA",
 }
+
+-- 시작 화면 로고.
+--   LOGO_FONT    : 워드마크 폰트. libass 는 폰트 목록을 받지 못하므로 이름
+--                  하나만 쓴다 — Windows·macOS 공통 폰트여야 한다.
+--   LOGO_TILT    : \frz 각도(도). 반시계 방향이라 양수면 오른쪽이 올라간다.
+--   LOGO_FILL    : 워드마크가 창 폭의 몇 할을 채울지
+--   LOGO_MARK_ADV: 워드마크 폭 / \fs. Arial Black + "KPlayer" 실측값이며
+--                  기울여도 가로 폭은 거의 같다. 폰트를 바꾸면 다시 잰다.
+--   LOGO_MARK_H  : 세로 상한 (가로로 긴 창에서만 걸린다)
+--   LOGO_MARK_DY : 워드마크를 아이콘 반지름의 몇 배만큼 올릴지 (음수가 위쪽).
+--                  0 이면 글자 가운데를 아이콘이 가린다.
+local LOGO_FONT    = "Arial Black"
+local LOGO_TILT    = 18
+local LOGO_FILL    = 1.60
+local LOGO_MARK_ADV = 3.8
+local LOGO_MARK_H  = 0.45
+local LOGO_MARK_DY = -0.9
 
 -- ==============================================================
 -- 하단 컨트롤 — 유튜브(2024+) 칩 스타일
@@ -271,10 +278,9 @@ local A_TRACK      = "BF"   -- rgba(255,255,255,0.25)  진행바 트랙
 local A_VOL_TRACK  = "A6"   -- rgba(255,255,255,0.35)  음량 트랙
 local A_TOOLTIP    = "26"   -- rgba(0,0,0,0.85)
 
--- ── 애니메이션 (CSS transition 대응) ──────────────────────────
--- 값은 전부 0..1 로 정규화해서 보관하고, 픽셀/알파 변환은 쓰는 쪽에서 한다.
--- 보간은 지수 감쇠(ease-out) — 목표를 넘어가지 않고, 도중에 목표가 바뀌어도
--- 현재값에서 자연스럽게 이어진다. tau = dur/3 이면 dur 안에 약 95% 도달한다.
+-- 애니메이션 (CSS transition 대응)
+-- 값은 0..1 로 보관하고 픽셀/알파 변환은 쓰는 쪽에서 한다. 보간은 지수
+-- 감쇠(ease-out)라 목표를 넘지 않고, tau = dur/3 이면 dur 안에 약 95% 도달한다.
 local ANIM_FADE  = 0.20   -- .controls   opacity   .2s
 local ANIM_SEEK  = 0.10   -- .progress   height    .1s
 local ANIM_THUMB = 0.10   -- thumb       scale     .1s
@@ -307,8 +313,7 @@ local function anim_step(dt)
 end
 
 -- 아직 목표에 도달하지 못한 값이 있나. 목표는 render() 안에서 갱신되므로
--- 이 검사는 반드시 render() 뒤에 해야 한다 — 그래야 이번 프레임에 새로 잡힌
--- 목표(예: 컨트롤 숨김)를 보고 다음 프레임을 예약한다.
+-- 반드시 render() 뒤에 검사해야 다음 프레임이 예약된다.
 local function anim_pending()
     for _, a in pairs(anims) do
         if a.v ~= a.t then return true end
@@ -316,18 +321,16 @@ local function anim_pending()
     return false
 end
 
--- 컨트롤이 완전히 사라진 뒤 hover/press/펼침 상태를 0 으로 되돌린다.
--- 안 하면 마우스가 버튼 위에 있는 채로 숨겨졌을 때, 다시 나타나는 첫 프레임에
--- 예전 hover 배경이 한 번 비쳤다가 사라진다. (fade 자체는 건드리지 않는다)
+-- 컨트롤이 사라진 뒤 hover/press/펼침을 0 으로 되돌린다 (fade 는 제외).
+-- 안 하면 버튼 위에서 숨겨졌을 때 다시 나타나는 첫 프레임에 옛 hover 가 비친다.
 local function anim_reset()
     for name, a in pairs(anims) do
         if name ~= "fade" then a.v, a.t = 0, 0 end
     end
 end
 
--- ASS 알파는 불투명도의 반대(00 = 불투명). base 알파를 f(0..1) 만큼 더 흐리게 만든다.
--- 컨트롤 전체 페이드(state.opacity)는 여기서 항상 함께 곱해진다.
--- (이름이 fa 인 것은 상단바 헬퍼들이 al 을 매개변수 이름으로 쓰고 있어서다)
+-- base 알파를 f(0..1) 만큼 더 흐리게 만든다. 컨트롤 전체 페이드
+-- (state.opacity)는 여기서 항상 함께 곱해진다.
 local function fa(base, f)
     f = (f or 1) * state.opacity
     if f >= 0.999 then return base end
@@ -336,7 +339,7 @@ local function fa(base, f)
     return string.format("%02X", 255 - math.floor(o + 0.5))
 end
 
--- Icons (ASS vector drawing paths, 24x24 Material Design)
+-- 아이콘 (24x24 Material Design 을 ASS 벡터 경로로 옮긴 것)
 local icons = {
     full_off = "{\\p1}m 0 0 m 24 24 m 6 8 l 4 8 l 4 18 b 4 19.1 4.9 20 6 20 l 16 20 l 16 18 l 6 18 m 18 4 l 10 4 b 8.9 4 8 4.9 8 6 l 8 14 b 8 15.1 8.9 16 10 16 l 18 16 b 19.1 16 20 15.1 20 14 l 20 6 b 20 4.9 19.1 4 18 4 m 18 14 l 10 14 l 10 6 l 18 6{\\p0}",
     full_on  = "{\\p1}m 0 0 m 24 24 m 3 3 l 21 3 l 21 21 l 3 21 m 5 5 l 5 19 l 19 19 l 19 5{\\p0}",
@@ -344,12 +347,9 @@ local icons = {
     vol_on   = "{\\p1}m 0 0 m 24 24 m 3 9 l 3 15 l 7 15 l 12 20 l 12 4 l 7 9 m 16.5 12 b 16.5 10.23 15.48 8.71 14 7.97 l 14 16.02 b 15.48 15.29 16.5 13.77 16.5 12 m 14 3.23 l 14 5.29 b 16.89 6.15 19 8.83 19 12 b 19 15.17 16.89 17.85 14 18.71 l 14 20.77 b 18.01 19.86 21 16.28 21 12 b 21 7.72 18.01 4.14 14 3.23{\\p0}",
     close    = "{\\p1}m 0 0 m 24 24 m 19 6.41 l 17.59 5 l 12 10.59 l 6.41 5 l 5 6.41 l 10.59 12 l 5 17.59 l 6.41 19 l 12 13.41 l 17.59 19 l 19 17.59 l 13.41 12{\\p0}",
     pause    = "{\\p1}m 0 0 m 24 24 m 6 19 l 10 19 l 10 5 l 6 5 m 14 5 l 14 19 l 18 19 l 18 5{\\p0}",
-    -- 유튜브 재생목록 아이콘 (가로선 3개 + 재생 삼각형)
-    -- 원본 svg 는 viewBox "9.2 9.4 18 18" 이라 1.33 배 크고 원점도 다르다.
-    -- 그래서 좌표를 (x-9.2)*4/3, (y-9.4)*4/3 으로 옮겨 24x24 박스에 맞춘다.
-    -- 이 아이콘만 내용 중심이 y 14.5 로 상자 중심(12)보다 2.5 아래다 — 원본 svg 를
-    -- 그렇게 손봤기 때문이고(삼각형이 viewBox 아래로 넘어간다) 다른 아이콘보다
-    -- 살짝 낮게 앉는 것이 의도된 모양이다. 건드리지 말 것.
+    -- 재생목록 아이콘. 원본 viewBox 가 "9.2 9.4 18 18" 이라 (x-9.2)*4/3,
+    -- (y-9.4)*4/3 으로 옮겨 24x24 에 맞췄다. 내용 중심이 y 14.5 라 다른
+    -- 아이콘보다 살짝 낮게 앉는데 의도된 모양이므로 건드리지 말 것.
     list     = "{\\p1}m 0 0 m 24 24 m 17.77 16.03 l 17.77 25.16 25.32 20.6 17.77 16.04 17.77 16.04 m 2.67 16.03 l 14.75 16.03 14.75 19.07 2.67 19.07 m 2.67 3.84 l 20.8 3.84 20.8 6.88 2.67 6.88 m 2.67 9.93 l 20.8 9.93 20.8 12.97 2.67 12.97{\\p0}",
     play     = "{\\p1}m 0 0 m 24 24 m 8 5 l 8 19 l 19 12{\\p0}",
     next     = "{\\p1}m 0 0 m 24 24 m 6 18 l 14.5 12 l 6 6 l 6 18 m 16 6 l 16 18 l 18 18 l 18 6 l 16 6{\\p0}",
@@ -360,14 +360,13 @@ local icons = {
     sub      = "{\\p1}m 0 0 m 24 24 m 19 4 l 5 4 b 3.89 4 3 4.9 3 6 l 3 18 b 3 19.1 3.89 20 5 20 l 19 20 b 20.1 20 21 19.1 21 18 l 21 6 b 21 4.9 20.1 4 19 4 m 11 11 l 9.5 11 l 9.5 10.5 l 7.5 10.5 l 7.5 13.5 l 9.5 13.5 l 9.5 13 l 11 13 l 11 14 b 11 14.55 10.55 15 10 15 l 7 15 b 6.45 15 6 14.55 6 14 l 6 10 b 6 9.45 6.45 9 7 9 l 10 9 b 10.55 9 11 9.45 11 10 l 11 11 m 18 11 l 16.5 11 l 16.5 10.5 l 14.5 10.5 l 14.5 13.5 l 16.5 13.5 l 16.5 13 l 18 13 l 18 14 b 18 14.55 17.55 15 17 15 l 14 15 b 13.45 15 13 14.55 13 14 l 13 10 b 13 9.45 13.45 9 14 9 l 17 9 b 17.55 9 18 9.45 18 10 l 18 11{\\p0}",
 }
 
--- Hit testing
+-- 히트 판정
 local function in_rect(x, y, rx, ry, rw, rh)
     return x >= rx and x <= rx + rw and y >= ry and y <= ry + rh
 end
 
--- 시간 표시 칩의 폭을 잡으려면 글자 폭을 알아야 하는데 libass 는 측정 API 가 없다.
--- options.num_font(Arial) 기준 근사치 — 숫자 0.56em, 구분자 0.30em.
--- 숫자 폰트를 바꾸면 이 계수도 다시 재야 한다.
+-- libass 에는 글자 폭 측정 API 가 없다. Arial 숫자 기준 근사치(숫자 0.56em,
+-- 구분자 0.30em)이므로 num_font 를 바꾸면 이 계수도 다시 재야 한다.
 local function approx_text_w(str, fs)
     local w = 0
     for i = 1, #str do
@@ -383,7 +382,7 @@ local function approx_text_w(str, fs)
     return w * fs
 end
 
--- Layout
+-- 레이아웃
 local layout = {}
 
 -- 화면에 보여줄 재생 위치. 진행바를 끄는 동안에는 실제 재생 위치가 아니라
@@ -409,22 +408,20 @@ local function calc_layout()
     local tbh = tb.h
     layout.topbar = { x = 0, y = 0, w = W, h = tbh }
 
-    -- 캡션 슬롯 3개(왼→오: 최소화, 최대화/복원, 닫기). 우측 가장자리에 붙이고
-    -- 슬롯이 상단바 전체 높이를 차지한다 — 히트 영역이 곧 슬롯 사각형이다.
+    -- 캡션 슬롯 3개(최소화 / 최대화·복원 / 닫기). 슬롯이 상단바 높이를 다
+    -- 차지하므로 히트 영역이 곧 슬롯 사각형이다.
     local sw = tb.slot_w
     local cy = tbh / 2
     layout.cap_min   = { x = W - 3 * sw, y = 0, w = sw, h = tbh, cx = W - 2.5 * sw, cy = cy }
     layout.cap_max   = { x = W - 2 * sw, y = 0, w = sw, h = tbh, cx = W - 1.5 * sw, cy = cy }
     layout.cap_close = { x = W - sw,     y = 0, w = sw, h = tbh, cx = W - 0.5 * sw, cy = cy }
 
-    -- 정수 좌표에 놓아야 글리프가 픽셀 격자에 맞는다. 소수점 위치는 안티에일리어싱이
-    -- 획을 양쪽 픽셀로 나눠 흐려 보이게 한다.
+    -- 정수 좌표여야 글리프가 픽셀 격자에 맞는다 (소수점이면 획이 흐려진다).
     layout.title_text = { x = math.floor(tb.title_x + 0.5), y = math.floor(cy + 0.5) }
 
     layout.bar = { x = 0, y = H - bh - bm, w = W, h = bh }
 
-    -- ── 진행바 ──────────────────────────────────────────────
-    -- .progress 는 16px 짜리 hit 영역이고 트랙은 그 안에서 세로 중앙에 놓인다.
+    -- 진행바: .progress 는 16px hit 영역이고 트랙은 그 안 세로 중앙이다.
     layout.progress = {
         x  = pad,
         y  = layout.bar.y,
@@ -444,7 +441,7 @@ local function calc_layout()
         h = sb_h,
     }
 
-    -- ── 버튼줄 ──────────────────────────────────────────────
+    -- 버튼줄
     local row_cy = layout.bar.y + PROGRESS_H + PROGRESS_GAP + ROW_H / 2
     local row_top = row_cy - BTN_SIZE / 2
     layout.row_cy = row_cy
@@ -458,9 +455,8 @@ local function calc_layout()
     layout.play_btn = { cx = bx + BTN_SIZE * 1.5 + CHIP_GAP,      cy = row_cy, r = BTN_R }
     layout.next_btn = { cx = bx + BTN_SIZE * 2.5 + CHIP_GAP * 2,  cy = row_cy }
 
-    -- 음량: 스피커 칩 + (hover 시 펼쳐지는) 슬라이더.
-    -- 펼침 판정은 여기서 한다 — 접혀 있을 땐 스피커 칩만, 펼쳐진 뒤엔 슬라이더까지가
-    -- 판정 영역이라 경계에서 깜빡이지 않는다(히스테리시스).
+    -- 음량: 스피커 칩 + hover 시 펼쳐지는 슬라이더. 접혀 있을 땐 칩만, 펼쳐진
+    -- 뒤엔 슬라이더까지가 판정 영역이라 경계에서 깜빡이지 않는다(히스테리시스).
     local vx = gx + group_w + BTN_GAP
     local vol_w = options.volume_width
     local exp_w = BTN_SIZE + VOL_SLIDER_M * 2 + vol_w
@@ -472,8 +468,7 @@ local function calc_layout()
     end
     state.vol_expanded = expanded
 
-    -- 펼쳐지는 과정은 애니메이션(.2s). 히트 판정은 목표 상태(expanded)로 하고,
-    -- 그리기와 뒤따르는 시간 칩 위치만 현재 진행률(reveal)을 따른다.
+    -- 히트 판정은 목표 상태(expanded)로, 그리기와 시간 칩 위치만 진행률(reveal)로.
     local reveal = anim("vol", expanded and 1 or 0, ANIM_VOL)
     layout.vol_btn    = { cx = vx + BTN_SIZE / 2, cy = row_cy }
     layout.vol_area   = { x = vx, y = row_top, h = BTN_SIZE,
@@ -485,8 +480,8 @@ local function calc_layout()
     local time_w = approx_text_w(time_str, options.font_size) + TIME_PAD_X * 2
     local tx = layout.vol_area.x + layout.vol_area.w + BTN_GAP
     layout.time_chip = { x = tx, y = row_top, w = time_w, h = BTN_SIZE }
-    -- 칩 폭은 글자 폭 근사치로 잡는다. 좌측 padding 에 붙여 놓으면 근사 오차가
-    -- 전부 오른쪽 여백으로 몰려 글자가 왼쪽으로 치우쳐 보이므로 칩 중앙에 놓는다.
+    -- 칩 폭이 근사치라 좌측 padding 에 붙이면 오차가 전부 오른쪽 여백으로
+    -- 몰린다. 그래서 글자는 칩 중앙에 놓는다.
     layout.time_text = { x = tx + time_w / 2, y = row_cy }
 
     -- 오른쪽: 자막 / 설정 / 재생목록 (오른쪽부터 채운다)
@@ -494,9 +489,8 @@ local function calc_layout()
     layout.list_btn     = { cx = rx + BTN_SIZE / 2, cy = row_cy }
     rx = rx - BTN_GAP - BTN_SIZE
     layout.settings_btn = { cx = rx + BTN_SIZE / 2, cy = row_cy }
-    -- 자막 버튼은 자막 트랙이 있을 때만 만든다 (sid 가 잡히는 시점).
-    -- 없으면 nil 로 둬서 그리기·hover·클릭 판정에서 모두 빠진다. 오른쪽부터
-    -- 채우는 순서라 자리만 비고 다른 버튼이 밀리지는 않는다.
+    -- 자막 버튼은 자막 트랙이 있을 때만. nil 이면 그리기·hover·클릭에서 모두
+    -- 빠지고, 오른쪽부터 채우므로 다른 버튼이 밀리지도 않는다.
     if state.has_sub then
         rx = rx - BTN_GAP - BTN_SIZE
         layout.sub_btn = { cx = rx + BTN_SIZE / 2, cy = row_cy }
@@ -517,19 +511,16 @@ local function set_hover(key, v)
     return true
 end
 
--- 창 드래그 억제.
--- 호스트(Delphi)의 FormMouseDown 은 클릭 위치와 무관하게 WM_NCLBUTTONDOWN/HTCAPTION
--- 으로 창 이동을 시작한다. 어느 지점이 버튼인지는 여기만 알고 있으므로, 조작 가능한
--- 요소 위에 커서가 올라가면 알려 준다 (script-message hit 1|0).
+-- 창 드래그 억제. 호스트(Delphi)는 클릭 위치와 무관하게 창 이동을 시작하므로,
+-- 조작 가능한 요소 위에 커서가 있으면 알려 준다 (script-message hit 1|0).
 local function report_hit(v)
     if state.hit == v then return end
     state.hit = v
     mp.commandv("script-message", "hit", v and "1" or "0")
 end
 
--- hover 상태를 갱신하고 "달라진 것이 있나" 를 돌려준다.
--- 마우스가 움직여도 이 값이 false 고 커서를 따라다니는 요소(진행바 툴팁)도 없으면
--- 화면은 한 픽셀도 달라지지 않는다 — 그럴 땐 렌더를 아예 요청하지 않는다.
+-- hover 를 갱신하고 달라진 것이 있나를 돌려준다. false 이고 커서를 따라다니는
+-- 요소(진행바 툴팁)도 없으면 화면이 그대로이므로 렌더를 요청하지 않는다.
 local function check_hover()
     local mx = state.mouse_x
     local my = state.mouse_y
@@ -545,8 +536,7 @@ local function check_hover()
     ch = set_hover("hover_mute", hover_btn(mx, my, L.vol_btn)) or ch
     ch = set_hover("hover_volume", state.vol_expanded and
         in_rect(mx, my, L.vol_slider.x - 4, L.vol_slider.cy - 10, L.vol_slider.w + 8, 20)) or ch
-    -- 음량 영역 전체. 여길 벗어나야 슬라이더가 접히므로 변화 감지에 필요하다
-    -- (접힘 판정 자체는 calc_layout 이 같은 사각형으로 따로 한다)
+    -- 음량 영역 전체 (접힘 판정 자체는 calc_layout 이 같은 사각형으로 한다)
     local va_w = state.vol_expanded
         and (BTN_SIZE + VOL_SLIDER_M * 2 + options.volume_width) or BTN_SIZE
     ch = set_hover("hover_vol_area",
@@ -581,7 +571,7 @@ local function check_hover()
     return ch
 end
 
--- [perf] Cache ASS format strings
+-- [perf] ASS 서식 문자열 캐시
 local _ass_fmt_cache = {}
 local function get_ass_fmt(color_str, alpha_str)
     alpha_str = alpha_str or "00"
@@ -593,7 +583,7 @@ local function get_ass_fmt(color_str, alpha_str)
     return v
 end
 
--- [perf] Cache icon format strings
+-- [perf] 아이콘 서식 문자열 캐시
 local _icon_fmt_cache = {}
 local function get_icon_fmt(size, col, al)
     col = col or color.white
@@ -607,7 +597,7 @@ local function get_icon_fmt(size, col, al)
     return v
 end
 
--- Drawing helpers
+-- 그리기 헬퍼
 local function draw_rect(a, x, y, w, h, color_str, alpha_str)
     a:new_event()
     a:pos(0, 0)
@@ -618,8 +608,8 @@ local function draw_rect(a, x, y, w, h, color_str, alpha_str)
     a:draw_stop()
 end
 
--- 모서리는 제어점을 코너에 두면(= 이전 구현) 실제 원보다 안쪽으로 파여 반경이 클수록
--- 티가 난다. 칩 버튼은 반경이 높이의 절반(= 원)이라 원 근사 상수 0.5523 을 쓴다.
+-- 제어점을 코너에 두면 실제 원보다 안쪽으로 파인다. 칩 버튼은 반경이 높이의
+-- 절반(= 원)이라 원 근사 상수를 쓴다.
 local KAPPA = 0.5523
 
 local function draw_rounded_rect(a, x, y, w, h, r, color_str, alpha_str)
@@ -658,7 +648,7 @@ local function draw_circle(a, cx, cy, r, color_str, alpha_str)
     a:draw_stop()
 end
 
--- ── 상단바 그리기 ──────────────────────────────────────────────
+-- 상단바 그리기
 
 -- 임의 각도 선분(닫기 X 의 대각선용).
 local function draw_seg(a, x1, y1, x2, y2, w, col, al)
@@ -708,28 +698,23 @@ local function draw_caption_glyph(a, kind, cx, cy, col)
     elseif kind == 1 then
         box_outline(a, cx, cy, h, h, col, av)
     elseif kind == 2 then
-        -- 복원 ❐ : 0.8배 상자 둘을 0.42배만큼 어긋나게 겹친다
+        -- 복원: 0.8배 상자 둘을 0.42배만큼 어긋나게 겹친다
         local o, hs = h * 0.42, h * 0.8
         box_outline(a, cx + o, cy - o, hs, hs, col, av)
         box_outline(a, cx - o, cy + o, hs, hs, col, av)
     else
-        -- 대각선은 스냅이 통하지 않아 안티에일리어싱에 맡긴다. 축 정렬 선과
-        -- 굵기가 같아 보이도록 살짝 두껍게 그린다.
+        -- 대각선은 스냅이 통하지 않는다. 축 정렬 선과 굵기가 같아 보이도록
+        -- 살짝 두껍게 그린다.
         local w = tb.line_w * 1.6
         draw_seg(a, cx - h, cy - h, cx + h, cy + h, w, col, av)
         draw_seg(a, cx - h, cy + h, cx + h, cy - h, w, col, av)
     end
 end
 
--- 상단바 스크림: 위가 짙고 아래로 사라진다. 제목에 외곽선을 쓰지 않으므로
--- 이 배경이 유일한 대비 수단이다 — 흰 이미지 위에서도 글자가 읽혀야 한다.
---
--- ASS에는 알파 그라데이션이 없어 가로 스트립으로 근사한다. 스트립 경계는 반드시
--- 정수 픽셀이어야 한다 — 반투명 스트립이 겹치거나(더 짙게) 부분 커버리지로
--- 만나면(더 옅게) 경계마다 줄무늬가 보인다. 알파가 거의 평평한 바 구간은
--- 굵게, 급격히 감쇠하는 꼬리는 1px 로 나눈다.
--- [perf] W 와 무관하므로 (y, h, alpha) 목록을 한 번만 만들어 재사용한다.
--- (apply_ui_scale 이 배율 변경 시 캐시를 비운다)
+-- 상단바 스크림. 제목에 외곽선을 쓰지 않으므로 이 배경이 유일한 대비 수단이다.
+-- ASS 에는 알파 그라데이션이 없어 가로 스트립으로 근사한다. 스트립 경계는 정수
+-- 픽셀이어야 한다 — 겹치거나 부분 커버리지로 만나면 줄무늬가 보인다.
+-- [perf] W 와 무관하므로 목록을 한 번만 만들어 쓴다 (배율이 바뀌면 비운다).
 local function scrim_strips()
     if _scrim_strips then return _scrim_strips end
     local total = tb.h + tb.scrim_h
@@ -766,8 +751,8 @@ local function draw_topbar_scrim(a, W)
     end
 end
 
--- 캡션 버튼 하나. 최소화·최대화는 배경 없이 글리프만 #CCCCCC → #FFFFFF 로 밝아지고,
--- 닫기만 윈도우처럼 슬롯 전체를 #E81123 로 채운다.
+-- 캡션 버튼. 최소화·최대화는 글리프만 밝아지고, 닫기만 윈도우처럼 슬롯 전체를
+-- 붉게 채운다.
 local function draw_caption_btn(a, slot, kind, hovered)
     if not slot then return end
     if kind == 3 and hovered then
@@ -785,14 +770,11 @@ local function draw_icon(a, icon_path, cx, cy, size, col, al)
     a:append(icon_path)
 end
 
--- ── 하단 컨트롤 칩 ────────────────────────────────────────────
--- 유튜브 신형 컨트롤은 바 배경이 없고 버튼마다 반투명 알약 배경을 깐다.
--- 아이콘 색은 항상 흰색이고, hover 는 배경만 밝아진다.
+-- 하단 컨트롤 칩. 바 배경 없이 버튼마다 반투명 알약을 깔고, 아이콘은 항상
+-- 흰색이며 hover 는 배경만 밝아진다.
 
--- 칩 버튼 하나를 그리고, 아이콘에 곱할 배율을 돌려준다.
---   hover  : 배경이 .15s 에 걸쳐 밝아진다 (.ctrl-btn:hover)
---   press  : 눌린 동안 0.92 로 줄어든다 (.ctrl-btn:active)
---   own_bg : false 면 배경은 상위 알약(그룹/음량 영역)이 이미 그린 것으로 본다
+-- 칩 버튼 하나를 그리고 아이콘에 곱할 배율을 돌려준다.
+--   own_bg : false 면 배경을 상위 알약(그룹/음량 영역)이 이미 그린 것으로 본다
 local function draw_btn(a, name, b, hovered, own_bg)
     local hv = anim(name .. "_h", hovered and 1 or 0, ANIM_HOVER)
     local pr = anim(name .. "_p", (state.pressed == name) and 1 or 0, ANIM_PRESS)
@@ -808,8 +790,7 @@ local function draw_btn(a, name, b, hovered, own_bg)
     return sc
 end
 
--- bottom_scrim_alpha > 0 일 때만 쓰는 아래쪽 그라데이션.
--- ASS 에는 알파 그라데이션이 없어 가로 스트립으로 근사한다.
+-- bottom_scrim_alpha > 0 일 때만 쓰는 아래쪽 그라데이션 (스트립 근사).
 local function draw_bottom_scrim(a, W, H, top_alpha)
     local h = options.bar_height + 12
     local y0 = H - h
@@ -823,33 +804,28 @@ local function draw_bottom_scrim(a, W, H, top_alpha)
     end
 end
 
--- Render
--- Speed toast: "1.5x" shown for ~1s at the exact screen center.
--- Background uses the same semi-transparent style as the caption. Drawn
--- regardless of control visibility.
+-- 배속 토스트. 화면 정중앙에 ~1s 동안, 컨트롤 표시 여부와 무관하게 뜬다.
 local function draw_speed_toast(a, W, H)
     if not state.speed_toast_until or mp.get_time() >= state.speed_toast_until then return end
     local bw, bh = 96, 34
-    local bx = W / 2 - bw / 2   -- horizontally centered
-    local by = H / 2 - bh / 2   -- vertically centered
+    local bx = W / 2 - bw / 2   -- 가로 중앙
+    local by = H / 2 - bh / 2   -- 세로 중앙
     draw_rounded_rect(a, bx, by, bw, bh, 6, color.dark_bar, alpha.bar_bg)
     a:new_event(); a:pos(W / 2, H / 2); a:an(5)
     a:append(string.format("{\\fn%s\\fs%d\\bord0\\shad0\\1c&H%s&\\1a&H00&\\b1}%s",
         options.num_font, 22, color.white, ass_escape(state.speed_toast_text)))
 end
 
--- Center bezel: 화면 정중앙의 반투명 원 + 아이콘. 볼륨일 때는 상단 중앙
--- (상단바 아래)에 숫자 알약까지 함께 그린다. 재생/일시정지는 아이콘만.
--- 속도 토스트처럼 컨트롤 표시 여부와 무관하게 ~1s 동안 뜬다.
--- 모양은 여기서만 조절한다 (알파는 ASS 규칙이라 00 = 불투명, FF = 완전 투명)
+-- 중앙 인디케이터(베젤). 정중앙의 반투명 원 + 아이콘이고, 볼륨일 때만 위쪽에
+-- 숫자 알약을 더한다. 컨트롤 표시 여부와 무관하게 ~1s 동안 뜬다.
 local bezel_ui = {
     circle_r  = 50,     -- 중앙 원 반경 (지름 100)
     icon      = 46,     -- 원 안 스피커 아이콘 크기
     pill_w    = 96,     -- 숫자 알약
     pill_h    = 36,
     pill_r    = 10,
-    -- 알약의 위쪽 y = 화면 높이의 비율. 고정 픽셀로 두면 창이 커질 때
-    -- 화면 위에 딱 붙어 보이므로 비율로 잡고, 상단바와 겹치지 않게 하한만 둔다.
+    -- 알약 y 는 화면 높이의 비율이다 (고정 픽셀이면 큰 창에서 위에 붙어 보인다).
+    -- 하한은 상단바와 겹치지 않게 하는 값.
     pill_y    = 0.15,
     pill_ymin = TOPBAR_H + 8,
     font_size = 24,
@@ -858,14 +834,12 @@ local bezel_ui = {
     show      = 1.0,    -- 총 표시 시간 (페이드 포함)
     fade_in   = 0.12,
     fade_out  = 0.25,
-    -- 유튜브처럼 원+아이콘이 커지며 나타나고 작아지며 사라진다.
-    -- 페이드 계수가 0→1→0 이므로 그 값을 배율에 그대로 쓰면 줌인/줌아웃이 된다.
-    -- (숫자 알약은 크기를 건드리지 않고 알파만 변한다)
+    -- 페이드 계수가 0-1-0 이므로 그 값을 배율에 그대로 쓰면 줌인/줌아웃이 된다
+    -- (숫자 알약은 크기를 건드리지 않고 알파만 변한다).
     zoom_from = 0.75,   -- 페이드 시작/끝 배율
 }
 
--- 인디케이터의 페이드 계수(0..1). 뜰 때 fade_in 동안 밝아지고, 사라지기 전
--- fade_out 동안 어두워진다. 컨트롤바 페이드(state.opacity)와는 무관하다.
+-- 베젤의 페이드 계수(0..1). 컨트롤바 페이드와는 무관하다.
 local function bezel_fade()
     local u, fin = bezel_ui, state.bezel_until
     if not fin then return 0 end
@@ -880,18 +854,15 @@ local function bezel_fade()
     return clamp(f, 0, 1)
 end
 
--- ASS 알파(00 불투명 ~ FF 투명)를 f 만큼 흐리게 만든다.
--- fa() 와 달리 컨트롤바 페이드를 곱하지 않는다 — 이 표시는 컨트롤과 무관하다.
+-- 알파를 f 만큼 흐리게. fa() 와 달리 컨트롤바 페이드를 곱하지 않는다.
 local function alpha_scale(base, f)
     if f >= 0.999 then return base end
     if f <= 0.002 then return "FF" end
     return string.format("%02X", 255 - math.floor((255 - tonumber(base, 16)) * f + 0.5))
 end
 
--- ── 중앙 알림 ────────────────────────────────────────────────
--- 델파이에서 script-message alert <메시지> <색상> 으로 보낸다.
---   FrmKPlayer.Alert('파일을 찾을 수 없습니다 — a.mp4', ALERT_ERROR);
--- 색상은 RGB 16진수 문자열이고, ASS 는 BGR 이라 여기서 뒤집는다.
+-- 중앙 알림. Delphi 가 script-message alert <메시지> <색상> 으로 보낸다
+-- (FrmKPlayer.Alert). 색상은 RGB 문자열이고 ASS 는 BGR 이라 여기서 뒤집는다.
 local alert_ui = {
     show      = 4.5,    -- 총 표시 시간 (페이드 포함)
     fade_in   = 0.15,
@@ -900,8 +871,7 @@ local alert_ui = {
     height    = 38,
     pad_x     = 18,
     radius    = 8,
-    -- 정중앙은 재생/볼륨 인디케이터(원)가 쓰므로 조금 아래에 둔다.
-    -- 둘이 동시에 뜨는 경우가 있다 (파일을 건너뛰면 곧 재생이 시작된다).
+    -- 정중앙은 베젤이 쓰므로 조금 아래에 둔다 (둘이 동시에 뜨는 경우가 있다).
     dy        = 96,
 }
 
@@ -948,15 +918,12 @@ local function draw_bezel(a, W, H)
     local f = bezel_fade()
     if f <= 0.002 or not state.bezel_icon then return end
 
-    -- 재생 전(idle)에는 아무것도 띄우지 않는다. 화면 한가운데에 로고(원 + 재생
-    -- 삼각형 + KPlayer)가 그려져 있어 중앙 원과 겹치고, 볼륨 알약도 그 위에
-    -- 얹히면 어수선하다. 컨트롤바의 음량 슬라이더로 값은 확인할 수 있다.
+    -- idle 에는 띄우지 않는다 — 같은 자리에 시작 화면 로고가 있어 겹친다.
     if state.idle then return end
 
     local u = bezel_ui
 
-    -- 중앙 원 + 아이콘
-    -- 배율은 ease-out 을 먹여 커질 때 빠르게 벌어지고 끝에서 부드럽게 멎는다.
+    -- 중앙 원 + 아이콘. 배율에 ease-out 을 먹여 끝에서 부드럽게 멎는다.
     local e  = 1 - (1 - f) * (1 - f)
     local sc = u.zoom_from + (1 - u.zoom_from) * e
 
@@ -964,7 +931,7 @@ local function draw_bezel(a, W, H)
     draw_icon(a, state.bezel_icon,
               W / 2, H / 2, u.icon * sc, color.white, alpha_scale(alpha.full, f))
 
-    -- 상단 숫자 알약 (볼륨일 때만 — 재생/일시정지는 아이콘만 띄운다)
+    -- 숫자 알약은 볼륨일 때만 (재생/일시정지는 아이콘만)
     if not state.bezel_text then return end
 
     local by = math.max(math.floor(H * u.pill_y + 0.5), u.pill_ymin)
@@ -976,9 +943,8 @@ local function draw_bezel(a, W, H)
         ass_escape(state.bezel_text)))
 end
 
--- In fullscreen, keep the mouse cursor visibility in sync with the control bar.
--- (mpv's own cursor-autohide does not work when embedded into a foreign window,
---  so the actual OS cursor is toggled by the Delphi host via a script-message.)
+-- 전체 화면에서 커서를 컨트롤바와 함께 숨긴다. mpv 의 cursor-autohide 는 남의
+-- 창에 임베드되면 동작하지 않으므로, 실제 커서는 Delphi 가 토글한다.
 local function update_cursor()
     local hide = state.fullscreen and (not state.visible)
     if hide ~= state.cursor_hidden then
@@ -987,12 +953,9 @@ local function update_cursor()
     end
 end
 
--- ── OSD 오버레이 두 장 ────────────────────────────────────────
--- 상단바와 하단 컨트롤을 각각 다른 오버레이(= libass 트랙)에 그린다.
--- 재생 중에는 하단(시간·진행바)만 매 프레임 바뀌므로, 갈라 두면 상단바는
--- 갱신 명령 자체가 나가지 않아 libass 가 그 트랙을 다시 렌더하지 않는다.
--- 또 데이터가 이전과 같으면 update() 를 건너뛴다 — 초당 수십 번 오던
--- time-pos 갱신 대부분이 여기서 걸러진다(1px 도 안 움직이면 문자열이 같다).
+-- OSD 오버레이 두 장. 재생 중에는 하단(시간·진행바)만 바뀌므로, 갈라 두면
+-- 상단바 트랙은 갱신 명령조차 나가지 않는다. 또 데이터가 이전과 같으면
+-- update() 를 건너뛴다 — 초당 수십 번 오는 time-pos 갱신이 여기서 걸러진다.
 local ov_top = mp.create_osd_overlay("ass-events")
 local ov_bot = mp.create_osd_overlay("ass-events")
 
@@ -1029,20 +992,31 @@ local function render()
     local a = assdraw.ass_new()
 
     if state.idle then
-        -- FF8800
-        draw_circle(a, W/2, H/2 - 40, 42, "333333", "00")
-        a:new_event()
-        a:pos(W/2 - 12, H/2 - 58)
-        a:an(7)
-        a:append("{\\bord0\\shad0\\1c&H000000&\\p1}")
-        a:append("m 0 0 l 0 36 l 32 18")
-        a:append("{\\p0}")
+        -- 시작 화면 — 비스듬히 누운 KPlayer 워드마크 위에 재생 아이콘을 얹는다.
+        -- 둘 다 반투명이라 겹치는 곳은 그만큼 밝아진다.
+        --
+        -- 원·아이콘 크기는 bezel_ui 를 그대로 읽는다. 로고에서 베젤로 이어져
+        -- 보이는 자리라 값이 갈리면 원이 커지거나 작아지는 것처럼 보인다.
+        local r  = bezel_ui.circle_r
+        local cx = W / 2
+        local cy = H / 2
+        local fs = math.floor(math.min(W * LOGO_FILL / LOGO_MARK_ADV,
+                                       H * LOGO_MARK_H) + 0.5)
 
-        -- Text
         a:new_event()
-        a:pos(W/2, H/2 + 30)
+        a:pos(cx, cy + r * LOGO_MARK_DY)   -- 워드마크는 아이콘보다 위로
         a:an(5)
-        a:append("{\\fs34\\bord0\\shad0\\1c&H333333&\\b1}KPlayer")
+        a:append(string.format(
+            "{\\fn%s\\fs%d\\frz%d\\fsp%d\\bord0\\shad0\\1c&H%s&\\1a&H%s&\\b1}KPlayer",
+            LOGO_FONT, fs, LOGO_TILT, math.floor(fs * 0.03 + 0.5),
+            color.logo_mark, alpha.logo_mark))
+
+        -- 원도 반투명이라 뒤를 지나는 글자가 비친다 (불투명하면 글자가 끊긴다).
+        draw_circle(a, cx, cy, r, color.white, alpha.logo_disc)
+
+        -- 삼각형은 컨트롤바·베젤과 같은 icons.play 다 — draw_icon 이 크기와
+        -- 중심을 맞춰 주므로 경로를 따로 적지 않는다.
+        draw_icon(a, icons.play, cx, cy, bezel_ui.icon, color.white, alpha.logo_play)
     end
     
     -- 상단바 스크림
@@ -1055,9 +1029,8 @@ local function render()
     a:append(string.format("{\\fn%s\\fs%d\\bord0\\shad0\\1c&H%s&\\1a&H%s&\\clip(0,0,%d,%d)}%s",
         options.topbar_font, tb.font_px, color.title, fa("00"), title_max_x, tb.h, title_str))
 
-    -- 캡션 버튼 (왼→오: 최소화, 최대화/복원, 닫기)
+    -- 캡션 버튼 (최소화 / 최대화·복원 / 닫기)
     draw_caption_btn(a, L.cap_min, 0, state.hover_topbar_min)
-    -- 전체 화면이면 "복원", 아니면 "최대화"
     draw_caption_btn(a, L.cap_max, state.fullscreen and 2 or 1, state.hover_topbar_fs)
     draw_caption_btn(a, L.cap_close, 3, state.hover_close)
 
@@ -1065,22 +1038,20 @@ local function render()
     put(ov_top, W, H, a.text)
     a = assdraw.ass_new()
 
-    -- 하단 컨트롤 배경은 없다 — 유튜브처럼 버튼/시간 표시가 각자 칩 배경을 갖는다.
-    -- (bottom_scrim_alpha 를 올리면 예전처럼 어두운 바탕을 깔 수 있다)
+    -- 하단 컨트롤 배경은 없다 (bottom_scrim_alpha 를 올리면 어두운 바탕이 깔린다).
     if options.bottom_scrim_alpha > 0 then
         draw_bottom_scrim(a, W, H, options.bottom_scrim_alpha)
     end
 
-    -- seek bar
+    -- 진행바
     local sb = L.seekbar
     local sb_h = sb.h
     local dur = state.duration
     local pos = display_pos()
     local pos_ratio = dur > 0 and clamp(pos / dur, 0, 1) or 0
 
-    -- 트랙 / 재생 구간. 로컬 파일만 재생하므로 버퍼 구간은 그리지 않는다.
-    -- 재생 위치는 픽셀로 반올림한다 — 그래야 초당 수십 번 오는 time-pos 갱신이
-    -- 같은 ASS 문자열로 수렴해 put() 의 중복 검사에 걸린다.
+    -- 로컬 파일만 재생하므로 버퍼 구간은 그리지 않는다. 재생 위치를 픽셀로
+    -- 반올림해야 잦은 time-pos 갱신이 같은 문자열로 수렴해 put() 에 걸린다.
     draw_rounded_rect(a, sb.x, sb.y, sb.w, sb_h, sb_h / 2, color.white, fa(A_TRACK))
 
     local pos_x = math.floor(pos_ratio * sb.w + 0.5)
@@ -1096,8 +1067,8 @@ local function render()
         end
     end
 
-    -- thumb : 커서가 아니라 재생 위치에 놓이고, hover 때 0 → 1 로 커진다(.1s).
-    -- 누르고 있는 동안은 1.25 배 (.player.scrubbing)
+    -- thumb 은 커서가 아니라 재생 위치에 놓인다. hover 때 커지고, 누르고 있는
+    -- 동안 1.25 배가 된다.
     local thumb = anim("thumb", state.hover_seekbar and 1 or 0, ANIM_THUMB)
     local scrub = anim("scrub", (state.pressed == "seek") and 1 or 0, ANIM_THUMB)
     if thumb > 0.01 then
@@ -1119,9 +1090,8 @@ local function render()
               L.play_btn.cx, L.play_btn.cy, ICON_SIZE * sc_play, color.white, icon_a)
     draw_icon(a, icons.next, L.next_btn.cx, L.next_btn.cy, ICON_SIZE * sc_next, color.white, icon_a)
 
-    -- volume : 스피커 + hover 시 펼쳐지는 슬라이더.
-    -- 칩 배경은 스피커 칸이 아니라 음량 영역 전체를 덮는다 — 슬라이더가 펼쳐지면
-    -- 배경도 같이 늘어나 하나의 알약이 된다(재생 컨트롤 그룹과 같은 방식).
+    -- 음량. 칩 배경이 스피커 칸이 아니라 영역 전체를 덮으므로, 슬라이더가
+    -- 펼쳐지면 배경도 같이 늘어나 하나의 알약이 된다.
     local vb = L.vol_btn
     local va = L.vol_area
     draw_rounded_rect(a, va.x, va.y, va.w, va.h, BTN_R, color.dark, fa(A_CHIP_BG))
@@ -1129,7 +1099,7 @@ local function render()
     draw_icon(a, state.muted and icons.vol_off or icons.vol_on,
               vb.cx, vb.cy, ICON_SIZE * sc_vol, color.white, icon_a)
 
-    -- 슬라이더는 CSS 의 overflow:hidden 처럼 왼쪽부터 드러난다.
+    -- 슬라이더는 왼쪽부터 드러난다 (overflow:hidden 과 같은 모양).
     local vol_ratio = state.muted and 0 or clamp(state.volume / 100, 0, 1)
     local vs = L.vol_slider
     local shown = clamp(va.x + va.w - VOL_SLIDER_M - vs.x, 0, vs.w)
@@ -1146,7 +1116,7 @@ local function render()
         end
     end
 
-    -- time : 같은 칩 배경 위에 "현재 / 전체"
+    -- 시간 (현재 / 전체)
     local tc = L.time_chip
     draw_rounded_rect(a, tc.x, tc.y, tc.w, tc.h, BTN_R, color.dark, fa(A_CHIP_BG))
     local tt = L.time_text
@@ -1155,21 +1125,19 @@ local function render()
         options.num_font, options.font_size, color.white, icon_a,
         format_time(pos), format_time(dur)))
 
-    -- subtitle toggle button:
-    --   자막 트랙이 있을 때만 버튼이 존재한다 (없으면 아예 그리지 않는다)
-    --   켜져 있으면 흰색, 꺼져 있으면 회색
+    -- 자막 버튼. 트랙이 있을 때만 존재하고, 켜져 있으면 흰색 꺼져 있으면 회색.
     if L.sub_btn then
         local sc_sub = draw_btn(a, "sub", L.sub_btn, state.hover_sub, true)
         local sub_col = state.sub_visible and color.white or color.gray
         draw_icon(a, icons.sub, L.sub_btn.cx, L.sub_btn.cy, ICON_SIZE_CC * sc_sub, sub_col, icon_a)
     end
 
-    -- settings button
+    -- 설정 버튼
     local sc_set = draw_btn(a, "settings", L.settings_btn, state.hover_settings, true)
     draw_icon(a, icons.set, L.settings_btn.cx, L.settings_btn.cy,
               ICON_SIZE * sc_set, color.white, icon_a)
 
-    -- playlist button
+    -- 재생목록 버튼
     local sc_list = draw_btn(a, "list", L.list_btn, state.hover_list, true)
     draw_icon(a, icons.list, L.list_btn.cx, L.list_btn.cy,
               ICON_SIZE * sc_list, color.white, icon_a)
@@ -1196,12 +1164,9 @@ local function render()
     put(ov_bot, W, H, a.text)
 end
 
--- ── 프레임 스케줄러 ───────────────────────────────────────────
--- request_render() 는 즉시 그리지 않고 "다음 프레임에 한 번" 을 예약한다.
---   * time-pos / mouse-pos 가 한 프레임에 여러 번 와도 렌더는 한 번이다.
---   * 화면 주사율보다 자주 그리지 않는다 (display-fps 기준).
---   * 애니메이션이 진행 중이면 tick 이 스스로 다음 프레임을 다시 예약하고,
---     다 끝나면 예약을 멈춘다 — 컨트롤이 숨겨져 정지한 뒤에는 타이머가 없다.
+-- 프레임 스케줄러. request_render() 는 즉시 그리지 않고 다음 프레임 한 번을
+-- 예약한다 — 한 프레임에 이벤트가 여러 번 와도 렌더는 한 번이고, 주사율보다
+-- 자주 그리지 않는다. 애니메이션이 끝나면 예약도 멈춘다(타이머가 없어진다).
 local tick_timer = nil
 local tick_last  = 0
 local tick_delay = 1 / 60   -- 애니메이션 중: 화면 주사율
@@ -1224,9 +1189,8 @@ local function tick()
     if anim_pending() or toast then request_render() end
 end
 
--- 숨겨진 채로 모든 값이 목표에 도달했으면 그릴 것이 없다. 이 상태에서는
--- time-pos 가 초당 수십 번 와도 프레임을 아예 예약하지 않는다 — 마지막 tick 이
--- 이미 오버레이를 비웠으므로 화면에 남는 것도 없다.
+-- 숨겨진 채 모든 값이 목표에 도달했으면 그릴 것이 없다. 마지막 tick 이 이미
+-- 오버레이를 비웠으므로 프레임을 예약하지 않아도 화면에 남는 것이 없다.
 local function nothing_to_draw()
     if state.visible or state.opacity > 0.002 then return false end
     if state.speed_toast_until and mp.get_time() < state.speed_toast_until then return false end
@@ -1242,8 +1206,8 @@ request_render = function()
         return
     end
     if tick_timer:is_enabled() then return end   -- 이미 예약돼 있다
-    -- 애니메이션이 돌 때만 주사율만큼 촘촘히, 아니면 30fps 로 묶는다.
-    -- 진행바는 30fps 로도 충분하다 — 2시간 영상이면 1px 움직이는 데 몇 초 걸린다.
+    -- 애니메이션이 돌 때만 주사율만큼 촘촘히, 아니면 30fps 로 묶는다
+    -- (2시간 영상이면 진행바가 1px 움직이는 데 몇 초 걸린다).
     local vf = bezel_fade()
     local iv = (anim_pending() or (vf > 0 and vf < 1)) and tick_delay
                or math.max(IDLE_DELAY, tick_delay)
@@ -1256,7 +1220,7 @@ mp.observe_property("display-fps", "number", function(_, v)
     if v and v > 1 then tick_delay = clamp(1 / v, 1 / 144, 1 / 24) end
 end)
 
--- "1.00" -> "1", "1.50" -> "1.5", "0.75" -> "0.75"
+-- 꼬리의 0 을 떼어 표시한다 ("1.00" -> "1", "1.50" -> "1.5")
 local function format_speed(v)
     local s = string.format("%.2f", v)
     s = s:gsub("0+$", "")
@@ -1274,7 +1238,6 @@ local function show_speed_toast(v)
     end)
 end
 
--- icon: icons.* 중 하나 / text: 숫자 알약에 쓸 문자열(없으면 nil)
 local function show_alert(text, col)
     state.alert_text  = tostring(text or "")
     state.alert_color = rgb_to_ass(col)
@@ -1298,8 +1261,7 @@ end)
 local function show_bezel(icon, text)
     local now = mp.get_time()
 
-    -- 이미 떠 있는 동안에 또 바뀌면 페이드인을 다시 시작하지 않는다
-    -- (볼륨을 연달아 누를 때 깜빡이지 않게 한다). 사라질 시각만 미뤄진다.
+    -- 이미 떠 있으면 페이드인을 다시 시작하지 않는다 (연달아 누를 때 깜빡인다).
     if not (state.bezel_until and now < state.bezel_until) then
         state.bezel_from = now
     end
@@ -1319,9 +1281,8 @@ local function show_volume_bezel(v)
                string.format("%d%%", math.floor(v + 0.5)))
 end
 
--- 자막이 컨트롤에 가리지 않게 아래 여백을 조절한다.
--- 마우스가 움직일 때마다 불리므로(mouse-pos observer) 값이 바뀔 때만 설정한다.
--- 매번 설정하면 이동 한 번에 mpv 속성 설정과 로그가 한 줄씩 쌓인다.
+-- 자막이 컨트롤에 가리지 않게 아래 여백을 조절한다. 마우스가 움직일 때마다
+-- 불리므로 값이 바뀔 때만 설정한다 (매번 하면 속성 설정과 로그가 쌓인다).
 local function update_sub_margin()
     if state.osd_h <= 0 then return end
 
@@ -1334,17 +1295,14 @@ end
 
 local function start_autohide()
     if state.autohide_timer then state.autohide_timer:kill() end
-    -- 재생 목록이 없거나(idle) 무언가를 끄는 중이면 숨기지 않는다.
-    -- 드래그 중에는 마우스가 멈춰 있어도 컨트롤이 사라지면 안 된다.
+    -- idle 이거나 드래그 중이면 숨기지 않는다 (마우스가 멈춰 있어도).
     if state.idle or state.dragging then return end
     state.autohide_timer = mp.add_timeout(options.autohide_timeout, function()
         state.visible = false
-        -- 다시 나타날 때 음량 슬라이더가 펼쳐진 채로 뜨지 않도록 접어 둔다
+        -- 다시 나타날 때 슬라이더가 펼쳐진 채로 뜨지 않게 접어 둔다
         state.vol_expanded = false
         update_sub_margin()
-        -- 즉시 지우지 않는다 — render 가 목표 불투명도를 0 으로 잡고
-        -- tick 이 .2s 동안 페이드아웃시킨다
-        request_render()
+        request_render()   -- 즉시 지우지 않는다. tick 이 페이드아웃시킨다
     end)
 end
 
@@ -1358,16 +1316,15 @@ end
 local last_mouse_x = -1
 local last_mouse_y = -1
 
--- ── 드래그 조작 ───────────────────────────────────────────────
--- 진행바: 끄는 동안은 키프레임 탐색이라 화면이 즉각 따라온다. 놓을 때 한 번만
--- 정확히(exact) 맞춘다 — 매 프레임 정확 탐색을 하면 무거워서 끊긴다.
+-- 드래그 조작. 끄는 동안은 키프레임 탐색(가볍다)이고, 놓을 때 한 번만
+-- 정확히(exact) 맞춘다 — 매 프레임 정확 탐색을 하면 끊긴다.
 local function drag_seek(exact)
     local sb = layout.seekbar
     if not sb or state.duration <= 0 then return end
     local r = clamp((state.mouse_x - sb.x) / sb.w, 0, 1)
     state.seek_target = r * state.duration
-    -- 플래그는 하나의 문자열이어야 한다. "absolute-percent", "keyframes" 처럼
-    -- 따로 넘기는 3인자 형식은 옛 문법이라 지금 mpv 에서는 명령이 실패한다.
+    -- 플래그는 하나의 문자열이어야 한다. 따로 넘기는 3인자 형식은 옛 문법이라
+    -- 지금 mpv 에서는 명령이 실패한다.
     mp.commandv("seek", string.format("%.3f", state.seek_target),
                 exact and "absolute+exact" or "absolute+keyframes")
 end
@@ -1378,23 +1335,20 @@ local function drag_volume()
     local r = clamp((state.mouse_x - vs.x) / vs.w, 0, 1)
     local v = math.floor(r * 100 + 0.5)
     if state.volume ~= v then mp.set_property_number("volume", v) end
-    -- 유튜브처럼, 음량을 올리면 음소거가 풀린다
+    -- 음량을 올리면 음소거가 풀린다
     if v > 0 and state.muted then mp.set_property_bool("mute", false) end
 end
 
--- Mouse move
--- 마우스가 움직였다고 무조건 다시 그리지 않는다. 컨트롤이 이미 떠 있는 상태에서
--- 빈 화면이나 한 버튼 안에서 커서가 몇 픽셀 움직이는 것은 화면을 바꾸지 않는다.
--- 실제로 다시 그려야 하는 경우는 셋뿐이다:
---   숨어 있다가 나타날 때 / hover 대상이 바뀔 때 / 커서를 따라다니는 게 있을 때(툴팁)
+-- 마우스가 움직였다고 무조건 다시 그리지는 않는다. 다시 그려야 하는 경우는
+-- 셋뿐이다 — 숨어 있다 나타날 때 / hover 대상이 바뀔 때 / 툴팁이 떠 있을 때.
 mp.observe_property("mouse-pos", "native", function(_, pos)
     if not pos then return end
     if pos.x == state.mouse_x and pos.y == state.mouse_y then return end
     -- 좌표는 항상 갱신한다. hover 판정이 이 값을 쓰기 때문이다.
     state.mouse_x, state.mouse_y = pos.x, pos.y
 
-    -- 드래그 중이면 다른 판정은 필요 없다. 커서가 컨트롤 밖으로 나가도,
-    -- 심지어 창 밖으로 나가도(호스트가 마우스를 캡처한다) 계속 따라간다.
+    -- 드래그 중이면 다른 판정은 필요 없다. 커서가 창 밖으로 나가도 계속
+    -- 따라간다 (호스트가 마우스를 캡처한다).
     if state.dragging then
         last_mouse_x, last_mouse_y = pos.x, pos.y
         if state.dragging == "seek" then drag_seek(false) else drag_volume() end
@@ -1402,9 +1356,8 @@ mp.observe_property("mouse-pos", "native", function(_, pos)
         return
     end
 
-    -- "컨트롤 표시 + autohide 리셋" 만 1px 임계값을 둔다. 이때 기준점(last_mouse)은
-    -- 임계를 넘었을 때만 옮긴다 — 매 이벤트마다 옮기면 1px 씩 천천히 움직일 때
-    -- 델타가 늘 1 이하라 영원히 임계를 못 넘는다.
+    -- 컨트롤 표시와 autohide 리셋만 1px 임계값을 둔다. 기준점은 임계를 넘었을
+    -- 때만 옮긴다 — 매 이벤트마다 옮기면 천천히 움직일 때 영원히 못 넘는다.
     local far = math.abs(pos.x - last_mouse_x) > 1 or math.abs(pos.y - last_mouse_y) > 1
     if far then
         last_mouse_x, last_mouse_y = pos.x, pos.y
@@ -1423,16 +1376,9 @@ mp.observe_property("mouse-pos", "native", function(_, pos)
     end
 end)
 
--- ── 눌림(:active) 상태 관리 ───────────────────────────────────
--- 호스트(Delphi)는 마우스 down 에 "keypress MBTN_LEFT" 를 보낸다. keypress 는
--- 누름과 뗌을 한 번에 처리하는 명령이라 mpv 가 "press" 이벤트 하나만 주고,
--- "누르고 있는 중" 이라는 상태가 없다. 그대로 두면 축소 효과가 한 프레임도
--- 안 보이거나(뒤이어 up 이 오는 경우), 반대로 영영 안 풀린다(up 이 안 오는 경우).
---
--- 그래서 두 경우를 다 받는다:
---   "down" → 진짜 up 이 올 것이므로 그때까지 유지
---   "press"→ 합본 이벤트이므로 최소 시간만 보여주고 스스로 푼다
--- 어느 쪽이든 최소 PRESS_MIN 동안은 눌린 모양이 보인다.
+-- 눌림(:active) 상태. 호스트가 보내는 keypress 는 누름과 뗌이 합쳐진 명령이라
+-- mpv 가 "press" 하나만 주고 "누르고 있는 중" 이 없다. 그래서 두 경우를 다
+-- 받는다 — "down" 은 진짜 up 까지 유지, "press" 는 PRESS_MIN 뒤 스스로 푼다.
 local PRESS_MIN = 0.12
 local press_timer = nil
 local press_time  = 0
@@ -1452,13 +1398,12 @@ local function release_pressed()
     press_timer = mp.add_timeout(rest, clear_pressed)
 end
 
--- Click handler
+-- 클릭 처리
 mp.add_key_binding("MOUSE_BTN0", "controls-click", function(e)
     if e.event == "up" then
-        -- 이 up 은 믿을 수 없다. mpv 는 버튼을 누른 채 마우스를 움직이면
-        -- 눌린 명령을 스스로 해제하면서 up 을 보낸다 — 드래그 첫 이동에서
-        -- 바로 들어온다. 그래서 드래그의 끝은 호스트가 알려주는 실제 버튼
-        -- 상태(script-message mbtn)로만 판단한다.
+        -- 이 up 은 믿을 수 없다. mpv 는 버튼을 누른 채 움직이면 드래그 첫
+        -- 이동에서 스스로 up 을 보낸다. 그래서 드래그의 끝은 호스트가 주는
+        -- 실제 버튼 상태(script-message mbtn)로만 판단한다.
         if state.dragging then return end
         release_pressed()
         if state.visible then start_autohide() end
@@ -1488,19 +1433,19 @@ mp.add_key_binding("MOUSE_BTN0", "controls-click", function(e)
     if e.event == "press" then release_pressed() end
     request_render()
 
-    -- close button -> send to Delphi via script-message
+    -- 닫기 — Delphi 로 넘긴다
     if state.hover_close then
         mp.commandv("script-message", "close")
         return
     end
 
-    -- top minimize button
+    -- 최소화
     if state.hover_topbar_min then
         mp.commandv("script-message", "minimize")
         return
     end
 
-    -- top fullscreen button
+    -- 전체 화면 전환
     if state.hover_topbar_fs then
         mp.command("cycle fullscreen")
         show_controls()
@@ -1519,8 +1464,8 @@ mp.add_key_binding("MOUSE_BTN0", "controls-click", function(e)
         if state.idle then
             mp.commandv("script-message", "next")
         elseif mp.get_property_bool("eof-reached", false) then
-            -- 끝에 멈춰 있다 (keep-open). pause 만 풀면 곧바로 다시 끝에 닿아
-            -- 아무 일도 일어나지 않으므로, 처음으로 되돌린 뒤 재생한다.
+            -- 끝에 멈춰 있다(keep-open). pause 만 풀면 곧 다시 끝에 닿으므로
+            -- 처음으로 되돌린 뒤 재생한다.
             mp.commandv("seek", 0, "absolute", "exact")
             mp.set_property_bool("pause", false)
         else
@@ -1540,7 +1485,7 @@ mp.add_key_binding("MOUSE_BTN0", "controls-click", function(e)
         return
     end
 
-    -- playlist button -> send to Delphi
+    -- 재생목록 — Delphi 로 넘긴다
     if state.hover_list then
         mp.commandv("script-message", "playlist")
         start_autohide()
@@ -1554,7 +1499,7 @@ mp.add_key_binding("MOUSE_BTN0", "controls-click", function(e)
         return
     end
 
-    -- settings button -> send to Delphi
+    -- 환경설정 — Delphi 로 넘긴다
     if state.hover_settings then
         mp.commandv("script-message", "settings")
         start_autohide()
@@ -1572,10 +1517,8 @@ mp.add_key_binding("MOUSE_BTN0", "controls-click", function(e)
 
 end, {complex = true})
 
--- 호스트(Delphi)가 알려주는 왼쪽 버튼의 진짜 상태. "1" = 눌림, "0" = 떼짐.
--- mpv 의 up 이벤트는 마우스가 움직이기만 해도 날아오므로 드래그 종료 판단에
--- 쓸 수 없다. 창 밖에서 손을 뗀 경우에도 다음 이동 통지에서 "0" 이 오므로
--- 드래그가 걸린 채로 남지 않는다.
+-- 호스트가 알려주는 왼쪽 버튼의 진짜 상태 ("1" 눌림 / "0" 떼짐). mpv 의 up 은
+-- 믿을 수 없고, 창 밖에서 손을 뗀 경우도 여기로 "0" 이 와서 걸리지 않는다.
 mp.register_script_message("mbtn", function(v)
     if v == "1" then return end
     if state.dragging == "seek" then
@@ -1589,15 +1532,14 @@ mp.register_script_message("mbtn", function(v)
     request_render()
 end)
 
--- Property observers
+-- 속성 감시
 mp.observe_property("duration",       "number", function(_, v) v = v or 0;     if state.duration   ~= v then state.duration   = v; request_render() end end)
 mp.observe_property("time-pos",       "number", function(_, v) v = v or 0;     if state.position   ~= v then state.position   = v; request_render() end end)
 mp.observe_property("pause", "bool", function(_, v)
     v = v or false
     if state.paused ~= v then
         state.paused = v
-        -- 최초 콜백(등록 직후 현재 값)에는 띄우지 않는다.
-        -- 지금 상태를 그대로 보여 준다 — 멈추면 정지 아이콘, 재생하면 재생 아이콘.
+        -- 최초 콜백(등록 직후 현재 값)에는 띄우지 않는다
         if state.pause_ready then show_bezel(v and icons.pause or icons.play, nil) end
         request_render()
     end
@@ -1612,8 +1554,7 @@ mp.observe_property("volume", "number", function(_, v)
     if state.volume ~= v then
         state.volume = v
         mp.commandv("script-message", "volume", tostring(math.floor(v)))
-        -- 최초 콜백(시작 시 현재 값)과 OSD 음량 슬라이더 드래그 중에는 띄우지 않는다.
-        -- 드래그는 슬라이더 자체가 값을 보여 주므로 중앙 표시가 겹칠 필요가 없다.
+        -- 최초 콜백과 슬라이더 드래그 중에는 띄우지 않는다 (슬라이더가 값을 보여준다)
         if state.vol_ready and state.dragging ~= "volume" then show_volume_bezel(v) end
         request_render()
     end
@@ -1653,12 +1594,9 @@ mp.register_script_message("dpi", function(v)
     request_render()
 end)
 
--- 윈도우 UI 기본 폰트는 로케일마다 다르고(한국 맑은 고딕 / 일본 Yu Gothic UI /
--- 영문 Segoe UI ...) mpv 쪽에서는 알 수 없다. 창을 소유한 Delphi 가
--- Screen.MessageFont.Name 을 넘겨 준다:  script-message ui-font "맑은 고딕"
---
--- 폰트 이름이 없거나 libass 가 찾지 못하면 libass 가 알아서 대체 폰트를 쓰므로
--- 최악의 경우에도 글자가 사라지지는 않는다. 숫자 폰트(num_font)는 건드리지 않는다.
+-- OS UI 기본 폰트는 로케일마다 다르고 mpv 쪽에서는 알 수 없다. Delphi 가
+-- Screen.MessageFont.Name 을 넘겨 준다: script-message ui-font "맑은 고딕".
+-- 못 찾으면 libass 가 대체 폰트를 쓴다. 숫자 폰트는 건드리지 않는다.
 mp.register_script_message("ui-font", function(name)
     if not name or name == "" or options.topbar_font == name then return end
     options.topbar_font = name
@@ -1669,14 +1607,11 @@ end)
 mp.observe_property("osd-width",  "number", function(_, v) if v and v > 0 and state.osd_w ~= v then state.osd_w = v; request_render() end end)
 mp.observe_property("osd-height", "number", function(_, v) if v and v > 0 and state.osd_h ~= v then state.osd_h = v; update_sub_margin(); request_render() end end)
 
--- Key bindings
--- 키보드는 여기서 받지 않는다. 창 포커스가 VCL 폼에 있어 mpv 로 키가 전달되지
--- 않으므로, 재생/탐색/볼륨/배속/자막 전부 Main.pas 의 FormKeyDown 이 처리하고
--- 여기로는 mpv 명령이나 속성 변화(volume, pause, speed ...)만 도달한다.
--- 그래서 add_key_binding 은 두지 않는다 — 있으면 동작할 것처럼 보여 혼란만 된다.
--- 마우스 바인딩(MOUSE_BTN0)은 위쪽 컨트롤 클릭 처리에 있다.
+-- 키보드는 여기서 받지 않는다. 포커스가 VCL 폼에 있어 키가 mpv 로 오지 않으므로
+-- 전부 Main.pas 의 FormKeyDown 이 처리하고, 여기로는 속성 변화만 도달한다.
+-- add_key_binding 을 두면 동작할 것처럼 보여 혼란만 되므로 두지 않는다.
 
--- Events
+-- 이벤트
 mp.register_event("file-loaded", function()
     state.visible  = true
     state.position = 0
@@ -1693,23 +1628,15 @@ mp.observe_property("eof-reached", "bool", function(_, v)
         mp.commandv("script-message", "finished")
     end
 end)
--- 탐색(seek)/재생 재시작에 컨트롤을 띄우고 싶으면 아래 두 줄을 살린다.
--- 지금은 끈 상태다 — 키보드 ←/→ 로 위치만 옮겼는데 상단바·하단 컨트롤이
--- 올라오는 것을 막기 위한 것이고, 키보드 볼륨 조절이 중앙 인디케이터만
--- 보여 주는 것과 같은 방식이다. 진행바를 마우스로 끌 때는 커서가 컨트롤 위에
--- 있으니 mouse-pos 쪽에서 계속 보인다.
+-- 탐색/재생 재시작에 컨트롤을 띄우고 싶으면 아래 두 줄을 살린다. 지금은 끈
+-- 상태다 — 키보드로 위치만 옮겼는데 컨트롤이 올라오는 것을 막기 위해서다.
 -- mp.register_event("seek",             function() show_controls() end)
 -- mp.register_event("playback-restart", function() show_controls() end)
 
--- libass 는 서브픽셀 AA(ClearType)가 없어 DirectWrite 만큼 또렷하게는 못 만든다.
--- 다만 힌팅을 켜면 작은 글자의 획이 픽셀 격자에 맞아 눈에 띄게 나아진다.
--- "native" = 폰트 자체 힌터로 풀 힌팅. 세로획을 픽셀에 붙여 주므로 가장 또렷하다
--- ("light" 는 세로 방향만 스냅해서 이 목적에는 약하다).
---
--- 옵션 이름이 mpv 버전마다 다르고(구버전 ass-hinting → 신버전 sub-hinting),
--- 자막용 옵션이 OSD 오버레이 렌더러에도 적용되는지는 빌드에 따라 다르다.
--- 그래서 첫 번째만 쓰고 멈추지 않고 존재하는 것을 전부 설정한다.
--- 실제로 무엇이 먹었는지는 로그로 확인할 것.
+-- libass 에는 서브픽셀 AA 가 없지만, 힌팅("native" = 폰트 자체 힌터로 풀 힌팅)
+-- 을 켜면 작은 글자의 획이 픽셀 격자에 맞아 또렷해진다.
+-- 옵션 이름이 mpv 버전마다 다르고 OSD 에 먹는지도 빌드마다 달라서, 존재하는
+-- 것을 전부 설정하고 무엇이 먹었는지는 로그로 남긴다.
 local function enable_font_hinting()
     local applied = {}
     for _, name in ipairs({ "sub-hinting", "osd-hinting", "sub-ass-hinting", "ass-hinting" }) do

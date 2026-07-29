@@ -11,7 +11,11 @@ source code must be made available under the GPL.
 
 Icon: https://www.flaticon.com/free-icon/play_2377793
 
-History:
+해야할일:
+=========
+  항상 위 추가하기
+
+히스토리:
 ========
   0.9.4
   [*] 랜덤 재생이 한 바퀴 끝나면 반복 설정과 무관하게 새 사이클을 시작 (List.pas: Rand)
@@ -32,6 +36,10 @@ History:
   [*] 대화상자를 TaskMessageDlg 로 - 버튼 캡션/아이콘을 OS 가 제공 (Setup.pas)
   [-] TDragFile 이 해제되지 않던 문제 수정 (List.pas: FDragFile)
   [-] 마우스 이동 등 불필요한 로그 제거, mpv 로그 파일은 기본 미사용 (Main.pas, MPVPlayer.pas)
+  [+] 확장자별 파일 연결 아이콘 - exe 옆 Icon\<확장자>.ico 사용, 없으면 exe 아이콘으로 폴백 (Assoc.pas: ExtIconRef, AssocRegister)
+  [+] 제거 시 파일 연결 원복 - KPlayer.exe /uninst 로 등록분 전체 해제 후 창 없이 종료 (KPlayer.dpr, Assoc.pas: AssocUnregisterAll)
+  [*] 연결 해제를 확장자 기반으로 분리 - 노출 목록(AssocExts)에서 빠진 확장자도 소유 목록으로 해제 (Assoc.pas: AssocUnregisterExt)
+  [+] Inno Setup 설치 스크립트 추가 - 사용자별 설치(%LOCALAPPDATA%\Programs\KPlayer), Icon 폴더 동봉 (KPlayer.iss)
 
   0.9.3
   [+] 키보드 배속 조절 추가 - Z(1.0 리셋)/X(-0.1)/C(+0.1), 수식키 없을 때만, 0.1 단위 정규화·0.25~4.0 clamp (SetSpeed, AddSpeed, FormKeyDown)
@@ -148,7 +156,7 @@ implementation
 
 {$R *.dfm}
 
-uses List, Setup;
+uses List, Setup, Assoc;
 
 {$I Const.inc}
 
@@ -172,7 +180,7 @@ begin
   RepeatMode := FConfig.ReadInteger('repeat', 0);
   RandomMode := FConfig.ReadInteger('random', 0);
 
-  if ReportMemoryLeaksOnShutDown then Theme := 'n:\Release\KPlayer.lua' else // Debug
+  if ReportMemoryLeaksOnShutDown then Theme := 'n:\Release\KPlayer.lua' else // 디버그
   Theme := ExtractFilePath(ParamStr(0)) + 'KPlayer.lua';
 
   if not MPVLibLoaded(ExtractFilePath(ParamStr(0))) then
@@ -228,10 +236,8 @@ begin
 
   MPVPlayer.Command(['set', 'screenshot-directory',
     FConfig.ReadString('shot_dir', DesktopPath)]);
-  // 파일이 끝나면 마지막 프레임에서 일시정지한다.
-  // 래퍼(MPVBasePlayer.InitPlayer)는 keep-open=yes + keep-open-pause=no 로 넣는데,
-  // 그러면 끝에 도달해도 pause=false 로 남아 OSD 는 재생 중처럼 보이면서 아무 것도
-  // 진행되지 않는다. yes 로 바꿔 '끝에서 멈춤' 을 명확한 상태로 만든다.
+  // 파일이 끝나면 마지막 프레임에서 멈춘다. 래퍼는 keep-open-pause=no 로 넣어
+  // 끝에서도 pause=false 로 남아 OSD 만 재생 중처럼 보인다.
   MPVPlayer.Command(['set', 'keep-open-pause', 'yes']);
 
   MPVPlayer.Command(['set', 'screenshot-template', '%f-%n']);
@@ -256,17 +262,15 @@ begin
     for var S in Files do
       FrmList.AddFile(S);
 
-    // FrmList.Play 로 넘긴다. HandlePlay 를 직접 부르면 mpv 만 재생하고
-    // 목록의 '재생 중' 표시(노란 글자)가 서지 않는다.
+    // HandlePlay 를 직접 부르면 mpv 만 재생하고 목록의 '재생 중' 표시가 빠진다
     if not IsPlay then
       FrmList.Play(Files[0]);
   end);
 
   SetTopMost(FConfig.ReadInteger('topmost', 0) <> 0);
 
-  // 등록해 둔 파일 연결의 exe 경로를 현재 위치로 다시 기록한다.
-  // 포터블이라 폴더를 옮기면 등록된 실행 명령이 옛 경로를 가리켜
-  // 더블클릭이 '파일을 찾을 수 없음' 으로 끝난다. (Setup.pas)
+  // 등록해 둔 파일 연결의 exe 경로를 지금 위치로 다시 기록한다 (포터블이라
+  // 폴더를 옮기면 등록된 실행 명령이 옛 경로를 가리킨다).
   SyncFileAssoc;
 
   CheckUpdate(procedure(Quit: Boolean; Data: string)
@@ -341,8 +345,7 @@ begin
     Exit;
   end;
 
-  // 우리가 KPlayer.lua 로 보낸 메시지다. script-message 는 스크립트뿐 아니라
-  // 이쪽(호스트)에도 그대로 전달되므로 여기서 무시한다.
+  // 우리가 KPlayer.lua 로 보낸 메시지다 (script-message 는 호스트에도 온다)
   if SameText(ACommand, 'mbtn') or SameText(ACommand, 'ui-font')
   or SameText(ACommand, 'dpi') or SameText(ACommand, 'alert') then
     Exit;
@@ -403,8 +406,8 @@ begin
   FRepeatMode := Value;
   FConfig.WriteInteger('repeat', Value);
 
-  // 목록 창 아이콘을 바로 맞춘다 (환경설정에서 바꾼 경우).
-  // FormCreate 에서 INI 를 읽을 때는 FrmList 가 아직 없다.
+  // 목록 창 아이콘을 바로 맞춘다. FormCreate 에서 INI 를 읽는 시점에는
+  // FrmList 가 아직 없다.
   if FrmList <> nil then
     FrmList.UpdateModeIcons;
 end;
@@ -476,13 +479,9 @@ begin
   WindowState := wsMinimized;
 end;
 
-// 항상 위 (환경설정 '일반').
-//
-// FormStyle := fsStayOnTop 을 쓰지 않는다. VCL 이 FormStyle 을 바꿀 때 창 핸들을
-// 다시 만들 수 있고, 그러면 mpv 에 넘긴 wid(Handle)가 무효가 되어 영상이 사라진다.
-// SetWindowPos 는 핸들을 건드리지 않는다.
-//
-// 재생목록 창도 같이 올린다. 본체만 최상위면 목록 창이 본체 뒤로 숨는다.
+// 항상 위 (환경설정 '일반'). FormStyle := fsStayOnTop 은 쓰지 않는다 — VCL 이
+// 창 핸들을 다시 만들면 mpv 에 넘긴 wid 가 무효가 되어 영상이 사라진다.
+// 재생목록 창도 같이 올린다 (본체만 올리면 목록이 뒤로 숨는다).
 procedure TFrmKPlayer.SetTopMost(AState: Boolean);
 const
   SWP_FLAGS = SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE;
@@ -517,7 +516,7 @@ begin
   end;
 end;
 
-// Zoom-In (ex. 0.1)
+// 확대 (예: 0.1)
 procedure TFrmKPlayer.HandleZoomIn(AStep: Double);
 var
   LCur: Double;
@@ -527,7 +526,7 @@ begin
   MPVPlayer.SetPropertyDouble('video-zoom', LCur + AStep);
 end;
 
-// Zoom-Out (ex. 0.1)
+// 축소 (예: 0.1)
 procedure TFrmKPlayer.HandleZoomOut(AStep: Double);
 var
   LCur: Double;
@@ -537,8 +536,8 @@ begin
   MPVPlayer.SetPropertyDouble('video-zoom', LCur - AStep);
 end;
 
-// mpv 에 파일이 열려 있는가 (일시정지 중이어도 True).
-// IsPlay 와 달리 '정지/idle 상태인지' 를 가리는 데 쓴다.
+// mpv 에 파일이 열려 있는가 (일시정지 중이어도 True). IsPlay 와 달리
+// idle 인지를 가리는 데 쓴다.
 function TFrmKPlayer.IsLoaded: Boolean;
 var
   LName: string;
@@ -562,8 +561,8 @@ begin
   Result := SameText(LEOF, 'yes');
 end;
 
-// 화면 중앙에 잠시 뜨는 알림. 표시/사라짐은 KPlayer.lua 가 처리한다.
-// 색상은 RGB 16진수 문자열 ('FF5555') — 위 ALERT_* 상수를 쓴다.
+// 화면 중앙에 잠시 뜨는 알림 (표시/사라짐은 KPlayer.lua 가 한다).
+// 색상은 RGB 16진수 문자열이고 위 ALERT_* 상수를 쓴다.
 procedure TFrmKPlayer.Alert(const AMsg: string; const AColor: string);
 begin
   if (MPVPlayer = nil) or (AMsg = '') then Exit;
@@ -658,7 +657,7 @@ begin
     MPVPlayer.Command(['cycle','pause']);
 end;
 
-// Keyboard input
+// 키보드 입력
 procedure TFrmKPlayer.FormKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 var
@@ -667,7 +666,7 @@ begin
   if MPVPlayer = nil then Exit;
 
   case Key of
-    // Seek
+    // 탐색
     VK_LEFT:
       begin
         if ssCtrl in Shift then
@@ -690,7 +689,7 @@ begin
         Key := 0;
       end;
 
-    // Frame stepping
+    // 프레임 이동
     VK_OEM_COMMA:  // ,
       begin
         MPVPlayer.Command(['frame-back-step']);
@@ -703,7 +702,7 @@ begin
         Key := 0;
       end;
 
-    // Volume
+    // 음량
     VK_UP:
       begin
         MPVPlayer.Command(['add', 'volume', '5']);
@@ -734,8 +733,8 @@ begin
         Key := 0;
       end;
 
-    // Playback speed
-    VK_OEM_4: // [ : -10% (clamp)
+    // 배속
+    VK_OEM_4: // [ : 배속 -10%
       begin
         LSpeed := 1.0;
         MPVPlayer.GetPropertyDouble('speed', LSpeed);
@@ -743,7 +742,7 @@ begin
         Key := 0;
       end;
 
-    VK_OEM_6: // ] : +10% (clamp)
+    VK_OEM_6: // ] : 배속 +10%
       begin
         LSpeed := 1.0;
         MPVPlayer.GetPropertyDouble('speed', LSpeed);
@@ -751,35 +750,35 @@ begin
         Key := 0;
       end;
 
-    Ord('Z'): // reset speed to 1.0 (PotPlayer style)
+    Ord('Z'): // 배속을 1.0 으로
       if Shift = [] then
       begin
         SetSpeed(1.0);
         Key := 0;
       end;
 
-    Ord('X'): // speed -0.1
+    Ord('X'): // 배속 -0.1
       if Shift = [] then
       begin
         AddSpeed(-0.1);
         Key := 0;
       end;
 
-    Ord('C'): // speed +0.1
+    Ord('C'): // 배속 +0.1
       if Shift = [] then
       begin
         AddSpeed(0.1);
         Key := 0;
       end;
 
-    // Pause (if no video, play next track)
+    // 일시정지 (열린 파일이 없으면 다음 곡)
     VK_SPACE:
       begin
         FrmList.Play('');
         Key := 0;
       end;
 
-    // Subtitles
+    // 자막
     Ord('V'):
       begin
         MPVPlayer.Command(['cycle', 'sub-visibility']);
@@ -795,14 +794,14 @@ begin
         Key := 0;
       end;
 
-    // Screenshot
+    // 스크린샷
     Ord('S'):
       begin
         MPVPlayer.Command(['screenshot']);
         Key := 0;
       end;
 
-    // Screen
+    // 화면
     VK_RETURN:
       begin
         MPVPlayer.Command(['cycle', 'fullscreen']);
@@ -823,7 +822,7 @@ begin
         Key := 0;
       end;
 
-    // Playlist
+    // 재생목록
     VK_NEXT:  // PageDown
       begin
         FrmList.Next;
@@ -836,7 +835,7 @@ begin
         Key := 0;
       end;
 
-    // Exit
+    // 종료
     {
     Ord('Q'):
       begin
@@ -847,7 +846,7 @@ begin
   end;
 end;
 
-// Mouse input
+// 마우스 입력
 procedure TFrmKPlayer.WMMouseWheel(var Msg: TWMMouseWheel);
 begin
   if MPVPlayer = nil then Exit;

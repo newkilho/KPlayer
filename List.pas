@@ -82,10 +82,10 @@ type
     FDragStart: TPoint;
     FSavedSelection: TArray<PVirtualNode>;
 
-    // Shuffle (random-without-repeat) state
-    FShuffleHistory: TArray<string>;  // actual play order (for Prev navigation)
-    FShufflePos: Integer;             // index into FShuffleHistory of current track (-1 = none)
-    FCyclePlayed: TStringList;        // filenames already played in the current no-repeat cycle
+    // 랜덤(한 사이클 안에서 중복 없이) 상태
+    FShuffleHistory: TArray<string>;  // 실제 재생 순서 (Prev 로 되짚는다)
+    FShufflePos: Integer;             // 지금 곡의 이력 인덱스 (-1 = 없음)
+    FCyclePlayed: TStringList;        // 이번 사이클에 이미 재생한 파일들
 
     function FindActiveNode: PVirtualNode;
     procedure UpdateButtonColor(Btn: TSVGIconImage; Hover: Boolean);
@@ -105,6 +105,8 @@ type
     procedure PlayFirst;
   public
     procedure UpdateModeIcons;
+    procedure SavePlaylist;
+    procedure LoadPlaylist;
     procedure AddFile(AFileName: string);
     procedure DelFile(AMode: TDeleteMode);
     procedure SetRepeat;
@@ -137,7 +139,9 @@ implementation
 
 {$R *.dfm}
 
-uses Main, Setup;
+uses Main, Setup, Assoc;
+
+{$I Const.inc}
 
 procedure SetDarkTitleBar(AHandle: HWND);
 var
@@ -157,11 +161,11 @@ begin
   FCyclePlayed.CaseSensitive := False;
   FShufflePos := -1;
 
-  // Windows
+  // 창
   BorderIcons := [biSystemMenu];
   SetDarkTitleBar(Handle);
 
-  // Theme
+  // 테마
   Color := COLOR_BG_MAIN;
 
   UpdateButtonColor(BtnRepeat, False);
@@ -169,7 +173,7 @@ begin
   UpdateButtonColor(BtnAdd, False);
   UpdateButtonColor(BtnDel, False);
 
-  // VirtualTree
+  // 목록 트리
   ListData.NodeDataSize := SizeOf(TItemData);
 
   ListData.BevelInner := bvNone;
@@ -193,7 +197,7 @@ begin
   ListData.Colors.UnfocusedSelectionColor := COLOR_SELECT_UNFOCUSED;
   ListData.Colors.UnfocusedSelectionBorderColor := COLOR_SELECT_UNFOCUSED;
 
-  // Helpers
+  // 보조 객체
   FDarkSB := TVTDarkScrollbar.Create(ListData);
 
   FDragFile := TDragFile.Create(ListData,
@@ -203,11 +207,20 @@ begin
       AddFile(S);
   end);
 
+  // 저장된 목록을 먼저 올리고 명령줄 파일을 그 뒤에 붙인다. 재생은 명령줄
+  // 파일이 가져간다 (HandleStartupParams 가 그 파일만 Play 한다) — 연결된
+  // 파일을 더블클릭했을 때 지난 목록의 첫 곡이 대신 시작되면 안 된다.
+  LoadPlaylist;
+
   FrmKPlayer.HandleStartupParams;
 end;
 
 procedure TFrmList.FormDestroy(Sender: TObject);
 begin
+  // 이 폼이 FrmKPlayer 보다 먼저 파괴된다 (dpr 의 생성 순서 역순). 그래서
+  // 여기서 저장해야 FrmKPlayer.Config 가 아직 살아 있다.
+  SavePlaylist;
+
   FDragFile.Free;
   FDarkSB.Free;
   FCyclePlayed.Free;
@@ -541,7 +554,7 @@ end;
 procedure TFrmList.UpdateButtonColor(Btn: TSVGIconImage; Hover: Boolean);
 begin
   case Btn.Tag of
-    1: // Repeat
+    1: // 반복
     begin
       Btn.Hint := RepeatHint;
 
@@ -570,7 +583,7 @@ begin
       end;
     end;
 
-    2: // Random
+    2: // 랜덤
     begin
       Btn.Hint := RandomHint;
 
@@ -700,6 +713,101 @@ begin
   end;
 end;
 
+// 목록 저장/복원 (환경설정 '일반 → 재생목록 저장').
+//
+// 저장 파일은 exe 폴더의 KPlayer.lst 다 — 설정 ini 와 같은 자리라 포터블로
+// 폴더째 옮겨도 따라간다. 형식은 경로 한 줄씩인 평문(BOM 있는 UTF-8)이고,
+// 확장자를 .lst 로 둬야 탐색기가 재생목록으로 오인하지 않는다. 읽기는
+// ReadPlaylistText 를 쓰므로 메모장으로 ANSI 저장해도 읽힌다.
+function PlaylistFile: string;
+begin
+  Result := ExtractFilePath(ParamStr(0)) + AppName + '.lst';
+end;
+
+function SavePlaylistEnabled: Boolean;
+begin
+  Result := (FrmKPlayer <> nil) and (FrmKPlayer.Config <> nil) and
+            (FrmKPlayer.Config.ReadInteger('save_playlist', 1) <> 0);
+end;
+
+procedure DeletePlaylistFile;
+begin
+  if TFile.Exists(PlaylistFile) then
+    TFile.Delete(PlaylistFile);
+end;
+
+// 종료할 때 부른다 (TFrmList.FormDestroy). 여기서 예외가 나가면 종료 중에
+// 오류 창이 뜨므로 통째로 막는다 — 읽기 전용 폴더에서 실행하는 경우가 있다.
+procedure TFrmList.SavePlaylist;
+var
+  LLines: TStringList;
+  LNode: PVirtualNode;
+  LItem: PItemData;
+begin
+  try
+    // 방금 끈 경우에도 예전 파일이 남으면 다음 실행에서 되살아난다.
+    // '목록이 빈 상태' 도 그대로 보존해야 하므로 둘 다 파일을 지운다.
+    if not SavePlaylistEnabled then
+    begin
+      DeletePlaylistFile;
+      Exit;
+    end;
+
+    LLines := TStringList.Create;
+    try
+      LNode := ListData.GetFirst;
+      while Assigned(LNode) do
+      begin
+        LItem := ListData.GetNodeData(LNode);
+        if Assigned(LItem) and (LItem^.FileName <> '') then
+          LLines.Add(LItem^.FileName);
+        LNode := ListData.GetNext(LNode);
+      end;
+
+      if LLines.Count = 0 then
+        DeletePlaylistFile
+      else
+        LLines.SaveToFile(PlaylistFile, TEncoding.UTF8);
+    finally
+      LLines.Free;
+    end;
+  except
+    on E: Exception do ;
+  end;
+end;
+
+// 시작할 때 명령줄 처리보다 먼저 부른다 (TFrmList.FormCreate).
+// 없는 파일·중복·지원하지 않는 확장자는 AddFile 이 걸러낸다.
+procedure TFrmList.LoadPlaylist;
+var
+  LLines: TStringList;
+  LLine: string;
+begin
+  if not SavePlaylistEnabled then
+    Exit;
+
+  try
+    if not TFile.Exists(PlaylistFile) then
+      Exit;
+
+    LLines := TStringList.Create;
+    try
+      LLines.Text := ReadPlaylistText(PlaylistFile);
+
+      for LLine in LLines do
+      begin
+        if (Trim(LLine) = '') or Trim(LLine).StartsWith('#') then
+          Continue;
+        AddFile(Trim(LLine));
+      end;
+    finally
+      LLines.Free;
+    end;
+  except
+    on E: Exception do ;
+  end;
+end;
+
 procedure TFrmList.AddFile(AFileName: string);
 var
   Node: PVirtualNode;
@@ -724,7 +832,7 @@ begin
   if not FileExists(AFileName) then
     Exit;
 
-  // 지원 확장자 목록은 Setup.pas 의 AssocExts 하나다 (파일 연결 카드와 공용).
+  // 지원 확장자 목록은 Assoc.pas 의 AssocExts 하나다 (파일 연결 카드와 공용).
   if not IsMediaFile(AFileName) then
     Exit;
 
@@ -816,7 +924,7 @@ begin
     ListData.EndUpdate;
   end;
 
-  PruneShuffleMissing;   // drop deleted files from the shuffle history/cycle
+  PruneShuffleMissing;   // 사라진 파일을 이력·사이클에서 뺀다
 
   if not ActiveDeleted then
     Exit;
@@ -833,9 +941,6 @@ begin
   Play(FirstItem^.FileName);
 end;
 
-// 반복/랜덤 아이콘을 현재 모드에 맞춰 다시 그린다.
-// 환경설정에서 모드를 바꿨을 때 목록 창이 옛 상태로 남지 않게, Main 의
-// SetRepeatMode / SetRandomMode 가 부른다.
 // 목록 첫 곡을 재생한다. 없으면 재생을 끝낸다.
 procedure TFrmList.PlayFirst;
 var
@@ -856,16 +961,9 @@ begin
     EndPlayback;
 end;
 
-// 더 재생할 것이 없을 때. 정지(파일 내림)가 아니라 '마지막 프레임에서 멈춤' 이다.
-//
-// mpv stop 을 부르면 파일이 내려가 화면이 검게 되고 처음 실행한 것과 같은 상태가
-// 된다. 그래서 여기서는 파일을 그대로 두고 일시정지만 한다 (keep-open=yes).
-// 실제로는 keep-open-pause=yes 라서 mpv 가 이미 멈춰 있지만, 재생 도중 목록이
-// 비는 등 다른 경로로도 들어오므로 명시적으로 맞춰 준다.
-//
-// 목록의 '재생 중' 표시도 지우지 않는다 — 화면에 그 영상이 남아 있으니 어느
-// 항목인지 보이는 것이 맞다. 이 상태에서 재생을 누르면 Play('') 가 그 곡을
-// 처음부터 다시 연다.
+// 더 재생할 것이 없을 때. 정지가 아니라 '마지막 프레임에서 멈춤' 이다 —
+// mpv stop 은 파일을 내려 화면이 검게 되고 처음 실행한 것과 같아진다.
+// 목록의 '재생 중' 표시도 남긴다 (화면에 그 영상이 그대로 있다).
 procedure TFrmList.EndPlayback;
 begin
   ResetShuffle;              // 다음 랜덤은 새 사이클로 시작한다
@@ -891,7 +989,7 @@ end;
 procedure TFrmList.SetRandom;
 begin
   FrmKPlayer.RandomMode := 1 - FrmKPlayer.RandomMode;
-  ResetShuffle;   // start a fresh no-repeat cycle (seeds the currently playing track)
+  ResetShuffle;   // 새 사이클을 시작한다
   UpdateButtonColor(BtnRandom, True);
 end;
 
@@ -909,11 +1007,8 @@ begin
   end;
 end;
 
-// 없는 파일 하나를 목록에서 빼고 다음 곡으로 넘어간다.
-//
-// 사라진 파일을 한꺼번에 정리(DelFile(dmMissing))하지 않는다. 네트워크 드라이브나
-// USB 가 잠깐 빠졌을 때 목록이 조용히 비워지기 때문이다. 재생을 시도한 그 항목만
-// 지운다.
+// 없는 파일 하나를 목록에서 빼고 다음 곡으로 넘어간다. 한꺼번에 정리하지
+// 않는다 — 네트워크 드라이브나 USB 가 잠깐 빠졌을 때 목록이 조용히 비워진다.
 procedure TFrmList.SkipMissing(const AFileName: string);
 const
   MaxSkip = 64;   // 목록 전체가 없는 파일일 때를 위한 안전장치
@@ -966,14 +1061,12 @@ begin
     else if NextName <> '' then
       Play(NextName)
     else if FrmKPlayer.RepeatMode = 1 then
-      // 마지막 항목이 없는 파일이었다. 그것을 지운 지금 활성 항목이 목록의
-      // 마지막이 되어 Next 가 아무 것도 하지 않으므로, 처음 곡을 직접 재생한다.
+      // 마지막 항목이 없는 파일이었다 — 지운 뒤에는 Next 가 아무 일도 하지
+      // 않으므로 처음 곡을 직접 재생한다.
       PlayFirst
     else if not FrmKPlayer.IsPlay then
-      // 뒤에 재생할 것이 없다 -> 마지막 프레임에서 멈춘다.
-      // 단, 지금 다른 곡이 재생 중이면 건드리지 않는다. 재생 중에 사용자가
-      // 없는 파일을 직접 눌러 본 경우인데, 그것 때문에 보고 있던 영상을
-      // 멈추면 안 된다 (알림만으로 충분하다).
+      // 뒤에 재생할 것이 없다 → 멈춘다. 다른 곡이 재생 중이면 건드리지
+      // 않는다 (없는 파일을 눌러 봤다고 보던 영상을 멈추면 안 된다).
       EndPlayback;
   finally
     Dec(FSkipDepth);
@@ -1049,7 +1142,7 @@ var
 begin
   if FrmKPlayer.RandomMode = 1 then
   begin
-    // Move back through the actual shuffle play order
+    // 실제로 재생된 랜덤 순서를 거꾸로 되짚는다
     if FShufflePos > 0 then
     begin
       Dec(FShufflePos);
@@ -1136,8 +1229,8 @@ begin
   end;
 end;
 
-// Random track from the playlist that has not been played this cycle
-// (and is not the one currently playing). '' when nothing is left.
+// 이번 사이클에 아직 재생하지 않은 곡 하나를 무작위로 (지금 재생 중인 곡은
+// 제외). 남은 것이 없으면 ''.
 function TFrmList.PickRandomUnplayed: string;
 var
   Node: PVirtualNode;
@@ -1176,7 +1269,7 @@ begin
   FShufflePos := High(FShuffleHistory);
 end;
 
-// Begin a fresh no-repeat cycle, seeding the currently playing track as "played"
+// 새 사이클을 시작한다. 지금 재생 중인 곡은 '이미 들은 것' 으로 넣어 둔다.
 procedure TFrmList.ResetShuffle;
 var
   Cur: string;
@@ -1193,7 +1286,7 @@ begin
   end;
 end;
 
-// Drop history/cycle entries whose file is no longer in the playlist
+// 목록에서 사라진 파일을 이력과 사이클 기록에서 뺀다
 procedure TFrmList.PruneShuffleMissing;
 var
   I, W, RemovedBeforePos: Integer;
@@ -1234,7 +1327,7 @@ begin
   if ListData.RootNodeCount = 0 then
     Exit;
 
-  // If we previously navigated back with Prev, walk forward through history first
+  // Prev 로 되돌아온 상태면 먼저 이력을 앞으로 되짚는다
   if (FShufflePos >= 0) and (FShufflePos < High(FShuffleHistory)) then
   begin
     Inc(FShufflePos);
@@ -1250,11 +1343,8 @@ begin
 
   if Pick = '' then
   begin
-    // 한 바퀴 다 돌았다 -> 새 사이클을 시작한다.
-    //
-    // 반복 설정을 보지 않는다. 랜덤은 "목록을 섞어 계속 듣는" 모드이므로 한 바퀴
-    // 돌고 멈추면 쓸 데가 없다. 절충점: 랜덤이 켜져 있으면 '반복 끄기' 가
-    // 무의미해진다 (한 곡 반복은 Stop 에서 먼저 처리되므로 영향 없다).
+    // 한 바퀴 다 돌았다 → 새 사이클. 반복 설정은 보지 않는다 — 랜덤은 섞어
+    // 계속 듣는 모드라 한 바퀴 돌고 멈추면 쓸 데가 없다.
     FCyclePlayed.Clear;
 
     // 방금 들은 곡이 새 사이클 첫 곡으로 또 나오지 않게 제외한다
@@ -1280,13 +1370,9 @@ begin
   Play(Pick);
 end;
 
-// 곡이 끝났을 때 mpv 가 알려주면(script-message 'finished') 호출된다.
-// 다음에 무엇을 재생할지(또는 정지할지)를 정하는 자리다.
-//
-// 주의: mpv 는 keep-open=yes 로 초기화되어 있어 파일이 끝나도 스스로 내려가지
-// 않는다 (MPVBasePlayer.InitPlayer). 그래서 더 재생할 것이 없으면 우리가 직접
-// 정지시켜야 한다. 그러지 않으면 마지막 프레임에 파일이 걸린 채 pause=false 로
-// 남아, OSD 는 재생 중처럼 보이는데 아무 것도 진행되지 않는다.
+// 곡이 끝났을 때 (script-message 'finished'). 다음에 무엇을 재생할지 정한다.
+// mpv 는 keep-open=yes 라 파일이 끝나도 스스로 내려가지 않으므로, 더 재생할
+// 것이 없으면 우리가 멈춰야 한다 — 그러지 않으면 OSD 만 재생 중처럼 남는다.
 procedure TFrmList.TrackFinished;
 var
   ActiveNode: PVirtualNode;
@@ -1295,7 +1381,7 @@ var
 begin
   ActiveNode := FindActiveNode;
 
-  // Repeat current track: applies regardless of random
+  // 한 곡 반복은 랜덤과 무관하게 먼저 처리한다
   if FrmKPlayer.RepeatMode = 2 then
   begin
     if Assigned(ActiveNode) then
@@ -1307,16 +1393,16 @@ begin
     Exit;
   end;
 
-  // Random: Rand handles no-repeat (stop at cycle end) and repeat-all (reshuffle)
+  // 랜덤은 Rand 가 사이클 끝 처리와 재섞기를 함께 맡는다
   if FrmKPlayer.RandomMode = 1 then
   begin
     Rand;
     Exit;
   end;
 
-  // Linear playback
+  // 순차 재생
   case FrmKPlayer.RepeatMode of
-    0: // No repeat
+    0: // 반복 없음
     begin
       // 마지막 곡이었으면 정지한다. Next 는 다음이 없을 때 아무 것도 하지 않으므로
       // (사용자가 직접 누른 경우엔 그게 맞다) 여기서 갈라준다.
@@ -1328,7 +1414,7 @@ begin
       Exit;
     end;
 
-    1: // Repeat all videos
+    1: // 전체 반복
     begin
       if not Assigned(ActiveNode) then
       begin

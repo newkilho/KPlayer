@@ -1,9 +1,5 @@
 ﻿unit Setup;
 
-// NOTE: Keep this area ASCII-only. The IDE inserts units into the uses clause
-// by byte offset and miscounts multi-byte (Korean) comments placed before it,
-// which corrupts the file. Korean notes live below the uses clause.
-
 interface
 
 uses
@@ -11,136 +7,29 @@ uses
   System.Classes, System.Math, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
   Vcl.FileCtrl, Vcl.CategoryButtons, Vcl.WinXPanels, Vcl.ExtCtrls, Vcl.StdCtrls,
   Vcl.ComCtrls, Vcl.ButtonGroup, Vcl.Buttons, Vcl.ImgList, System.Win.Registry,
-  Winapi.ShellAPI, Winapi.ShLwApi, VirtualTrees.BaseAncestorVCL, VirtualTrees.BaseTree,
+  Winapi.ShellAPI, Winapi.ShLwApi, Winapi.CommCtrl,
+  VirtualTrees.BaseAncestorVCL, VirtualTrees.BaseTree,
   VirtualTrees.AncestorVCL, VirtualTrees.Types, VirtualTrees,
-  K.Theme, K.Config.INI;
+  K.Theme, K.Config.INI, Assoc;
 
-// 환경설정 창
+// 환경설정 창. 좌측 내비(SpeedButton.Tag = 카드 인덱스) + TCardPanel 이고,
+// 카드마다 TScrollBox 하나다. 배치는 모두 디자이너에 있다.
 //
-// 구조 (모두 디자이너 배치)
-// =========================
-//   PnlMenu   - 좌측 내비 (SpeedButton.Tag = 카드 인덱스) + 하단 [기본값 복원],
-//               LineMenu 로 우측과 구분
-//   PnlRight
-//     PnlHeader - LblTitle (선택한 카드 이름)
-//     PnlMain   - TCardPanel / 카드마다 TScrollBox 하나
+// 값은 바뀔 때마다 저장된다 (ControlChange → SaveValues + ApplyLive).
+// 확인/취소도 닫기 버튼도 없다. 컨트롤을 추가하면 LoadValues 와 SaveValues
+// 두 곳에 키를 같이 넣어야 한다.
 //
-// 창을 닫는 버튼은 없다 (제목줄 X 로 닫는다). 값은 바뀔 때마다 저장되므로
-// 닫기 시점에 할 일이 없다.
+// 행 규격 — 행 간격 64, 라벨 Top 은 21/85/149..., 컨트롤 Top = 라벨 +7,
+// 설명 라벨은 라벨 +18 에 Font.Height -11 / clGray. 라벨 Left 24, 컨트롤은
+// Anchors=[akTop,akRight] 로 우측 24px. 폭은 콤보 170 / 트랙바 190 /
+// 에디트 250 / [찾기] 60.
 //
-// 행 규격 (항목을 추가할 때 이 값에 맞춘다)
-// ==========================================
-//   섹션 제목은 쓰지 않는다. 행만 위에서부터 붙여 나간다.
-//   첫 행 위 여백 8, 행 높이 48 (설명 라벨이 있으면 64) — 행 사이 여백은 없다
-//   좌측 라벨 Left = 24 / 우측 컨트롤은 Anchors=[akTop,akRight] 로 우측 24px
-//   행 top 기준: 제목 +13 (설명 없으면 세로 중앙), 설명 +31, 컨트롤은 세로 중앙
-//   제목 라벨: 기본 폰트 / 설명 라벨: Font.Height -11, Color clGray
-//   컨트롤 폭: 콤보 170 / 트랙바 190 / 에디트 250 / 체크 21 / 찾기 버튼 60
-//
-// 값 저장은 "즉시 적용" 이다. 컨트롤이 바뀌면 ControlChange → SaveValues +
-// ApplyLive 가 돌아간다. 확인/취소 버튼은 없다.
-//
-// KPlayer.lua 와의 관계
-// =====================
-//   volume / sub-visibility 는 Lua 가 observe 하므로 OSD 컨트롤바에 즉시 반영된다.
-//   볼륨 최대값이 100 인 이유: Lua 의 volume observer 가 100 초과를 100 으로
-//   되돌리고 그 값을 script-message 로 되돌려 준다 (KPlayer.lua 참고).
-//   slang(기본 자막 언어) 은 다음 파일을 열 때부터 적용된다.
-//
-// 컨트롤을 추가하면 LoadValues / SaveValues 두 곳에 키를 같이 넣어야 한다.
+// volume 과 sub-visibility 는 Lua 가 observe 하므로 OSD 에 즉시 반영된다.
+// 볼륨 최대가 100 인 것은 Lua 가 초과분을 100 으로 되돌리기 때문이고,
+// slang(기본 자막 언어)은 다음 파일부터 적용된다.
 
-type
-  // 파일 연결 카드에서 다루는 확장자 분류
-  TAssocGroup = (agVideo, agAudio, agList);
-
-  TAssocExt = record
-    Ext:   string;        // '.mp4'
-    Desc:  string;        // 탐색기에 보일 파일 종류 이름 (ProgID 기본값으로 쓸 예정)
-    Group: TAssocGroup;
-    Main:  Boolean;       // [주요 파일] 버튼으로 선택되는 것
-  end;
-
-const
-  AssocGroupNames: array[TAssocGroup] of string = ('비디오', '오디오', '재생목록');
-
-  // 재생 가능한 확장자의 단일 출처. 지금은 연결 카드만 쓰지만
-  // List.AddFile 의 지원 확장자 필터도 나중에 이 표를 보게 바꾼다
-  // (현재 AddFile 은 7개만 하드코딩되어 있어 목록과 연결이 어긋난다).
-  AssocExts: array[0..37] of TAssocExt = (
-    (Ext: '.mp4';  Desc: 'MP4 비디오';         Group: agVideo; Main: True),
-    (Ext: '.mkv';  Desc: 'Matroska 비디오';    Group: agVideo; Main: True),
-    (Ext: '.avi';  Desc: 'AVI 비디오';         Group: agVideo; Main: True),
-    (Ext: '.mov';  Desc: 'QuickTime 비디오';   Group: agVideo; Main: True),
-    (Ext: '.wmv';  Desc: 'Windows Media 비디오'; Group: agVideo; Main: True),
-    (Ext: '.flv';  Desc: 'Flash 비디오';       Group: agVideo; Main: False),
-    (Ext: '.webm'; Desc: 'WebM 비디오';        Group: agVideo; Main: True),
-    (Ext: '.m4v';  Desc: 'MPEG-4 비디오';      Group: agVideo; Main: False),
-    (Ext: '.mpg';  Desc: 'MPEG 비디오';        Group: agVideo; Main: False),
-    (Ext: '.mpeg'; Desc: 'MPEG 비디오';        Group: agVideo; Main: False),
-    (Ext: '.m2v';  Desc: 'MPEG-2 비디오';      Group: agVideo; Main: False),
-    (Ext: '.ts';   Desc: 'MPEG 전송 스트림';   Group: agVideo; Main: True),
-    (Ext: '.tp';   Desc: 'MPEG 전송 스트림';   Group: agVideo; Main: False),
-    (Ext: '.trp';  Desc: 'MPEG 전송 스트림';   Group: agVideo; Main: False),
-    (Ext: '.m2ts'; Desc: 'Blu-ray 비디오';     Group: agVideo; Main: False),
-    (Ext: '.mts';  Desc: 'AVCHD 비디오';       Group: agVideo; Main: False),
-    (Ext: '.vob';  Desc: 'DVD 비디오';         Group: agVideo; Main: False),
-    (Ext: '.asf';  Desc: 'ASF 비디오';         Group: agVideo; Main: False),
-    (Ext: '.rm';   Desc: 'RealMedia 비디오';   Group: agVideo; Main: False),
-    (Ext: '.rmvb'; Desc: 'RealMedia 비디오';   Group: agVideo; Main: False),
-    (Ext: '.ogv';  Desc: 'Ogg 비디오';         Group: agVideo; Main: False),
-    (Ext: '.3gp';  Desc: '3GPP 비디오';        Group: agVideo; Main: False),
-    (Ext: '.divx'; Desc: 'DivX 비디오';        Group: agVideo; Main: False),
-    (Ext: '.mp3';  Desc: 'MP3 오디오';         Group: agAudio; Main: True),
-    (Ext: '.flac'; Desc: 'FLAC 오디오';        Group: agAudio; Main: True),
-    (Ext: '.aac';  Desc: 'AAC 오디오';         Group: agAudio; Main: False),
-    (Ext: '.m4a';  Desc: 'MPEG-4 오디오';      Group: agAudio; Main: True),
-    (Ext: '.wav';  Desc: 'WAV 오디오';         Group: agAudio; Main: True),
-    (Ext: '.ogg';  Desc: 'Ogg 오디오';         Group: agAudio; Main: False),
-    (Ext: '.opus'; Desc: 'Opus 오디오';        Group: agAudio; Main: False),
-    (Ext: '.wma';  Desc: 'Windows Media 오디오'; Group: agAudio; Main: False),
-    (Ext: '.ape';  Desc: 'Monkey''s Audio';    Group: agAudio; Main: False),
-    (Ext: '.aiff'; Desc: 'AIFF 오디오';        Group: agAudio; Main: False),
-    (Ext: '.mka';  Desc: 'Matroska 오디오';    Group: agAudio; Main: False),
-    (Ext: '.dsf';  Desc: 'DSD 오디오';         Group: agAudio; Main: False),
-    (Ext: '.m3u';  Desc: '재생목록';           Group: agList;  Main: False),
-    (Ext: '.m3u8'; Desc: '재생목록';           Group: agList;  Main: False),
-    (Ext: '.pls';  Desc: '재생목록';           Group: agList;  Main: False));
-
-const
-  // 콤보박스 인덱스 → mpv 옵션 값. 설정은 인덱스로 저장하므로
-  // 항목 순서를 바꾸면 기존 INI 값의 의미가 바뀐다 (추가는 뒤에만).
-  // Main.FormCreate 도 초기화 옵션을 적용할 때 이 표를 쓴다.
-  HwdecValues:     array[0..2] of string = ('auto-safe', 'auto', 'no');
-  VoValues:        array[0..1] of string = ('gpu', 'gpu-next');
-  GpuApiValues:    array[0..3] of string = ('auto', 'd3d11', 'opengl', 'vulkan');
-  ScaleValues:     array[0..3] of string = ('lanczos', 'bilinear', 'spline36', 'ewa_lanczos');
-  DeintValues:     array[0..2] of string = ('auto', 'yes', 'no');
-  VideoSyncValues: array[0..1] of string = ('display-resample', 'audio');
-  ShotFmtValues:   array[0..1] of string = ('jpg', 'png');
-
-  // 음량 평준화 프리셋 (dynaudnorm) — 0:낮게 1:보통 2:강하게
-  NormFilters: array[0..2] of string = (
-    'lavfi=[dynaudnorm=f=100:g=15:p=0.90:r=0.10:n=1]',
-    'lavfi=[dynaudnorm=f=75:g=7:p=0.95:r=0.20:n=1]',
-    'lavfi=[dynaudnorm=f=50:g=5:p=0.99:r=0.30:n=1]');
-
-// 재생 가능한 파일인가 (확장자가 AssocExts 에 있는가).
-// List.AddFile 의 필터가 이 함수를 쓴다 — 재생목록에 넣는 확장자와 파일 연결로
-// 등록하는 확장자가 갈리면, 연결해서 더블클릭했는데 목록에 안 들어가는 일이
-// 생긴다 (실제로 그랬다: 연결은 38종, 목록 필터는 7종).
-function IsMediaFile(const AFileName: string): Boolean;
-
-// 재생목록 파일인가 (.m3u / .m3u8 / .pls). 목록에 넣을 때 항목으로 펼쳐야 한다.
-function IsPlaylistFile(const AFileName: string): Boolean;
-
-// 등록해 둔 파일 연결을 현재 exe 경로로 다시 기록한다. 프로그램 시작 시
-// 한 번 부른다 — 포터블이라 폴더가 바뀌면 등록된 실행 명령이 어긋나
-// 더블클릭이 '파일을 찾을 수 없음' 으로 끝난다.
-procedure SyncFileAssoc;
-
-// 캡처 기본 저장 폴더 = 바탕화면.
-// exe 폴더는 쓰지 않는다 — Program Files 아래면 쓰기 권한이 없고, 프로그램
-// 폴더에 캡처가 쌓이는 것도 곤란하다. Main.FormCreate 도 이 값을 기본값으로 쓴다.
+// 캡처 기본 저장 폴더 = 바탕화면. exe 폴더는 쓰지 않는다 — Program Files
+// 아래면 쓰기 권한이 없고, 프로그램 폴더에 캡처가 쌓이는 것도 곤란하다.
 function DesktopPath: string;
 
 type
@@ -164,6 +53,9 @@ type
     CboRepeat: TComboBox;
     LblRandom: TLabel;
     CboRandom: TComboBox;
+    LblSaveList: TLabel;
+    LblSaveListDesc: TLabel;
+    CboSaveList: TComboBox;
     LblShotDir: TLabel;
     LblShotDirDesc: TLabel;
     EdtShotDir: TEdit;
@@ -171,7 +63,7 @@ type
     LblShotFmt: TLabel;
     CboShotFmt: TComboBox;
     LblTopMost: TLabel;
-    ChkTopMost: TCheckBox;
+    CboTopMost: TComboBox;
     CardVideo: TCard;
     BoxVideo: TScrollBox;
     LblHwdec: TLabel;
@@ -200,14 +92,14 @@ type
     TrkVolume: TTrackBar;
     LblNormalize: TLabel;
     LblNormalizeDesc: TLabel;
-    ChkNormalize: TCheckBox;
+    CboNormalize: TComboBox;
     LblNormLevel: TLabel;
     CboNormLevel: TComboBox;
     CardSub: TCard;
     BoxSub: TScrollBox;
     LblSubVisible: TLabel;
     LblSubVisibleDesc: TLabel;
-    ChkSubVisible: TCheckBox;
+    CboSubVisible: TComboBox;
     LblSubSize: TLabel;
     LblSubSizeValue: TLabel;
     TrkSubSize: TTrackBar;
@@ -220,6 +112,7 @@ type
     BtnAssocNone: TButton;
     BtnAssocMain: TButton;
     BtnAssocDefaults: TButton;
+    MemoAssocLog: TMemo;
     LblAssocHint: TLabel;
     CardAbout: TCard;
     MemAbout: TMemo;
@@ -237,27 +130,85 @@ type
     procedure TreeAssocFreeNode(Sender: TBaseVirtualTree; Node: PVirtualNode);
     procedure TreeAssocGetText(Sender: TBaseVirtualTree; Node: PVirtualNode;
       Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
-    procedure TreeAssocGetHint(Sender: TBaseVirtualTree; Node: PVirtualNode;
-      Column: TColumnIndex; var LineBreakStyle: TVTTooltipLineBreakStyle;
-      var HintText: string);
     procedure TreeAssocGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode;
       Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean;
       var ImageIndex: TImageIndex);
     procedure TreeAssocPaintText(Sender: TBaseVirtualTree;
       const TargetCanvas: TCanvas; Node: PVirtualNode; Column: TColumnIndex;
       TextType: TVSTTextType);
+    procedure TreeAssocBeforeCellPaint(Sender: TBaseVirtualTree;
+      TargetCanvas: TCanvas; Node: PVirtualNode; Column: TColumnIndex;
+      CellPaintMode: TVTCellPaintMode; CellRect: TRect; var ContentRect: TRect);
+    procedure TreeAssocMouseMove(Sender: TObject; Shift: TShiftState;
+      X, Y: Integer);
+    procedure TreeAssocMouseLeave(Sender: TObject);
+
+    function BadgeBusy: Boolean;
+    function BadgeRect(ACanvas: TCanvas; const ACell: TRect): TRect;
   private
     FLoading: Boolean;
+
+    // 트리를 채우는 중에는 체크 이벤트를 무시한다. VST 의 CheckState 대입은
+    // 그 자체로 OnChecked 를 부르므로, 창을 열어 체크를 복원하는 것만으로
+    // 등록/해제가 일어난다.
+    FFilling: Boolean;
+
+    // 확장자별 아이콘 인덱스 캐시 (IconUnknown = 아직 안 물어봤다).
+    // 창을 다시 열어도 유지된다.
+    FIconIndex: array of Integer;
+
+    // 체크 이벤트를 모아 한 번만 반영하는 타이머. 그룹 체크는 자식마다
+    // OnChecked 를 주므로 그대로 처리하면 전체 훑기가 38번 반복된다.
+    FApplyTimer: TTimer;
+
+    // 레지스트리 감시. 남이 기본 앱을 바꾸면 목록·색·아이콘을 다시 읽는다.
+    //   FWatcher      - 감시 스레드 (창이 떠 있는 동안만)
+    //   FWatchTimer   - 알림을 모으는 디바운스 (폭주해도 한 번만 갱신)
+    //   FQuietUntil   - 우리가 쓴 직후의 알림은 무시하는 시각
+    //   FDirty        - 연결 카드가 아닐 때 온 변경 (카드로 올 때 반영)
+    FWatcher: TThread;
+    FWatchTimer: TTimer;
+    FQuietUntil: UInt64;
+    FDirty: Boolean;
     FAssocIcons: TImageList;   // 확장자 아이콘 (폼이 소유 → 따로 해제하지 않는다)
+
+    // 직접 그린 체크박스 그림 (시스템 것은 강조색으로 꽉 차 너무 진하다).
+    // 만든 뒤 InsertComponent 로 폼에 넘기므로 따로 해제하지 않는다.
+    FCheckImages: TImageList;
+
+    // 열어 둔 [기본 앱 선택] 창의 뒷정리 대상 (숨긴 속성 창 + 임시 파일).
+    // 선택 창이 닫히는 시점을 알 수 없어 이 창으로 돌아올 때 정리한다.
+    FPicker: TPickerJob;
+
+    // 마우스가 올라간 [강제설정] 뱃지. 그 뱃지에만 테두리를 그린다.
+    FBadgeHot: PVirtualNode;
+
+    // 선택 창을 여는 중. 그 동안 모든 뱃지가 회색(비활성)이 된다.
+    FBadgeBusy: Boolean;
+
+    // 선택 창을 띄우는 중. 그 안에서 메시지를 돌리므로 연타를 막아야 한다.
+    FPicking: Boolean;
 
     procedure FillAbout;
 
     procedure SetupAssocTree;
     procedure FillAssoc;
-    function ExtIconIndex(const AExt: string): Integer;
-    function CurrentAssocName(const AExt: string): string;
+    function ExtIconIndex(AIndex: Integer): Integer;
+    procedure ResetIcons;
     procedure ApplyAssoc;
     procedure RefreshAssocStates;
+    procedure UpdateAssocHint;
+    procedure LayoutAssocColumns;
+    procedure ApplyTimerTick(Sender: TObject);
+    procedure WatchTimerTick(Sender: TObject);
+    procedure AssocChanged;
+    procedure RefreshAssocView;
+    procedure PickDefaultApp(const AExt: string);
+    procedure ClosePicker;
+    procedure LogAssoc(const AMsg: string);
+    procedure TreeAssocClick(Sender: TObject);
+    procedure FormActivate(Sender: TObject);
+    procedure FormHide(Sender: TObject);
 
     procedure LoadValues;
     procedure SaveValues;
@@ -278,6 +229,39 @@ implementation
 
 uses Main, MPVPlayer;
 
+const
+  // 아이콘 캐시의 '아직 안 물어봤다' 표시 (-1 은 '셸이 못 준다' 는 뜻으로 쓴다)
+  IconUnknown = -2;
+
+  // 연결 트리의 행 두께. 여기 한 곳만 고친다 (재생목록은 List.pas 의 24).
+  // 방식도 재생목록과 같다 — toVariableNodeHeight 와 toAutoChangeScale 을 끄고,
+  // 노드마다 NodeHeight 를 직접 넣는다. OnMeasureItem 을 쓰면 마우스가 지나간
+  // 행만 다시 재어 두께가 들썩인다.
+  AssocRowHeight = 28;
+
+  // 상태 뱃지. HTML 규격을 그대로 옮겼다 (padding 0 6px / radius 3px / 11px,
+  // 배경 #fde8e8, 글자 #9b1c1c). 창이 라이트 고정이라 다크 값은 두지 않는다.
+  // 테두리는 평소 없고 마우스가 올라가면 글자색으로 드러난다.
+  // Delphi 색상값은 BGR 순서다.
+  BadgeBackColor = $00E8E8FD;
+  BadgeTextColor = $001C1C9B;   // 호버 테두리도 이 색
+  BadgeRadius    = 3;           // 크게 주면 GDI 라 계단이 보인다
+  BadgeFontSize  = -11;
+  BadgePadX      = 6;
+  // 높이는 숫자로 고정하지 않고 글자 높이에 위아래로 이 값을 더한다.
+  // 11px 글자의 실제 높이가 15px 이라 18 로 고정하면 여백이 1/2 로 갈린다.
+  BadgePadY      = 4;
+
+  // 선택 창을 여는 동안의 비활성 색. 문구를 바꾸면 뱃지 크기가 달라지므로
+  // 글자는 그대로 두고 회색으로만 바꾼다.
+  BadgeDisBackColor = $00F0F0F0;
+  BadgeDisTextColor = $00A0A0A0;
+
+  // 글자는 '할 일' 이 아니라 '상태' 다 — 체크로 등록은 이미 됐으므로 적용을
+  // 다시 요구하는 문구는 헷갈린다. 누를 수 있다는 신호는 호버 테두리와 손
+  // 모양 커서가 맡는다.
+  BadgeTextNormal = '적용안됨';
+
 {$R *.dfm}
 
 {$I Const.inc}
@@ -287,8 +271,20 @@ begin
   if AValue then Result := 1 else Result := 0;
 end;
 
-// CSIDL_DESKTOPDIRECTORY 는 OneDrive 리디렉션이나 다른 언어 환경에서도 실제
-// 바탕화면 경로를 돌려준다 (USERPROFILE + '\Desktop' 조립은 그 경우 틀린다).
+// 켜고 끄는 항목은 '사용안함/사용함' 콤보다. 순서는 0 = 사용안함 고정 —
+// 뒤집으면 설정 파일에 이미 들어 있는 0/1 의 의미가 반대로 읽힌다.
+function CboOn(ACombo: TComboBox): Boolean;
+begin
+  Result := ACombo.ItemIndex = 1;
+end;
+
+procedure SetCboOn(ACombo: TComboBox; AValue: Boolean);
+begin
+  ACombo.ItemIndex := B2I(AValue);
+end;
+
+// CSIDL_DESKTOPDIRECTORY 는 OneDrive 리디렉션이나 다른 언어에서도 실제 경로를
+// 돌려준다 (USERPROFILE + '\Desktop' 조립은 그 경우 틀린다).
 function DesktopPath: string;
 var
   Buf: array[0..MAX_PATH] of Char;
@@ -306,17 +302,115 @@ begin
 
   SetupAssocTree;
 
+  // 선택 창이나 설정 앱을 다녀오면 상태를 다시 읽어야 한다.
+  // DFM 이 아니라 코드로 붙인다 (디자이너가 지우지 못하게).
+  OnActivate := FormActivate;
+  OnHide := FormHide;
+
+  // 체크 이벤트를 모으는 타이머 (폼이 소유 → 함께 해제된다)
+  FApplyTimer := TTimer.Create(Self);
+  FApplyTimer.Enabled := False;
+  FApplyTimer.Interval := 80;
+  FApplyTimer.OnTimer := ApplyTimerTick;
+
+  // 레지스트리 알림을 모으는 타이머
+  FWatchTimer := TTimer.Create(Self);
+  FWatchTimer.Enabled := False;
+  FWatchTimer.Interval := 300;
+  FWatchTimer.OnTimer := WatchTimerTick;
+
+  // 로그와 정보 카드는 디버그 빌드에서만 쓴다 (Main.pas 가 lua 경로를 가르는
+  // 것과 같은 기준). 훅을 걸지 않으면 Assoc.pas 는 문자열도 만들지 않는다.
+  MemoAssocLog.Visible := ReportMemoryLeaksOnShutDown;
+  BtnAbout.Visible := ReportMemoryLeaksOnShutDown;
+
+  if ReportMemoryLeaksOnShutDown then
+  begin
+    AssocLogProc :=
+      procedure(AMsg: string)
+      begin
+        LogAssoc(AMsg);
+      end;
+
+    // 로그를 그대로 복사해 보고할 수 있게 앞머리에 환경을 적어 둔다.
+    LogAssoc('exe = ' + ParamStr(0));
+    LogAssoc(AssocEnvInfo);
+    LogAssoc(Format('Windows %d.%d build %d',
+      [TOSVersion.Major, TOSVersion.Minor, TOSVersion.Build]));
+  end;
+
   SetTheme(Self);
 end;
 
-// 이 폼은 dpr 에서 한 번만 생성되고 ShowModal 로 계속 재사용된다.
-// 볼륨(키보드/OSD)이나 반복 모드(재생목록)는 이 창 밖에서도 바뀌므로
-// 열 때마다 다시 읽어야 옛 값이 보이지 않는다.
+// 이 폼은 한 번만 생성되고 ShowModal 로 재사용된다. 볼륨이나 반복 모드는 창
+// 밖에서도 바뀌므로 열 때마다 다시 읽어야 옛 값이 보이지 않는다.
 procedure TFrmSetup.FormShow(Sender: TObject);
 begin
-  FillAbout;
+  if BtnAbout.Visible then
+    FillAbout;   // 감춘 카드를 채우려고 mpv 버전까지 물어볼 이유가 없다
+
   FillAssoc;   // 연결 상태는 창 밖에서도 바뀌므로 열 때마다 다시 읽는다
   LoadValues;
+
+  // 창이 떠 있는 동안만 감시한다 (닫으면 스레드도 없앤다).
+  if FWatcher = nil then
+    FWatcher := AssocWatch(
+      procedure
+      begin
+        AssocChanged;
+      end);
+end;
+
+// 연결 카드 오른쪽 메모에 한 줄. 복사해 붙일 수 있게 시각을 앞에 둔다.
+procedure TFrmSetup.LogAssoc(const AMsg: string);
+begin
+  // 폼 안에서 직접 부르는 곳도 있으므로 여기서도 막는다 (FormCreate 참고)
+  if not ReportMemoryLeaksOnShutDown then
+    Exit;
+
+  if MemoAssocLog = nil then
+    Exit;
+
+  if MemoAssocLog.Lines.Count > 400 then
+    MemoAssocLog.Clear;
+
+  MemoAssocLog.Lines.Add(FormatDateTime('hh:nn:ss', Now) + '  ' + AMsg);
+
+  // 마지막 줄이 보이게 스크롤
+  SendMessage(MemoAssocLog.Handle, EM_LINESCROLL, 0, MemoAssocLog.Lines.Count);
+end;
+
+// 선택 창이나 설정 앱을 다녀오면 기본 앱이 바뀌어 있을 수 있다. 선택 창이
+// 닫히는 시점을 알 수 없어, 이 창으로 돌아오는 순간을 뒷정리 지점으로 쓴다.
+procedure TFrmSetup.FormActivate(Sender: TObject);
+begin
+  if (FPicker.Sheet <> 0) or (FPicker.TempFile <> '') then
+  begin
+    ClosePicker;
+    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nil, nil);
+
+    // 선택 창에서 기본 앱이 바뀌었을 수 있다 → 아이콘도 다시 얻는다
+    ResetIcons;
+  end;
+
+  if (PnlMain.ActiveCard = CardAssoc) and (TreeAssoc.RootNodeCount > 0) then
+    RefreshAssocView;
+end;
+
+// 창을 닫을 때도 뒷정리한다 (선택 창을 열어 둔 채로 이 창을 닫는 경우).
+procedure TFrmSetup.FormHide(Sender: TObject);
+begin
+  // 대기 중인 체크 반영이 있으면 닫기 전에 마무리한다
+  if FApplyTimer.Enabled then
+  begin
+    FApplyTimer.Enabled := False;
+    ApplyAssoc;
+  end;
+
+  FWatchTimer.Enabled := False;
+  AssocUnwatch(FWatcher);
+
+  ClosePicker;
 end;
 
 procedure TFrmSetup.BtnNavClick(Sender: TObject);
@@ -327,18 +421,14 @@ begin
 
   PnlMain.ActiveCardIndex := B.Tag;
   LblTitle.Caption := B.Caption;
+
+  // 다른 카드에 있는 동안 연결이 바뀌었으면 지금 반영한다.
+  if FDirty and (PnlMain.ActiveCard = CardAssoc) then
+    RefreshAssocView;
 end;
 
-// ---------------------------------------------------------------------------
-// 파일 연결 카드
-//
-// 지금은 "보여주기" 까지만 한다 — 확장자 목록, 확장자 아이콘, 각 확장자의 현재
-// 연결 프로그램. 체크 상태를 실제 레지스트리에 반영하는 [KPlayer로 연결] /
-// [선택 기본앱 설정] 은 다음 단계다.
-//
-// 오른쪽 열은 레지스트리에서 직접 읽는다 (INI 에 캐시하지 않는다). 다른
-// 플레이어가 연결을 가져갔을 때 캐시는 거짓말을 하기 때문이다.
-// ---------------------------------------------------------------------------
+// 파일 연결 카드. 상태는 레지스트리에서 직접 읽는다 (INI 에 캐시하지 않는다) —
+// 다른 플레이어가 연결을 가져갔을 때 캐시는 거짓말을 한다.
 
 type
   // 트리 노드 데이터. 그룹 헤더 노드와 확장자 노드가 같은 레코드를 쓴다.
@@ -347,457 +437,28 @@ type
     Group:   TAssocGroup;
     Index:   Integer;   // AssocExts 인덱스 (그룹 노드는 -1)
     Icon:    Integer;   // FAssocIcons 인덱스 (없으면 -1)
-    Current: string;    // 현재 연결 프로그램 이름 (툴팁을 띄울 때 채운다)
-    Ours:    Boolean;   // 지금 KPlayer 로 열리는 확장자
-    Locked:  Boolean;   // 다른 프로그램이 기본 앱으로 지정해 둠 (UserChoice)
+    State:   TAssocState;
   end;
   PAssocNode = ^TAssocNode;
 
-// ---------------------------------------------------------------------------
-// 레지스트리 계층 (모두 HKEY_CURRENT_USER — UAC 승격이 필요 없다)
-//
-//   Software\Classes\KPlayer.mp4               ProgID (설명/아이콘/실행 명령)
-//   Software\Classes\.mp4                      (기본값) = 우리 ProgID
-//   Software\Classes\.mp4\OpenWithProgIDs   '연결 프로그램' 후보로 노출
-//   Software\Classes\Applications\KPlayer.exe   FriendlyAppName / SupportedTypes
-//   Software\KPlayer\Capabilities              설정 앱의 '기본 앱' 목록용
-//   Software\RegisteredApplications               위 Capabilities 등록
-//   Software\KPlayer\FileAssoc                 등록 전 값 백업 + 소유 목록
-//
-// 기본 앱 자체(FileExts\.mp4\UserChoice)는 쓰지 않는다. 윈도우가 해시로
-// 서명해 보호하므로 위조하면 연결이 초기화되고 업데이트마다 깨진다. 지정이 없던
-// 확장자는 위 등록만으로 기본이 되고, 다른 프로그램이 잡아둔 확장자는 사용자가
-// 윈도우 설정에서 직접 골라야 한다.
-//
-// 폼 메서드가 아니라 유닛 레벨 함수다. Main.FormCreate 가 SyncFileAssoc 을
-// 부르는 시점에는 FrmSetup 이 아직 만들어지지 않았다.
-//
-// 참고: D:\Source\Rust\FILEASSOC.md
-// ---------------------------------------------------------------------------
-
-const
-  // 백업 겸 소유 목록. 값 이름은 확장자('.mp4'), 데이터는 등록 전의 ProgID.
-  // 데이터가 빈 문자열이면 "HKCU 에 원래 값이 없었다" 는 뜻이고, 해제할 때는
-  // 값을 지워야 한다. 빈 문자열을 기본값으로 쓰면 HKLM 연결이 가려져
-  // '앱을 선택하세요' 가 뜬다 (FILEASSOC.md 4절에 기록된 사고).
-  AssocBackupKey = '\Software\KPlayer\FileAssoc';
-  AssocCapKey    = '\Software\KPlayer\Capabilities';
-  AssocClassKey  = '\Software\Classes\';
-
-function ExtProgID(const AExt: string): string;
-begin
-  Result := 'KPlayer' + AExt;   // '.mp4' -> 'KPlayer.mp4'
-end;
-
-// 확장자에 연결된 ProgID. 사용자별 설정(HKCU)이 먼저고, 없으면 시스템 전체
-// (HKEY_CLASSES_ROOT — HKLM 과 HKCU 가 합쳐진 뷰) 를 본다.
-function ClassProgID(const AExt: string): string;
-var
-  LReg: TRegistry;
-begin
-  Result := '';
-
-  LReg := TRegistry.Create(KEY_READ);
-  try
-    LReg.RootKey := HKEY_CURRENT_USER;
-    if LReg.OpenKey(AssocClassKey + AExt, False) then
-    try
-      if LReg.ValueExists('') then
-        Result := LReg.ReadString('');
-    finally
-      LReg.CloseKey;
-    end;
-
-    if Result <> '' then
-      Exit;
-
-    LReg.RootKey := HKEY_CLASSES_ROOT;
-    if LReg.OpenKey('\' + AExt, False) then
-    try
-      if LReg.ValueExists('') then
-        Result := LReg.ReadString('');
-    finally
-      LReg.CloseKey;
-    end;
-  finally
-    LReg.Free;
-  end;
-end;
-
-// 확장자의 기본 앱으로 지정된 ProgID. 지정이 없으면 빈 문자열.
-function UserChoiceProgID(const AExt: string): string;
-var
-  LReg: TRegistry;
-begin
-  Result := '';
-
-  LReg := TRegistry.Create(KEY_READ);
-  try
-    LReg.RootKey := HKEY_CURRENT_USER;
-    if LReg.OpenKey('\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\' +
-         AExt + '\UserChoice', False) then
-    try
-      if LReg.ValueExists('ProgId') then
-        Result := LReg.ReadString('ProgId');
-    finally
-      LReg.CloseKey;
-    end;
-  finally
-    LReg.Free;
-  end;
-end;
-
-// 확장자의 상태를 레지스트리 값만으로 판단한다.
-// AssocQueryString 을 쓰지 않는 이유: 그 API 는 연결을 따라가 실행 파일의 버전
-// 리소스까지 읽고, SHChangeNotify 직후에는 셸 연결 캐시가 비어 매번 새로
-// 만든다. 확장자 수십 개에 한 번에 부르면 눈에 보이게 느려진다.
-procedure ReadAssocState(const AExt: string; out AOurs, ALocked: Boolean);
-var
-  LPID, LChoice: string;
-begin
-  LPID := ExtProgID(AExt);
-  LChoice := UserChoiceProgID(AExt);
-
-  if LChoice <> '' then
-  begin
-    // 기본 앱이 명시적으로 지정된 상태 — 우선순위가 가장 높다
-    AOurs := SameText(LChoice, LPID);
-    ALocked := not AOurs;
-  end
-  else
-  begin
-    AOurs := SameText(ClassProgID(AExt), LPID);
-    ALocked := False;
-  end;
-end;
-
-// 우리가 등록해 둔 확장자인지 (= 백업 목록에 있는지).
-// 백업 없이 등록했던 예전 버전을 위해 ProgID 키 존재도 함께 본다.
-function AssocOwned(const AExt: string): Boolean;
-var
-  LReg: TRegistry;
-begin
-  Result := False;
-
-  LReg := TRegistry.Create(KEY_READ);
-  try
-    LReg.RootKey := HKEY_CURRENT_USER;
-
-    if LReg.OpenKey(AssocBackupKey, False) then
-    try
-      Result := LReg.ValueExists(AExt);
-    finally
-      LReg.CloseKey;
-    end;
-
-    if not Result then
-      Result := LReg.KeyExists(AssocClassKey + ExtProgID(AExt) +
-                               '\shell\open\command');
-  finally
-    LReg.Free;
-  end;
-end;
-
-// 우리가 등록해 둔 확장자 전체. 노출 목록(AssocExts)이 아니라 레지스트리에서
-// 읽는다 — 노출 목록을 줄여도 예전에 등록한 확장자가 방치되지 않는다.
-function AssocOwnedList: TArray<string>;
-var
-  LReg: TRegistry;
-  LNames: TStringList;
-  I: Integer;
-begin
-  Result := nil;
-
-  LReg := TRegistry.Create(KEY_READ);
-  try
-    LReg.RootKey := HKEY_CURRENT_USER;
-    if not LReg.OpenKey(AssocBackupKey, False) then
-      Exit;
-    try
-      LNames := TStringList.Create;
-      try
-        LReg.GetValueNames(LNames);
-        for I := 0 to LNames.Count - 1 do
-          if LNames[I] <> '' then
-            Result := Result + [LNames[I]];
-      finally
-        LNames.Free;
-      end;
-    finally
-      LReg.CloseKey;
-    end;
-  finally
-    LReg.Free;
-  end;
-end;
-
-// AssocExts 에서 확장자의 인덱스. 없으면 -1.
-function AssocIndexOf(const AExt: string): Integer;
-var
-  I: Integer;
-begin
-  for I := Low(AssocExts) to High(AssocExts) do
-    if SameText(AssocExts[I].Ext, AExt) then
-      Exit(I);
-
-  Result := -1;
-end;
-
-function IsMediaFile(const AFileName: string): Boolean;
-begin
-  Result := AssocIndexOf(ExtractFileExt(AFileName)) >= 0;
-end;
-
-function IsPlaylistFile(const AFileName: string): Boolean;
-var
-  LIndex: Integer;
-begin
-  LIndex := AssocIndexOf(ExtractFileExt(AFileName));
-  Result := (LIndex >= 0) and (AssocExts[LIndex].Group = agList);
-end;
-
-// 확장자와 무관한 1회성 등록 (앱 이름, 설정 앱 노출).
-procedure EnsureAppRegistered;
-var
-  LReg: TRegistry;
-  LExe: string;
-begin
-  LExe := ParamStr(0);
-
-  LReg := TRegistry.Create(KEY_READ or KEY_WRITE);
-  try
-    LReg.RootKey := HKEY_CURRENT_USER;
-
-    if LReg.OpenKey(AssocClassKey + 'Applications\' + ExtractFileName(LExe), True) then
-    try
-      LReg.WriteString('FriendlyAppName', 'KPlayer');
-    finally
-      LReg.CloseKey;
-    end;
-
-    if LReg.OpenKey(AssocCapKey, True) then
-    try
-      LReg.WriteString('ApplicationName', 'KPlayer');
-      LReg.WriteString('ApplicationDescription', 'libmpv 기반 미디어 플레이어');
-    finally
-      LReg.CloseKey;
-    end;
-
-    // 이게 있어야 윈도우 설정의 '기본 앱' 목록에 KPlayer 가 나타난다.
-    if LReg.OpenKey('\Software\RegisteredApplications', True) then
-    try
-      LReg.WriteString('KPlayer', 'Software\KPlayer\Capabilities');
-    finally
-      LReg.CloseKey;
-    end;
-  finally
-    LReg.Free;
-  end;
-end;
-
-// 확장자 하나를 등록한다. 이미 등록돼 있어도 다시 부를 수 있다
-// (SyncFileAssoc 이 exe 경로 갱신 목적으로 그렇게 쓴다).
-procedure AssocRegister(const AIndex: Integer);
-var
-  LReg: TRegistry;
-  LExt, LPID, LExe, LPrev: string;
-begin
-  LExt := AssocExts[AIndex].Ext;
-  LPID := ExtProgID(LExt);
-  LExe := ParamStr(0);
-
-  LReg := TRegistry.Create(KEY_READ or KEY_WRITE);
-  try
-    LReg.RootKey := HKEY_CURRENT_USER;
-
-    if LReg.OpenKey(AssocClassKey + LPID, True) then
-    try
-      LReg.WriteString('', AssocExts[AIndex].Desc);
-    finally
-      LReg.CloseKey;
-    end;
-
-    // 아이콘은 exe 에 박힌 첫 번째 것을 쓴다 (,0) — 별도 .ico 배포가 필요 없다.
-    if LReg.OpenKey(AssocClassKey + LPID + '\DefaultIcon', True) then
-    try
-      LReg.WriteString('', '"' + LExe + '",0');
-    finally
-      LReg.CloseKey;
-    end;
-
-    // %1 은 반드시 따옴표로 감싼다 — 공백/한글이 든 경로가 조각난다.
-    if LReg.OpenKey(AssocClassKey + LPID + '\shell\open\command', True) then
-    try
-      LReg.WriteString('', '"' + LExe + '" "%1"');
-    finally
-      LReg.CloseKey;
-    end;
-
-    // 탐색기의 '연결 프로그램' 목록에 KPlayer 를 올린다. UserChoice 에 막혀
-    // 기본이 되지 못해도 이것이 있어야 사용자가 직접 고를 수 있다.
-    if LReg.OpenKey(AssocClassKey + LExt + '\OpenWithProgIDs', True) then
-    try
-      LReg.WriteString(LPID, '');
-    finally
-      LReg.CloseKey;
-    end;
-
-    if LReg.OpenKey(AssocClassKey + 'Applications\' + ExtractFileName(LExe) +
-         '\SupportedTypes', True) then
-    try
-      LReg.WriteString(LExt, '');
-    finally
-      LReg.CloseKey;
-    end;
-
-    if LReg.OpenKey(AssocCapKey + '\FileAssociations', True) then
-    try
-      LReg.WriteString(LExt, LPID);
-    finally
-      LReg.CloseKey;
-    end;
-
-    // 확장자의 기본 클래스. 이것이 없으면 '연결 프로그램' 목록에만 오르고
-    // 실제로 더블클릭으로 열리지는 않는다.
-    LPrev := '';
-    if LReg.OpenKey(AssocClassKey + LExt, True) then
-    try
-      if LReg.ValueExists('') then
-        LPrev := LReg.ReadString('');
-
-      LReg.WriteString('', LPID);
-    finally
-      LReg.CloseKey;
-    end;
-
-    // 등록 전 값을 백업한다. 이미 백업이 있으면 덮어쓰지 않는다 — 재등록 때
-    // 덮어쓰면 '원래 값' 이 우리 자신이 되어 되돌릴 곳을 잃는다.
-    // 빈 문자열도 유효한 백업이다 ("HKCU 에 원래 값이 없었음").
-    if SameText(LPrev, LPID) then
-      LPrev := '';
-
-    if LReg.OpenKey(AssocBackupKey, True) then
-    try
-      if not LReg.ValueExists(LExt) then
-        LReg.WriteString(LExt, LPrev);
-    finally
-      LReg.CloseKey;
-    end;
-  finally
-    LReg.Free;
-  end;
-end;
-
-procedure AssocUnregister(const AIndex: Integer);
-var
-  LReg: TRegistry;
-  LExt, LPID, LPrev: string;
-  LHasBackup: Boolean;
-begin
-  LExt := AssocExts[AIndex].Ext;
-  LPID := ExtProgID(LExt);
-
-  LReg := TRegistry.Create(KEY_READ or KEY_WRITE);
-  try
-    LReg.RootKey := HKEY_CURRENT_USER;
-
-    // 백업을 먼저 읽는다. OpenKeyReadOnly 는 쓰지 않는다 — 성공하면 인스턴스의
-    // Access 를 KEY_READ 로 바꿔버려서 이어지는 쓰기가 예외로 죽는다.
-    LPrev := '';
-    LHasBackup := False;
-    if LReg.OpenKey(AssocBackupKey, False) then
-    try
-      LHasBackup := LReg.ValueExists(LExt);
-      if LHasBackup then
-        LPrev := LReg.ReadString(LExt);
-    finally
-      LReg.CloseKey;
-    end;
-
-    // 확장자의 기본 클래스가 아직 우리 것일 때만 손댄다. 그 사이 사용자가 다른
-    // 프로그램을 골랐다면 그 선택이 우선이다.
-    if LReg.OpenKey(AssocClassKey + LExt, False) then
-    try
-      if LReg.ValueExists('') and SameText(LReg.ReadString(''), LPID) then
-      begin
-        if LPrev <> '' then
-          LReg.WriteString('', LPrev)
-        else
-          LReg.DeleteValue('');   // 없던 상태로 — HKLM 연결이 다시 드러난다
-      end;
-    finally
-      LReg.CloseKey;
-    end;
-
-    if LHasBackup then
-      SHDeleteValue(HKEY_CURRENT_USER, PChar(Copy(AssocBackupKey, 2, MaxInt)),
-        PChar(LExt));
-  finally
-    LReg.Free;
-  end;
-
-  // TRegistry.DeleteKey 는 하위 키가 있으면 실패한다 → SHDeleteKey (재귀 삭제)
-  SHDeleteKey(HKEY_CURRENT_USER, PChar('Software\Classes\' + LPID));
-
-  SHDeleteValue(HKEY_CURRENT_USER,
-    PChar('Software\Classes\' + LExt + '\OpenWithProgIDs'), PChar(LPID));
-  SHDeleteValue(HKEY_CURRENT_USER,
-    PChar('Software\Classes\Applications\' + ExtractFileName(ParamStr(0)) +
-      '\SupportedTypes'), PChar(LExt));
-  SHDeleteValue(HKEY_CURRENT_USER,
-    PChar('Software\KPlayer\Capabilities\FileAssociations'), PChar(LExt));
-
-  // 기본 앱이 우리로 지정돼 있었다면 그 지정도 지운다. 지우는 것은 허용된다
-  // (해시 보호는 '쓰기' 에만 걸린다). 남겨두면 연결이 없는데 기본 앱은
-  // KPlayer 인 상태가 되어 탐색기가 빈 연결을 물고 있게 된다.
-  if SameText(UserChoiceProgID(LExt), LPID) then
-    SHDeleteKey(HKEY_CURRENT_USER,
-      PChar('Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\' +
-        LExt + '\UserChoice'));
-end;
-
-procedure SyncFileAssoc;
-var
-  LExts: TArray<string>;
-  LExt: string;
-  LIndex, LCount: Integer;
-begin
-  LExts := AssocOwnedList;
-  if Length(LExts) = 0 then
-    Exit;
-
-  LCount := 0;
-
-  for LExt in LExts do
-  begin
-    // 노출 목록에서 빠진 확장자는 설명 정보가 없어 다시 쓸 수 없다.
-    // 해제는 환경설정 화면에서만 한다 (여기서 조용히 지우면 사용자가 모른다).
-    LIndex := AssocIndexOf(LExt);
-    if LIndex < 0 then
-      Continue;
-
-    AssocRegister(LIndex);   // exe 경로가 바뀌었어도 이 호출로 갱신된다
-    Inc(LCount);
-  end;
-
-  if LCount > 0 then
-  begin
-    EnsureAppRegistered;
-    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nil, nil);
-  end;
-end;
-
-
-// 확장자의 아이콘을 얻어 이미지 리스트에 넣고 그 인덱스를 돌려준다.
-// SHGFI_USEFILEATTRIBUTES 덕분에 그 확장자의 파일이 실제로 없어도 된다.
-function TFrmSetup.ExtIconIndex(const AExt: string): Integer;
+// 확장자의 아이콘을 얻어 이미지 리스트에 넣고 그 인덱스를 돌려준다
+// (SHGFI_USEFILEATTRIBUTES 라 그 확장자의 파일이 실제로 없어도 된다).
+// 셸 호출이라 38개를 한꺼번에 하면 창이 뜰 때 멈춘다 — 보이는 항목만 부르고
+// 결과는 FIconIndex 에 담아 재사용한다.
+function TFrmSetup.ExtIconIndex(AIndex: Integer): Integer;
 var
   LInfo: TSHFileInfo;
   LIcon: TIcon;
 begin
-  Result := -1;
+  Result := FIconIndex[AIndex];
+  if Result <> IconUnknown then
+    Exit;
 
-  if SHGetFileInfo(PChar('x' + AExt), FILE_ATTRIBUTE_NORMAL, LInfo, SizeOf(LInfo),
+  Result := -1;   // 실패하면 다시 시도하지 않는다 (셸이 못 주는 확장자다)
+  FIconIndex[AIndex] := Result;
+
+  if SHGetFileInfo(PChar('x' + AssocExts[AIndex].Ext), FILE_ATTRIBUTE_NORMAL,
+       LInfo, SizeOf(LInfo),
        SHGFI_ICON or SHGFI_SMALLICON or SHGFI_USEFILEATTRIBUTES) = 0 then
     Exit;
 
@@ -808,59 +469,238 @@ begin
   try
     LIcon.Handle := LInfo.hIcon;   // TIcon 이 소유권을 가져간다 (Free 에서 파괴)
     Result := FAssocIcons.AddIcon(LIcon);
+    FIconIndex[AIndex] := Result;
   finally
     LIcon.Free;
   end;
 end;
 
-// 확장자에 연결된 프로그램의 표시 이름. 연결이 없으면 빈 문자열.
-function TFrmSetup.CurrentAssocName(const AExt: string): string;
+// 아이콘은 '그 확장자에 지금 연결된 프로그램' 의 것이다. 연결이 바뀌면 옛
+// 아이콘이 남으므로 캐시를 버리고 다시 얻게 한다 (보이는 항목만 다시 얻는다).
+procedure TFrmSetup.ResetIcons;
 var
-  LLen: DWORD;
-  LBuf: array[0..MAX_PATH] of Char;
+  I: Integer;
+  LNode: PVirtualNode;
+  LData: PAssocNode;
 begin
-  Result := '';
-  LLen := Length(LBuf);
+  FAssocIcons.Clear;
 
-  if AssocQueryString(0, ASSOCSTR_FRIENDLYAPPNAME, PChar(AExt), nil,
-       LBuf, @LLen) = S_OK then
-    Result := LBuf;
+  for I := 0 to High(FIconIndex) do
+    FIconIndex[I] := IconUnknown;
 
-  // 연결이 없으면 실행 파일명("OpenWith.exe")이 그대로 나올 수 있다.
-  if SameText(Result, 'OpenWith.exe') or SameText(Result, 'openwith') then
-    Result := '';
+  LNode := TreeAssoc.GetFirst;
+  while LNode <> nil do
+  begin
+    LData := TreeAssoc.GetNodeData(LNode);
+    if (LData <> nil) and not LData^.IsGroup then
+      LData^.Icon := IconUnknown;
+
+    LNode := TreeAssoc.GetNext(LNode);
+  end;
+end;
+
+// 체크박스 그림을 직접 만든다. VTV 7 의 CheckImageKind 는 ckSystemDefault /
+// ckCustom 둘뿐이고 시스템 것은 강조색으로 꽉 차 너무 튄다.
+//
+// 그림 순서는 VTV 가 정한 것을 따른다 (BaseAncestorVcl.CreateSystemImageSet):
+//   0            빈 그림
+//   1..8         라디오 (안 씀. 자리만 채운다)
+//   9..12        체크 해제 (보통/마우스/누름/사용불가)
+//   13..16       체크
+//   17..20       혼합 (그룹의 일부만 체크)
+function MakeSoftCheckImages(ASize: Integer): TImageList;
+const
+  MaskColor = clFuchsia;
+var
+  LBmp: TBitmap;
+  I: Integer;
+
+  procedure PaintOne(AIdx: Integer);
+  var
+    LRect: TRect;
+    LRadio, LChecked, LMixed: Boolean;
+    LBorder, LMark: TColor;
+    LInset: Integer;
+  begin
+    LBmp.Canvas.Brush.Color := MaskColor;
+    LBmp.Canvas.Brush.Style := bsSolid;
+    LBmp.Canvas.FillRect(Rect(0, 0, ASize, ASize));
+
+    LRadio := AIdx < 8;
+    LChecked := (AIdx >= 4) and (AIdx <= 7) or ((AIdx >= 12) and (AIdx <= 15));
+    LMixed := AIdx >= 16;
+
+    // 상태별 진하기. 마우스가 올라가면 살짝 진해지고, 사용불가는 옅어진다.
+    case AIdx mod 4 of
+      1: begin LBorder := $00909090; LMark := $00606060; end;   // 마우스 올림
+      2: begin LBorder := $00808080; LMark := $00505050; end;   // 누름
+      3: begin LBorder := $00D0D0D0; LMark := $00C0C0C0; end;   // 사용불가
+    else
+      begin LBorder := $00ACACAC; LMark := $00707070; end;      // 보통
+    end;
+
+    LRect := Rect(1, 1, ASize - 1, ASize - 1);
+
+    LBmp.Canvas.Brush.Color := clWhite;
+    LBmp.Canvas.Pen.Color := LBorder;
+    LBmp.Canvas.Pen.Width := 1;
+
+    if LRadio then
+      LBmp.Canvas.Ellipse(LRect)
+    else
+      LBmp.Canvas.Rectangle(LRect);
+
+    if LMixed then
+    begin
+      // 혼합은 가운데 작은 네모로 (일부만 체크됨)
+      LInset := ASize div 4;
+      LBmp.Canvas.Brush.Color := LMark;
+      LBmp.Canvas.FillRect(Rect(LInset, LInset, ASize - LInset, ASize - LInset));
+    end
+    else if LChecked then
+    begin
+      // 체크 표시. 굵기 2px 로 두 선을 긋는다.
+      LBmp.Canvas.Pen.Color := LMark;
+      LBmp.Canvas.Pen.Width := 2;
+      LBmp.Canvas.Polyline([
+        Point(ASize div 4, ASize div 2),
+        Point(ASize * 45 div 100, ASize * 72 div 100),
+        Point(ASize * 78 div 100, ASize * 28 div 100)]);
+    end;
+
+    Result.AddMasked(LBmp, MaskColor);
+  end;
+
+begin
+  Result := TImageList.CreateSize(ASize, ASize);
+  Result.Handle := ImageList_Create(ASize, ASize, ILC_COLOR32 or ILC_MASK, 0,
+    Result.AllocBy);
+  Result.Masked := True;
+  Result.BkColor := clWhite;
+
+  LBmp := TBitmap.Create;
+  try
+    LBmp.SetSize(ASize, ASize);
+
+    // 0번은 빈 그림이다 (VTV 가 '표시 없음' 에 쓴다).
+    LBmp.Canvas.Brush.Color := MaskColor;
+    LBmp.Canvas.FillRect(Rect(0, 0, ASize, ASize));
+    Result.AddMasked(LBmp, MaskColor);
+
+    for I := 0 to 19 do
+      PaintOne(I);
+  finally
+    LBmp.Free;
+  end;
+end;
+
+// 두 열의 폭을 뱃지 글자 길이에서 정한다. 숫자로 박아 두면 문구를 바꾸거나
+// 영어로 바꿀 때 뱃지가 칸에 갇혀 잘린다.
+procedure TFrmSetup.LayoutAssocColumns;
+const
+  // 트리 폭 300 - 테두리 2 - 세로 스크롤바 17
+  ColsWidth  = 281;
+  CellPadX   = 8;    // 뱃지 밖 여백 (칸 좌우)
+  ExtMinWidth = 120; // 확장자 열이 이보다 좁아지지 않게
+var
+  LBmp: TBitmap;
+  LWidth: Integer;
+begin
+  // 폼 생성 중에도 불리므로 트리의 Canvas 를 쓰지 않는다 (핸들이 없을 수 있다).
+  LBmp := TBitmap.Create;
+  try
+    LBmp.Canvas.Font.Assign(TreeAssoc.Font);
+    LBmp.Canvas.Font.Height := BadgeFontSize;
+
+    LWidth := LBmp.Canvas.TextWidth(BadgeTextNormal);
+  finally
+    LBmp.Free;
+  end;
+
+  LWidth := LWidth + (BadgePadX + CellPadX) * 2;
+
+  if LWidth > ColsWidth - ExtMinWidth then
+    LWidth := ColsWidth - ExtMinWidth;
+
+  TreeAssoc.Header.Columns[1].Width := LWidth;
+  TreeAssoc.Header.Columns[0].Width := ColsWidth - LWidth;
 end;
 
 procedure TFrmSetup.SetupAssocTree;
+var
+  I: Integer;
 begin
   FAssocIcons := TImageList.Create(Self);   // 폼이 소유 → 폼과 함께 해제된다
   FAssocIcons.Width := 16;
   FAssocIcons.Height := 16;
   FAssocIcons.ColorDepth := cd32Bit;
 
+  SetLength(FIconIndex, Length(AssocExts));
+  for I := 0 to High(FIconIndex) do
+    FIconIndex[I] := IconUnknown;
+
   TreeAssoc.NodeDataSize := SizeOf(TAssocNode);
   TreeAssoc.Images := FAssocIcons;
+
+  // 체크박스는 우리가 그린 것으로 (시스템 것은 강조색으로 꽉 차 너무 진하다)
+  FCheckImages := MakeSoftCheckImages(GetSystemMetrics(SM_CXMENUCHECK));
+  InsertComponent(FCheckImages);   // 폼이 소유 → 폼과 함께 해제된다
+  TreeAssoc.CustomCheckImages := FCheckImages;
+  TreeAssoc.CheckImageKind := ckCustom;
 
   TreeAssoc.BevelInner := bvNone;
   TreeAssoc.BevelOuter := bvNone;
   TreeAssoc.BorderStyle := bsSingle;
 
-  // 헤더는 감추고 (DFM: Header.Options = []) 열은 하나만 쓴다.
-  // 연결 프로그램을 두 번째 열로 두면 좁은 폭에서 확장자명을 밀어내므로,
-  // 그 정보는 글자색(이미 KPlayer 로 연결됨)과 툴팁으로 옮겼다.
-  // 폭은 클라이언트 폭에 맞춘다 (300 - 테두리 2 - 세로 스크롤바 17).
+
+  // 헤더는 감추고 (DFM: Header.Options = []) 열은 둘로 쓴다.
+  //   0 - 체크박스 + 아이콘 + 확장자
+  //   1 - 동작. 남이 기본 앱을 잡고 있으면 [적용안됨] 뱃지를 그리고, 그 칸을
+  //       클릭하면 [기본 앱 선택] 창을 띄운다.
   TreeAssoc.Header.Columns.Clear;
-  TreeAssoc.Header.Columns.Add.Width := 281;
+  TreeAssoc.Header.Columns.Add;
+
+  with TreeAssoc.Header.Columns.Add do
+    Alignment := taCenter;   // 뱃지를 가운데
+
+  LayoutAssocColumns;   // 폭은 뱃지 글자 길이에서 계산한다
+
   TreeAssoc.Header.MainColumn := 0;
 
-  TreeAssoc.HintMode := hmTooltip;
+  TreeAssoc.OnBeforeCellPaint := TreeAssocBeforeCellPaint;
+  TreeAssoc.OnMouseMove := TreeAssocMouseMove;
+  TreeAssoc.OnMouseLeave := TreeAssocMouseLeave;
 
+  // 항목을 클릭하면 판정 근거를 로그에 찍는다 (이 창은 힌트를 쓰지 않는다).
+  TreeAssoc.OnClick := TreeAssocClick;
+
+  // 트리 형태 — 접기 버튼, 들여쓰기(DFM Indent = 20), 점선 연결선.
+  // 연결선은 toShowTreeLines 만으로 부족하다. 기본으로 들어 있는
+  // toHideTreeLinesIfThemed 가 테마가 켜져 있으면 선을 그리지 않으므로 같이
+  // 빼야 한다.
   TreeAssoc.TreeOptions.PaintOptions := TreeAssoc.TreeOptions.PaintOptions +
-    [toShowButtons, toShowRoot, toHideFocusRect] - [toShowTreeLines];
+    [toUseBlendedSelection, toHideFocusRect, toUseExplorerTheme, toHotTrack,
+     toShowButtons, toShowRoot, toShowTreeLines] -
+    [toHideTreeLinesIfThemed];
+
+  TreeAssoc.LineStyle := lsDotted;
+  TreeAssoc.LineMode := lmNormal;
   TreeAssoc.TreeOptions.SelectionOptions := TreeAssoc.TreeOptions.SelectionOptions +
     [toFullRowSelect];
+
+  // 행 높이는 고정이다. 다시 재는 경로가 없어야 마우스가 지나가도 두께가
+  // 변하지 않는다 (높이는 FillAssoc 이 노드마다 직접 넣는다).
   TreeAssoc.TreeOptions.MiscOptions := TreeAssoc.TreeOptions.MiscOptions +
     [toCheckSupport] - [toAcceptOLEDrop, toVariableNodeHeight];
+
+  // toAutoChangeScale 은 반드시 꺼야 한다. 켜져 있으면 폰트가 바뀔 때마다
+  // (CMFontChanged → AutoScale) 행 높이를 '글자 높이 + TextMargin' 으로
+  // 덮어쓰고 기존 노드까지 그 비율로 줄인다 — 28 을 넣어도 창이 뜨는 사이에
+  // 19 가 되어 있었다.
+  TreeAssoc.TreeOptions.AutoOptions :=
+    TreeAssoc.TreeOptions.AutoOptions - [toAutoChangeScale];
+
+  TreeAssoc.DefaultNodeHeight := AssocRowHeight;
 
   // 그룹 노드를 켜고 끄면 자식 체크가 따라간다 (그 반대도)
   TreeAssoc.TreeOptions.AutoOptions := TreeAssoc.TreeOptions.AutoOptions +
@@ -872,16 +712,29 @@ var
   LGroup: TAssocGroup;
   LGroupNode, LNode: PVirtualNode;
   LData: PAssocNode;
-  I: Integer;
+  I, LOn, LTotal: Integer;
+  LTick: UInt64;
 begin
+  LTick := GetTickCount64;
+
+  FBadgeHot := nil;         // 아래에서 노드를 다 지운다 (남기면 죽은 포인터다)
+  FFilling := True;
+
+  // 채우는 동안 삼상태 추적을 끈다. 켜 두면 자식 체크 하나가 그룹을 바꾸고
+  // 그 변경이 다시 자식 전체로 퍼져 결국 전부 체크된다. 그룹 상태는 자식을
+  // 다 넣은 뒤 직접 정한다.
+  TreeAssoc.TreeOptions.AutoOptions :=
+    TreeAssoc.TreeOptions.AutoOptions - [toAutoTristateTracking];
+
   TreeAssoc.BeginUpdate;
   try
+    // FAssocIcons 는 비우지 않는다 (FIconIndex 가 인덱스를 들고 있다)
     TreeAssoc.Clear;
-    FAssocIcons.Clear;
 
     for LGroup := Low(TAssocGroup) to High(TAssocGroup) do
     begin
       LGroupNode := TreeAssoc.AddChild(nil);
+      TreeAssoc.NodeHeight[LGroupNode] := AssocRowHeight;
       LData := TreeAssoc.GetNodeData(LGroupNode);
       LData^.IsGroup := True;
       LData^.Group := LGroup;
@@ -889,35 +742,64 @@ begin
       LData^.Icon := -1;
       TreeAssoc.CheckType[LGroupNode] := ctTriStateCheckBox;
 
+      LOn := 0;
+      LTotal := 0;
+
       for I := Low(AssocExts) to High(AssocExts) do
       begin
         if AssocExts[I].Group <> LGroup then
           Continue;
 
+        Inc(LTotal);
+
         LNode := TreeAssoc.AddChild(LGroupNode);
+        TreeAssoc.NodeHeight[LNode] := AssocRowHeight;
         LData := TreeAssoc.GetNodeData(LNode);
         LData^.IsGroup := False;
         LData^.Group := LGroup;
         LData^.Index := I;
-        LData^.Icon := ExtIconIndex(AssocExts[I].Ext);
+        LData^.Icon := IconUnknown;   // 처음 그릴 때 얻는다
 
-        // 다른 프로그램이 UserChoice 로 잡아둔 확장자는 우리가 기본 앱을
-        // 바꿀 수 없다 (윈도우가 해시로 보호한다). 색으로 구분해 준다.
-        ReadAssocState(AssocExts[I].Ext, LData^.Ours, LData^.Locked);
+        LData^.State := AssocStateOf(AssocExts[I].Ext);
 
         TreeAssoc.CheckType[LNode] := ctCheckBox;
 
-        // 체크 초기값은 "지금 등록되어 있는가" 다. 이게 없으면 창을 열고
-        // [적용] 만 눌렀을 때 기존 연결이 전부 해제된다.
-        if AssocOwned(AssocExts[I].Ext) then
+        // 체크는 '등록 여부' 다 (기본 앱 여부가 아니다). 이게 없으면 창을 열고
+        // 버튼 한 번 누른 순간 기존 등록이 전부 해제된다.
+        if LData^.State.Registered then
+        begin
           TreeAssoc.CheckState[LNode] := csCheckedNormal;
+          Inc(LOn);
+        end;
       end;
+
+      // 그룹 체크는 자식 상태에서 직접 정한다 (삼상태 추적을 껐으므로).
+      if LOn = 0 then
+        TreeAssoc.CheckState[LGroupNode] := csUncheckedNormal
+      else if LOn = LTotal then
+        TreeAssoc.CheckState[LGroupNode] := csCheckedNormal
+      else
+        TreeAssoc.CheckState[LGroupNode] := csMixedNormal;
 
       TreeAssoc.Expanded[LGroupNode] := True;
     end;
   finally
     TreeAssoc.EndUpdate;
+
+    // 사용자 클릭에는 다시 삼상태 추적이 필요하다 (그룹 클릭 → 자식 전체)
+    TreeAssoc.TreeOptions.AutoOptions :=
+      TreeAssoc.TreeOptions.AutoOptions + [toAutoTristateTracking];
+
+    FFilling := False;
   end;
+
+  // 느려지면 어디가 무거운지 알아야 한다 (아이콘 조회가 대부분을 차지한다).
+  // 소유 목록 개수도 같이 찍는다 — 체크가 이 목록에서 복원되므로, 예상과
+  // 다르면 해제가 목록을 못 지운 것이다 (시작 시 SyncFileAssoc 이 되살린다).
+  LogAssoc(Format('트리 채우기 %dms (확장자 %d개, 소유 목록 %d개)',
+    [GetTickCount64 - LTick, Length(AssocExts), Length(AssocOwnedList)]));
+
+  UpdateAssocHint;
 end;
 
 procedure TFrmSetup.TreeAssocFreeNode(Sender: TBaseVirtualTree; Node: PVirtualNode);
@@ -925,7 +807,7 @@ var
   LData: PAssocNode;
 begin
   LData := Sender.GetNodeData(Node);
-  Finalize(LData^);   // Current 문자열 해제
+  Finalize(LData^);   // State.Other 문자열 해제
 end;
 
 procedure TFrmSetup.TreeAssocGetText(Sender: TBaseVirtualTree; Node: PVirtualNode;
@@ -945,7 +827,12 @@ begin
   end;
 
   if Column <= 0 then
-    CellText := AssocExts[LData^.Index].Ext;
+    CellText := AssocExts[LData^.Index].Ext
+  else if AssocNeedsUser(LData^.State) then
+    // 사용자가 손대야 넘어오는 경우 — 남이 기본 앱을 쥐고 있거나, 기본 앱이
+    // 우리를 가리키는데 등록이 없거나(Broken).
+    // 글자는 상태와 무관하게 고정이다 (바꾸면 뱃지 크기가 달라져 거슬린다).
+    CellText := BadgeTextNormal;
 end;
 
 procedure TFrmSetup.TreeAssocGetImageIndex(Sender: TBaseVirtualTree;
@@ -959,8 +846,13 @@ begin
   if Column > 0 then Exit;
 
   LData := Sender.GetNodeData(Node);
-  if (LData <> nil) and not LData^.IsGroup then
-    ImageIndex := LData^.Icon;
+  if (LData = nil) or LData^.IsGroup then Exit;
+
+  // 아이콘은 여기서 처음 얻는다 — 화면에 보이는 항목만 셸에 물어본다.
+  if LData^.Icon = IconUnknown then
+    LData^.Icon := ExtIconIndex(LData^.Index);
+
+  ImageIndex := LData^.Icon;
 end;
 
 procedure TFrmSetup.TreeAssocPaintText(Sender: TBaseVirtualTree;
@@ -973,50 +865,30 @@ begin
   if LData = nil then Exit;
 
   if LData^.IsGroup then
-    Exit;   // 그룹 헤더는 기본 글자색
+    Exit;   // 그룹 노드는 기본 글자색 (들여쓰기와 접기 버튼으로 구분된다)
 
-  // 이름 전체는 툴팁(TreeAssocGetHint)에 나온다.
-  if LData^.Ours then
-    TargetCanvas.Font.Color := $00206020    // 초록 = 이미 KPlayer 가 기본 앱
-  else if LData^.Locked then
-    TargetCanvas.Font.Color := clGrayText;  // 회색 = 다른 프로그램이 지정해 둠
+  // 확장자는 상태와 무관하게 기본 글자색이다. 다른 프로그램이 기본 앱인 것은
+  // [강제설정] 뱃지가 뜨는 것으로 알 수 있으므로 색까지 쓰지 않는다.
+  if Column > 0 then
+  begin
+    // 뱃지 안 글자 (배경은 TreeAssocBeforeCellPaint 가 그린다).
+    // 11px — 본문보다 작게 해서 태그처럼 보이게 한다.
+    TargetCanvas.Font.Height := BadgeFontSize;
+
+    if BadgeBusy then
+      TargetCanvas.Font.Color := BadgeDisTextColor
+    else
+      TargetCanvas.Font.Color := BadgeTextColor;
+  end;
 end;
 
-procedure TFrmSetup.TreeAssocGetHint(Sender: TBaseVirtualTree; Node: PVirtualNode;
-  Column: TColumnIndex; var LineBreakStyle: TVTTooltipLineBreakStyle;
-  var HintText: string);
-var
-  LData: PAssocNode;
-begin
-  HintText := '';
-  LData := Sender.GetNodeData(Node);
-  if (LData = nil) or LData^.IsGroup then Exit;
-
-  HintText := AssocExts[LData^.Index].Desc;
-
-  // 연결 프로그램 이름은 여기서만 필요하다. AssocQueryString 이 느려서
-  // 목록 전체를 갱신할 때는 부르지 않고, 마우스를 올린 항목만 읽어 캐시한다.
-  if LData^.Current = '' then
-    LData^.Current := CurrentAssocName(AssocExts[LData^.Index].Ext);
-
-  if LData^.Current <> '' then
-    HintText := HintText + sLineBreak + '현재 연결: ' + LData^.Current
-  else
-    HintText := HintText + sLineBreak + '연결된 프로그램 없음';
-
-  if LData^.Locked then
-    HintText := HintText + sLineBreak +
-      '기본 앱이 지정되어 있어 윈도우 설정에서 바꿔야 합니다';
-
-  LineBreakStyle := hlbForceMultiLine;
-end;
-
-// 체크 상태를 레지스트리에 반영한다. [적용] 버튼은 없다 — 체크하는 즉시
-// 이 코드가 돌고 결과 대화상자도 띄우지 않는다.
+// 체크 상태를 레지스트리에 반영한다 (적용 버튼 없이 체크하는 즉시).
+// 체크는 '연결 프로그램 후보로 등록' 만을 뜻한다 — 기본 앱 지정은 프로그램이
+// 할 수 없어 뱃지를 눌러 선택 창에서 하게 한다.
 //
 // 트리를 다시 만들지(FillAssoc) 않는 것이 중요하다. 이 프로시저는 OnChecked
-// 안에서도 불리는데, 그때 노드를 해제하면 VST 가 방금 클릭한 노드를 계속
-// 만지다가 죽는다. 그래서 표시 갱신은 RefreshAssocStates 로 제자리에서 한다.
+// 안에서도 불리는데 그때 노드를 해제하면 VST 가 죽는다. 그래서 표시 갱신은
+// RefreshAssocStates 로 제자리에서 한다.
 procedure TFrmSetup.ApplyAssoc;
 var
   LNode: PVirtualNode;
@@ -1035,14 +907,20 @@ begin
     begin
       LWant := TreeAssoc.CheckState[LNode] = csCheckedNormal;
 
-      // 바뀐 것만 건드린다. 클릭 한 번에 38개를 전부 다시 쓰면 느리고,
-      // 등록해 둔 확장자의 '이전 ProgID' 보관값도 자기 것으로 덮어쓴다.
+      // 바뀐 것만 건드린다. 전부 다시 쓰면 느리고, 백업해 둔 '이전 ProgID' 도
+      // 우리 것으로 덮어쓴다.
       if LWant <> AssocOwned(AssocExts[LData^.Index].Ext) then
       begin
         if LWant then
-          AssocRegister(LData^.Index)
+        begin
+          LogAssoc(AssocExts[LData^.Index].Ext + ': 후보 등록');
+          AssocRegister(LData^.Index);
+        end
         else
+        begin
+          LogAssoc(AssocExts[LData^.Index].Ext + ': 등록 해제');
           AssocUnregister(LData^.Index);
+        end;
 
         Inc(LChanged);
       end;
@@ -1054,22 +932,71 @@ begin
   if LChanged = 0 then
     Exit;
 
+  LogAssoc(Format('%d개 처리 완료 (소유 목록 %d개)',
+    [LChanged, Length(AssocOwnedList)]));
+
+  // 지금부터 잠깐 오는 알림은 우리가 만든 것이다 (감시가 되받지 않게 한다)
+  FQuietUntil := GetTickCount64 + 700;
+
   EnsureAppRegistered;
 
-  // 확장자를 한꺼번에 바꾸면(모두 선택/해제) 레지스트리 쓰기가 수십 번이라
-  // 순간적으로 멈춘 것처럼 보인다.
+  // 모두 선택/해제는 레지스트리 쓰기가 수십 번이라 멈춘 것처럼 보인다
   Screen.Cursor := crHourGlass;
 
-  // 탐색기가 아이콘/연결을 다시 읽게 한다.
-  // SHCNF_FLUSH 는 셸의 모든 수신자가 처리를 끝낼 때까지 기다리므로
-  // 체크박스를 누를 때마다 창이 멈춘다. 비동기로 보낸다.
+  // 탐색기가 아이콘/연결을 다시 읽게 한다. SHCNF_FLUSH 는 셸의 모든 수신자를
+  // 기다려 창이 멈추므로 쓰지 않는다.
   try
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nil, nil);
 
+    ResetIcons;   // 연결이 바뀌었으니 아이콘도 다시 얻는다
     RefreshAssocStates;
   finally
     Screen.Cursor := crDefault;
   end;
+end;
+
+procedure TFrmSetup.PickDefaultApp(const AExt: string);
+var
+  LIndex: Integer;
+begin
+  if FPicking then
+    Exit;   // 이미 띄우는 중이다 (더블클릭·연타로 두 번 들어온다)
+
+  LIndex := AssocIndexOf(AExt);
+  if LIndex < 0 then
+    Exit;
+
+  LogAssoc(AExt + ': 기본 앱 선택 창 요청');
+
+  if not AssocOwned(AExt) then
+  begin
+    AssocRegister(LIndex);
+    LogAssoc(AExt + ': 후보 등록');
+  end;
+  EnsureAppRegistered;
+
+  ClosePicker;   // 앞서 열어 둔 것이 남아 있으면 먼저 정리한다
+
+  // 선택 창이 이 창 가운데 근처에 뜨게 한다 (숨긴 속성 창 위치를 기준으로
+  // 배치되므로, 그 위치를 여기로 잡아 준다).
+  FPicking := True;
+  try
+    if ShowDefaultAppPicker(AExt, FPicker,
+         Point(Left + Width div 2, Top + Height div 2)) then
+      Exit;   // 뒷정리와 상태 갱신은 이 창으로 돌아올 때 (FormActivate)
+
+    // 선택 창을 띄우지 못했다 → 설정 앱으로 보낸다.
+    ClosePicker;
+    LogAssoc(AExt + ': 선택 창 실패 → 설정 앱');
+    ShowDefaultApps(Handle, True);
+  finally
+    FPicking := False;
+  end;
+end;
+
+procedure TFrmSetup.ClosePicker;
+begin
+  ClosePickerJob(FPicker);
 end;
 
 // 노드를 다시 만들지 않고 각 확장자의 현재 상태(연결 프로그램 / 기본 앱 지정
@@ -1086,25 +1013,299 @@ begin
     LData := TreeAssoc.GetNodeData(LNode);
 
     if (LData <> nil) and not LData^.IsGroup then
-    begin
-      ReadAssocState(AssocExts[LData^.Index].Ext, LData^.Ours, LData^.Locked);
-      LData^.Current := '';   // 툴팁을 띄울 때 다시 읽는다
-    end;
+      LData^.State := AssocStateOf(AssocExts[LData^.Index].Ext);
 
     LNode := TreeAssoc.GetNext(LNode);
   end;
 
   TreeAssoc.Invalidate;
+  UpdateAssocHint;
 end;
 
-// 체크박스를 누르면 그 즉시 반영한다.
-// VST 는 사용자가 직접 클릭한 노드에만 OnChecked 를 준다 (코드로 CheckState 를
-// 바꿀 때는 오지 않으므로 FillAssoc 의 초기 체크는 여기로 들어오지 않는다).
-// 그룹 노드를 클릭하면 자식 체크는 VST 가 바꾸고 이벤트는 그룹 하나로 오므로,
-// 개별 노드만 처리하지 않고 전체를 훑어 반영한다.
+// 트리 오른쪽 안내문. 평소에는 비워 두고, 남이 기본 앱을 쥐고 있는 확장자가
+// 있을 때만 그 개수와 함께 알린다 — 체크(등록)만으로는 안 되는 경우를
+// 사용자가 알아야 하기 때문이다.
+procedure TFrmSetup.UpdateAssocHint;
+var
+  LNode: PVirtualNode;
+  LData: PAssocNode;
+  LOther, LBroken: Integer;
+  LText: string;
+begin
+  LOther := 0;
+  LBroken := 0;
+
+  LNode := TreeAssoc.GetFirst;
+  while LNode <> nil do
+  begin
+    LData := TreeAssoc.GetNodeData(LNode);
+
+    // 세는 기준은 뱃지가 뜨는 조건과 같아야 한다 (AssocNeedsUser) — 체크하지
+    // 않은 확장자는 남이 쥐고 있어도 알리지 않는다.
+    if (LData <> nil) and not LData^.IsGroup and
+       AssocNeedsUser(LData^.State) then
+      if LData^.State.Broken then
+        Inc(LBroken)
+      else
+        Inc(LOther);
+
+    LNode := TreeAssoc.GetNext(LNode);
+  end;
+
+  LText := '';
+
+  if LOther > 0 then
+    LText := Format('%d개 확장자를 다른 프로그램이 사용 중입니다. 등록은 되었지만 ' +
+      'Windows 가 그쪽을 우선하므로, 기본 앱 설정에서 KPlayer 로 직접 바꿔야 합니다.',
+      [LOther]);
+
+  // 기본 앱은 KPlayer 인데 연결이 없는 경우 — 아무것도 열리지 않는 상태다.
+  if LBroken > 0 then
+  begin
+    if LText <> '' then
+      LText := LText + sLineBreak + sLineBreak;
+
+    LText := LText + Format('%d개 확장자는 연결이 끊어져 있습니다. ' +
+      '[적용안됨] 을 누르면 되살립니다.', [LBroken]);
+  end;
+
+  LblAssocHint.Caption := LText;
+end;
+
+// 체크하면 즉시 반영한다. 그룹을 클릭하면 자식 체크는 VST 가 바꾸고 이벤트는
+// 그룹 하나로 오므로, 개별 노드가 아니라 전체를 훑어 반영한다.
 procedure TFrmSetup.TreeAssocChecked(Sender: TBaseVirtualTree; Node: PVirtualNode);
 begin
+  if FFilling then
+    Exit;   // 창을 열며 체크를 복원하는 중이다 — 레지스트리를 건드리면 안 된다
+
+  // 타이머를 다시 걸어 마지막 이벤트 뒤 한 번만 돈다 (모두 선택이면 38번 온다)
+  FApplyTimer.Enabled := False;
+  FApplyTimer.Enabled := True;
+end;
+
+procedure TFrmSetup.ApplyTimerTick(Sender: TObject);
+begin
+  FApplyTimer.Enabled := False;
   ApplyAssoc;
+end;
+
+// 감시 스레드가 변경을 알려 왔다. 여기서 바로 갱신하지 않는다 —
+//   · 우리가 방금 쓴 것이면 무시한다 (알림의 대부분이 이것이다)
+//   · 연결 카드가 아니면 표시만 해 두고 카드로 올 때 반영한다
+//   · 그 외에는 타이머를 다시 걸어 마지막 알림 뒤 한 번만 돈다
+procedure TFrmSetup.AssocChanged;
+begin
+  if GetTickCount64 < FQuietUntil then
+    Exit;
+
+  if PnlMain.ActiveCard <> CardAssoc then
+  begin
+    FDirty := True;
+    Exit;
+  end;
+
+  FWatchTimer.Enabled := False;
+  FWatchTimer.Enabled := True;
+end;
+
+procedure TFrmSetup.WatchTimerTick(Sender: TObject);
+begin
+  FWatchTimer.Enabled := False;
+  RefreshAssocView;
+end;
+
+// 화면을 지금 상태로 맞춘다 (제자리 갱신만 — 트리를 다시 만들지 않는다).
+procedure TFrmSetup.RefreshAssocView;
+begin
+  FDirty := False;
+
+  ResetIcons;          // 연결이 바뀌면 아이콘도 그 프로그램 것으로 바뀐다
+  RefreshAssocStates;
+end;
+
+// 클릭 처리. 뱃지 열은 [기본 앱 선택] 창을 띄우고, 확장자 열은 판정 근거를
+// 로그에 남긴다.
+procedure TFrmSetup.TreeAssocClick(Sender: TObject);
+var
+  LPos: TPoint;
+  LHit: THitInfo;
+  LData: PAssocNode;
+  LExt: string;
+  LLine: string;
+begin
+  LPos := TreeAssoc.ScreenToClient(Mouse.CursorPos);
+  TreeAssoc.GetHitTestInfoAt(LPos.X, LPos.Y, True, LHit);
+
+  if LHit.HitNode = nil then Exit;
+
+  LData := TreeAssoc.GetNodeData(LHit.HitNode);
+  if (LData = nil) or LData^.IsGroup then Exit;
+
+  LExt := AssocExts[LData^.Index].Ext;
+
+  if LHit.HitColumn = 1 then
+  begin
+    if not AssocNeedsUser(LData^.State) then
+      Exit;
+
+    // Broken 은 다시 등록하는 것만으로 해결된다. 고를 것이 없는 선택 창을
+    // 띄우면 무엇을 하라는 건지 알 수 없으므로 여기서 끝낸다.
+    if LData^.State.Broken then
+    begin
+      AssocRegister(LData^.Index);
+      LogAssoc(LExt + ': 연결 되살림 (기본 앱은 이미 KPlayer)');
+
+      // 우리가 쓴 직후의 알림은 감시가 무시하게 한다 (ApplyAssoc 과 같은 처리)
+      FQuietUntil := GetTickCount64 + 700;
+
+      RefreshAssocView;
+      Exit;
+    end;
+
+    // 여는 동안 모든 뱃지를 회색으로. 선택 창을 여는 사이 메시지를 돌리므로
+    // 지금 다시 그려 둔다.
+    FBadgeBusy := True;
+    TreeAssoc.Invalidate;
+    TreeAssoc.Update;
+    try
+      PickDefaultApp(LExt);
+    finally
+      FBadgeBusy := False;
+      TreeAssoc.Invalidate;
+    end;
+
+    Exit;
+  end;
+
+  LogAssoc(Format('%s: 등록=%s 우리것=%s 잠김=%s 깨짐=%s 상대=%s',
+    [LExt, BoolToStr(LData^.State.Registered, True),
+     BoolToStr(LData^.State.Ours, True), BoolToStr(LData^.State.Hard, True),
+     BoolToStr(LData^.State.Broken, True), LData^.State.Other]));
+
+  for LLine in AssocResolveInfo(LExt).Split([sLineBreak]) do
+    LogAssoc('  ' + LLine);
+end;
+
+// 선택 창을 여는 중인가 (그 동안 모든 뱃지가 회색이 된다). FBadgeBusy 를 같이
+// 보는 이유는 FPicking 이 켜지기 전의 첫 그리기에도 적용해야 하기 때문이다.
+function TFrmSetup.BadgeBusy: Boolean;
+begin
+  Result := FBadgeBusy or FPicking;
+end;
+
+// 뱃지 사각형. 글자 크기에 맞춰(좌우 padding 6 / 위아래 4) 칸 가운데에 놓는다 —
+// 칸 전체를 채우면 태그가 아니라 버튼처럼 보인다.
+function TFrmSetup.BadgeRect(ACanvas: TCanvas; const ACell: TRect): TRect;
+var
+  LFontHeight: Integer;
+  LWidth, LHeight: Integer;
+begin
+  // 글자 크기는 뱃지 글꼴로 재야 맞는다 (캔버스는 원래대로 돌려 둔다)
+  LFontHeight := ACanvas.Font.Height;
+  try
+    ACanvas.Font.Height := BadgeFontSize;
+    LWidth := ACanvas.TextWidth(BadgeTextNormal) + BadgePadX * 2;
+    LHeight := ACanvas.TextHeight(BadgeTextNormal) + BadgePadY * 2;
+  finally
+    ACanvas.Font.Height := LFontHeight;
+  end;
+
+  if LWidth > ACell.Width then
+    LWidth := ACell.Width;
+
+  // 행 안에서는 위아래로 최소 2px 은 남긴다
+  if LHeight > ACell.Height - 4 then
+    LHeight := ACell.Height - 4;
+
+  Result.Left := ACell.Left + (ACell.Width - LWidth) div 2;
+  Result.Right := Result.Left + LWidth;
+  Result.Top := ACell.Top + (ACell.Height - LHeight) div 2;
+  Result.Bottom := Result.Top + LHeight;
+end;
+
+// 뱃지 배경. 글자는 VST 가 그 위에 그린다 (글꼴과 색은 TreeAssocPaintText).
+procedure TFrmSetup.TreeAssocBeforeCellPaint(Sender: TBaseVirtualTree;
+  TargetCanvas: TCanvas; Node: PVirtualNode; Column: TColumnIndex;
+  CellPaintMode: TVTCellPaintMode; CellRect: TRect; var ContentRect: TRect);
+var
+  LData: PAssocNode;
+  LRect: TRect;
+begin
+  if Column <> 1 then Exit;
+
+  LData := Sender.GetNodeData(Node);
+  if (LData = nil) or LData^.IsGroup or not AssocNeedsUser(LData^.State) then Exit;
+
+  // 기준은 CellRect 가 아니라 ContentRect 다. VST 는 글자를 ContentRect
+  // 가운데에 그리고 열 Margin 은 왼쪽에만 붙으므로, CellRect 로 잡으면 글자가
+  // 뱃지 안에서 오른쪽으로 밀린다.
+  LRect := BadgeRect(TargetCanvas, ContentRect);
+
+  // 칸을 넘지 않게 (좁은 열에서 ContentRect 가 칸보다 클 수 있다)
+  if LRect.Left < CellRect.Left then
+    LRect.Offset(CellRect.Left - LRect.Left, 0);
+  if LRect.Right > CellRect.Right then
+    LRect.Offset(CellRect.Right - LRect.Right, 0);
+
+  if BadgeBusy then
+    TargetCanvas.Brush.Color := BadgeDisBackColor
+  else
+    TargetCanvas.Brush.Color := BadgeBackColor;
+
+  // RoundRect 는 펜으로 윤곽을 그리므로 테두리를 아예 뺄 수 없다. 평소에는
+  // 배경색과 같은 펜을 쓰고, 마우스가 올라간 뱃지에만 글자색으로 드러낸다.
+  if (Node = FBadgeHot) and not BadgeBusy then
+    TargetCanvas.Pen.Color := BadgeTextColor
+  else
+    TargetCanvas.Pen.Color := TargetCanvas.Brush.Color;
+
+  TargetCanvas.RoundRect(LRect, BadgeRadius, BadgeRadius);
+end;
+
+// 뱃지 위에서는 손 모양 커서 — 누를 수 있다는 신호다. 그리고 그 뱃지에만
+// 테두리를 그리도록 표시해 둔다 (바뀐 행만 다시 그린다).
+procedure TFrmSetup.TreeAssocMouseMove(Sender: TObject; Shift: TShiftState;
+  X, Y: Integer);
+var
+  LHit: THitInfo;
+  LData: PAssocNode;
+  LHot: PVirtualNode;
+begin
+  TreeAssoc.GetHitTestInfoAt(X, Y, True, LHit);
+
+  LHot := nil;
+  if (LHit.HitNode <> nil) and (LHit.HitColumn = 1) then
+  begin
+    LData := TreeAssoc.GetNodeData(LHit.HitNode);
+    if (LData <> nil) and not LData^.IsGroup and AssocNeedsUser(LData^.State) then
+      LHot := LHit.HitNode;
+  end;
+
+  // 여는 중에는 누를 수 없으니 손 모양도 주지 않는다
+  if (LHot <> nil) and not BadgeBusy then
+    TreeAssoc.Cursor := crHandPoint
+  else
+    TreeAssoc.Cursor := crDefault;
+
+  if LHot = FBadgeHot then Exit;
+
+  if FBadgeHot <> nil then
+    TreeAssoc.InvalidateNode(FBadgeHot);
+
+  FBadgeHot := LHot;
+
+  if FBadgeHot <> nil then
+    TreeAssoc.InvalidateNode(FBadgeHot);
+end;
+
+// 트리를 벗어나면 뱃지 테두리도 지운다 (MouseMove 는 더 오지 않는다).
+procedure TFrmSetup.TreeAssocMouseLeave(Sender: TObject);
+begin
+  if FBadgeHot = nil then Exit;
+
+  TreeAssoc.InvalidateNode(FBadgeHot);
+  FBadgeHot := nil;
 end;
 
 procedure TFrmSetup.BtnAssocDefaultsClick(Sender: TObject);
@@ -1113,15 +1314,12 @@ begin
   // '기본 앱' 목록에는 KPlayer 가 보여야 한다.
   EnsureAppRegistered;
 
-  // 기본 앱 지정은 윈도우 설정에서만 가능하다 (UserChoice 는 해시로 보호된다).
-  // Win10/11 공통으로 이 URI 가 '기본 앱' 페이지를 연다.
-  ShellExecute(Handle, 'open', 'ms-settings:defaultapps', nil, nil, SW_SHOWNORMAL);
+  ShowDefaultApps(Handle, False);
 end;
 
-// 선택 버튼 3개를 한 핸들러가 처리한다 (Button.Tag).
-//   0 = 주요 파일 / 1 = 모두 선택 / 2 = 모두 해제
-// [모두 해제] 만 체크를 푼다. [주요 파일] 은 "더하기" 다 — 이미 켜져 있던
-// 항목을 지우지 않는다. 하나 켜려고 누른 버튼이 다른 선택을 지우면 안 된다.
+// 선택 버튼 3개를 한 핸들러가 처리한다 (Tag: 0 주요 파일 / 1 모두 선택 /
+// 2 모두 해제). 셋 다 지금 체크를 무시하고 결과를 그대로 만든다 — [주요 파일]
+// 은 표의 Main 만 켜고 나머지는 끈다.
 procedure TFrmSetup.BtnAssocSelectClick(Sender: TObject);
 var
   LNode: PVirtualNode;
@@ -1141,15 +1339,17 @@ begin
       // 그룹 노드는 자식 체크에 따라 자동으로 정해진다 (toAutoTristateTracking)
       if (LData <> nil) and not LData^.IsGroup then
       begin
-        if LTag = 2 then
-          TreeAssoc.CheckState[LNode] := csUncheckedNormal
+        case LTag of
+          1: LOn := True;                                  // 모두 선택
+          2: LOn := False;                                  // 모두 해제
         else
-        begin
-          LOn := (LTag = 1) or AssocExts[LData^.Index].Main;
-
-          if LOn then
-            TreeAssoc.CheckState[LNode] := csCheckedNormal;
+          LOn := AssocExts[LData^.Index].Main;              // 주요 파일만
         end;
+
+        if LOn then
+          TreeAssoc.CheckState[LNode] := csCheckedNormal
+        else
+          TreeAssoc.CheckState[LNode] := csUncheckedNormal;
       end;
 
       LNode := TreeAssoc.GetNext(LNode);
@@ -1158,7 +1358,10 @@ begin
     TreeAssoc.EndUpdate;
   end;
 
-  // 코드로 CheckState 를 바꾸면 OnChecked 가 오지 않으므로 직접 반영한다.
+  // 위 CheckState 대입으로 OnChecked 가 이미 왔고(VST 의 SetCheckState 는
+  // DoCheckClick 을 부른다) 그때마다 타이머가 다시 걸렸다. 여기서 끄고 한 번만
+  // 반영한다 — 기다릴 이유가 없다.
+  FApplyTimer.Enabled := False;
   ApplyAssoc;
 end;
 
@@ -1174,6 +1377,7 @@ begin
 
   Config.WriteInteger('repeat', 0);
   Config.WriteInteger('random', 0);
+  Config.WriteInteger('save_playlist', 1);
   Config.WriteString('shot_dir', DesktopPath);
   Config.WriteInteger('shot_format', 0);
   Config.WriteInteger('topmost', 0);
@@ -1248,7 +1452,7 @@ begin
   MemAbout.Lines.Add('재생 목록은 Virtual Treeview (MPL 1.1) 를 사용합니다.');
 end;
 
-// Value
+// 값
 procedure TFrmSetup.LoadValues;
 begin
   if Config = nil then Exit;
@@ -1257,9 +1461,10 @@ begin
   try
     CboRepeat.ItemIndex := EnsureRange(CfgInt('repeat', 0), 0, CboRepeat.Items.Count - 1);
     CboRandom.ItemIndex := EnsureRange(CfgInt('random', 0), 0, CboRandom.Items.Count - 1);
+    SetCboOn(CboSaveList, CfgInt('save_playlist', 1) <> 0);
     EdtShotDir.Text := CfgStr('shot_dir', DesktopPath);
     CboShotFmt.ItemIndex := EnsureRange(CfgInt('shot_format', 0), 0, CboShotFmt.Items.Count - 1);
-  ChkTopMost.Checked := CfgInt('topmost', 0) <> 0;
+    SetCboOn(CboTopMost, CfgInt('topmost', 0) <> 0);
 
     CboHwdec.ItemIndex := EnsureRange(CfgInt('hwdec', 0), 0, CboHwdec.Items.Count - 1);
     CboVo.ItemIndex := EnsureRange(CfgInt('vo', 0), 0, CboVo.Items.Count - 1);
@@ -1270,10 +1475,10 @@ begin
 
     TrkVolume.Position := EnsureRange(Round(Config.ReadDouble('volume', 100)),
       TrkVolume.Min, TrkVolume.Max);
-    ChkNormalize.Checked := CfgInt('normalize', 1) <> 0;
+    SetCboOn(CboNormalize, CfgInt('normalize', 1) <> 0);
     CboNormLevel.ItemIndex := EnsureRange(CfgInt('norm_level', 1), 0, CboNormLevel.Items.Count - 1);
 
-    ChkSubVisible.Checked := CfgInt('sub_visible', 0) <> 0;
+    SetCboOn(CboSubVisible, CfgInt('sub_visible', 0) <> 0);
     TrkSubSize.Position := EnsureRange(CfgInt('sub_size', 55), TrkSubSize.Min, TrkSubSize.Max);
     EdtSubLang.Text := CfgStr('sub_lang', 'ko,kor,en,eng');
 
@@ -1295,12 +1500,15 @@ begin
     FrmKPlayer.Volume := TrkVolume.Position;
   end;
 
-  // shot_dir 은 여기서 쓰지 않는다. 다른 항목을 만질 때마다 같이 기록되면
-  // "사용자가 직접 고른 폴더"와 "기본값이 그냥 표시된 것"을 구분할 수 없게 되고,
-  // 나중에 기본 폴더를 바꿔도 이미 박힌 값 때문에 반영되지 않는다.
-  // 폴더는 [찾기]로 실제 선택했을 때만 BtnShotDirClick 에서 기록한다.
+  // shot_dir 은 여기서 쓰지 않는다. 같이 기록하면 '직접 고른 폴더' 와 '기본값이
+  // 표시된 것' 을 구분할 수 없어, 나중에 기본 폴더를 바꿔도 반영되지 않는다.
+  // [찾기] 로 실제 선택했을 때만 BtnShotDirClick 이 기록한다.
+
+  // 목록 자체는 종료할 때 List.SavePlaylist 가 쓴다 (여기는 켜짐/꺼짐만)
+  Config.WriteInteger('save_playlist', B2I(CboOn(CboSaveList)));
+
   Config.WriteInteger('shot_format', CboShotFmt.ItemIndex);
-  Config.WriteInteger('topmost', Ord(ChkTopMost.Checked));
+  Config.WriteInteger('topmost', B2I(CboOn(CboTopMost)));
 
   Config.WriteInteger('hwdec', CboHwdec.ItemIndex);
   Config.WriteInteger('vo', CboVo.ItemIndex);
@@ -1309,17 +1517,16 @@ begin
   Config.WriteInteger('deinterlace', CboDeint.ItemIndex);
   Config.WriteInteger('video_sync', CboVideoSync.ItemIndex);
 
-  Config.WriteInteger('normalize', B2I(ChkNormalize.Checked));
+  Config.WriteInteger('normalize', B2I(CboOn(CboNormalize)));
   Config.WriteInteger('norm_level', CboNormLevel.ItemIndex);
 
-  Config.WriteInteger('sub_visible', B2I(ChkSubVisible.Checked));
+  Config.WriteInteger('sub_visible', B2I(CboOn(CboSubVisible)));
   Config.WriteInteger('sub_size', TrkSubSize.Position);
   Config.WriteString('sub_lang', EdtSubLang.Text);
 end;
 
-// 재시작 없이 반영되는 항목만 mpv 에 넘긴다.
-// vo / gpu-api / hwdec / scale / deinterlace / video-sync 는 초기화 옵션이라
-// Main.FormCreate 에서만 적용된다 (행 설명에 "재시작 후 적용" 으로 표기).
+// 재시작 없이 반영되는 항목만 mpv 에 넘긴다. vo / gpu-api / hwdec / scale /
+// deinterlace / video-sync 는 초기화 옵션이라 Main.FormCreate 에서만 적용된다.
 procedure TFrmSetup.ApplyLive;
 var
   MPV: TMPVPlayer;
@@ -1328,7 +1535,7 @@ begin
   if FrmKPlayer = nil then Exit;
 
   // 항상 위는 mpv 와 무관하다 — 플레이어가 없어도 적용해야 하므로 먼저 처리한다.
-  FrmKPlayer.SetTopMost(ChkTopMost.Checked);
+  FrmKPlayer.SetTopMost(CboOn(CboTopMost));
 
   MPV := FrmKPlayer.MPVPlayer;
   if MPV = nil then Exit;
@@ -1337,19 +1544,19 @@ begin
   MPV.Command(['set', 'screenshot-format', ShotFmtValues[CboShotFmt.ItemIndex]]);
   MPV.Command(['set', 'volume', IntToStr(TrkVolume.Position)]);
 
-  if ChkNormalize.Checked then
+  if CboOn(CboNormalize) then
     MPV.Command(['set', 'af', NormFilters[CboNormLevel.ItemIndex]])
   else
     MPV.Command(['set', 'af', '']);
 
-  if ChkSubVisible.Checked then SubVis := 'yes' else SubVis := 'no';
+  if CboOn(CboSubVisible) then SubVis := 'yes' else SubVis := 'no';
 
   MPV.Command(['set', 'sub-visibility', SubVis]);
   MPV.Command(['set', 'sub-font-size', IntToStr(TrkSubSize.Position)]);
   MPV.Command(['set', 'slang', EdtSubLang.Text]);
 end;
 
-// Event
+// 이벤트
 procedure TFrmSetup.ControlChange(Sender: TObject);
 begin
   if FLoading then Exit;
@@ -1370,7 +1577,7 @@ begin
   LblSubSizeValue.Caption := IntToStr(TrkSubSize.Position);
 end;
 
-// Config
+// 설정
 function TFrmSetup.Config: TConfig;
 begin
   if FrmKPlayer <> nil then

@@ -205,9 +205,31 @@ object FrmSetup: TFrmSetup
             Caption = #47004#45924' '#51116#49373
             Transparent = True
           end
-          object LblShotDir: TLabel
+          object LblSaveList: TLabel
             Left = 24
             Top = 149
+            Width = 78
+            Height = 15
+            Caption = #51116#49373#47785#47197' '#51200#51109
+            Transparent = True
+          end
+          object LblSaveListDesc: TLabel
+            Left = 24
+            Top = 167
+            Width = 195
+            Height = 13
+            Caption = #45149#44592' '#46412' '#47785#47197#51012' KPlayer.lst '#50640' '#51200#51109#54620#45796
+            Font.Charset = DEFAULT_CHARSET
+            Font.Color = clGray
+            Font.Height = -11
+            Font.Name = 'Segoe UI'
+            Font.Style = []
+            ParentFont = False
+            Transparent = True
+          end
+          object LblShotDir: TLabel
+            Left = 24
+            Top = 213
             Width = 51
             Height = 15
             Caption = #51200#51109' '#54260#45908
@@ -215,7 +237,7 @@ object FrmSetup: TFrmSetup
           end
           object LblShotDirDesc: TLabel
             Left = 24
-            Top = 167
+            Top = 231
             Width = 116
             Height = 13
             Caption = #49828#53356#47536#49399#51012' '#51200#51109#54624' '#50948#52824
@@ -229,10 +251,18 @@ object FrmSetup: TFrmSetup
           end
           object LblShotFmt: TLabel
             Left = 24
-            Top = 216
+            Top = 277
             Width = 24
             Height = 15
             Caption = #54805#49885
+            Transparent = True
+          end
+          object LblTopMost: TLabel
+            Left = 24
+            Top = 341
+            Width = 39
+            Height = 15
+            Caption = #54637#49345' '#50948
             Transparent = True
           end
           object CboRepeat: TComboBox
@@ -259,57 +289,66 @@ object FrmSetup: TFrmSetup
             TabOrder = 1
             OnChange = ControlChange
             Items.Strings = (
-              #45124#44592
-              #53020#44592)
+              #49324#50857#50504#54632
+              #49324#50857#54632)
           end
-          object EdtShotDir: TEdit
-            Left = 325
-            Top = 156
-            Width = 250
-            Height = 23
-            Anchors = [akTop, akRight]
-            ReadOnly = True
-            TabOrder = 2
-          end
-          object BtnShotDir: TButton
-            Left = 583
-            Top = 155
-            Width = 60
-            Height = 26
-            Anchors = [akTop, akRight]
-            Caption = #52286#44592
-            TabOrder = 3
-            OnClick = BtnShotDirClick
-          end
-          object LblTopMost: TLabel
-            Left = 24
-            Top = 261
-            Width = 51
-            Height = 15
-            Caption = #54637#49345' '#50948
-            Transparent = True
-          end
-          object ChkTopMost: TCheckBox
-            Left = 622
-            Top = 258
-            Width = 21
-            Height = 20
-            Anchors = [akTop, akRight]
-            TabOrder = 4
-            OnClick = ControlChange
-          end
-          object CboShotFmt: TComboBox
+          object CboSaveList: TComboBox
             Left = 473
-            Top = 212
+            Top = 156
             Width = 170
             Height = 23
             Style = csDropDownList
             Anchors = [akTop, akRight]
+            TabOrder = 2
+            OnChange = ControlChange
+            Items.Strings = (
+              #49324#50857#50504#54632
+              #49324#50857#54632)
+          end
+          object EdtShotDir: TEdit
+            Left = 325
+            Top = 220
+            Width = 250
+            Height = 23
+            Anchors = [akTop, akRight]
+            ReadOnly = True
+            TabOrder = 3
+          end
+          object BtnShotDir: TButton
+            Left = 583
+            Top = 219
+            Width = 60
+            Height = 26
+            Anchors = [akTop, akRight]
+            Caption = #52286#44592
             TabOrder = 4
+            OnClick = BtnShotDirClick
+          end
+          object CboShotFmt: TComboBox
+            Left = 473
+            Top = 284
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 5
             OnChange = ControlChange
             Items.Strings = (
               'JPG'
               'PNG')
+          end
+          object CboTopMost: TComboBox
+            Left = 473
+            Top = 348
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 6
+            OnChange = ControlChange
+            Items.Strings = (
+              #49324#50857#50504#54632
+              #49324#50857#54632)
           end
         end
       end
@@ -654,14 +693,18 @@ object FrmSetup: TFrmSetup
             TickStyle = tsNone
             OnChange = TrackChange
           end
-          object ChkNormalize: TCheckBox
-            Left = 622
-            Top = 94
-            Width = 21
-            Height = 20
+          object CboNormalize: TComboBox
+            Left = 473
+            Top = 93
+            Width = 170
+            Height = 23
+            Style = csDropDownList
             Anchors = [akTop, akRight]
             TabOrder = 1
-            OnClick = ControlChange
+            OnChange = ControlChange
+            Items.Strings = (
+              #49324#50857#50504#54632
+              #49324#50857#54632)
           end
           object CboNormLevel: TComboBox
             Left = 473
@@ -765,14 +808,18 @@ object FrmSetup: TFrmSetup
             ParentFont = False
             Transparent = True
           end
-          object ChkSubVisible: TCheckBox
-            Left = 622
-            Top = 30
-            Width = 21
-            Height = 20
+          object CboSubVisible: TComboBox
+            Left = 473
+            Top = 29
+            Width = 170
+            Height = 23
+            Style = csDropDownList
             Anchors = [akTop, akRight]
             TabOrder = 0
-            OnClick = ControlChange
+            OnChange = ControlChange
+            Items.Strings = (
+              #49324#50857#50504#54632
+              #49324#50857#54632)
           end
           object TrkSubSize: TTrackBar
             Left = 453
@@ -816,12 +863,9 @@ object FrmSetup: TFrmSetup
           Left = 344
           Top = 100
           Width = 300
-          Height = 60
+          Height = 90
           Anchors = [akTop, akRight]
           AutoSize = False
-          Caption = 
-            #52404#53356#54616#47732' '#44536' '#51593#49884' '#50672#44208#51060' '#48152#50689#46121#45768#45796'. '#45796#47564' '#50952#46020#50864#45716' '#44592#48376' '#50545' '#48320#44221#51012' '#54532#47196#44536#47016#50640' '#54728#50857#54616#51648' '#50506#51004#48064#47196', '#45796#47480' '#54532#47196#44536#47016#51060' ' +
-            #51105#44256' '#51080#45716' '#54869#51109#51088'('#54924#49353')'#45716' '#50500#47000' '#48260#53948#51004#47196' '#50952#46020#50864' '#49444#51221#51012' '#50676#50612' '#51649#51217' KPlayer '#47484' '#44264#46972#50556' '#54633#45768#45796'.'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clGray
           Font.Height = -11
@@ -836,23 +880,19 @@ object FrmSetup: TFrmSetup
           Top = 12
           Width = 300
           Height = 480
-          Anchors = [akLeft, akTop, akBottom]
-          DefaultNodeHeight = 22
+          DefaultNodeHeight = 28
           Header.AutoSizeIndex = 0
           Header.Height = 15
           Header.MainColumn = -1
           Header.Options = []
           Indent = 20
-          ParentShowHint = False
           ScrollBarOptions.ScrollBars = ssVertical
-          ShowHint = True
           TabOrder = 0
           OnChecked = TreeAssocChecked
           OnFreeNode = TreeAssocFreeNode
           OnGetText = TreeAssocGetText
           OnPaintText = TreeAssocPaintText
           OnGetImageIndex = TreeAssocGetImageIndex
-          OnGetHint = TreeAssocGetHint
           Touch.InteractiveGestures = [igPan, igPressAndTap]
           Touch.InteractiveGestureOptions = [igoPanSingleFingerHorizontal, igoPanSingleFingerVertical, igoPanInertia, igoPanGutter, igoParentPassthrough]
           Columns = <>
@@ -888,6 +928,23 @@ object FrmSetup: TFrmSetup
           Caption = #51452#50836' '#54028#51068
           TabOrder = 3
           OnClick = BtnAssocSelectClick
+        end
+        object MemoAssocLog: TMemo
+          Left = 344
+          Top = 200
+          Width = 300
+          Height = 252
+          Anchors = [akTop, akRight, akBottom]
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Consolas'
+          Font.Style = []
+          ParentFont = False
+          ReadOnly = True
+          ScrollBars = ssBoth
+          TabOrder = 5
+          WordWrap = False
         end
         object BtnAssocDefaults: TButton
           Left = 344
