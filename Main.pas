@@ -13,6 +13,8 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 해야할일:
 =========
+  [+] 설치 프로그램 실행시 간단한 소개 추가
+  [+] 설치 후 첫 실행시 파일 연결 등록(레지스터리)
 
 히스토리:
 ========
@@ -79,8 +81,7 @@ uses
   K.Theme, K.DragFile, K.Config.INI, K.Update;
 
 const
-  // Lua 의 중앙 알림 색상 (RGB 16진수). KPlayer.lua 가 ASS 용 BGR 로 뒤집는다.
-  // 기본 파라미터에서 쓰므로 클래스 선언보다 앞에 있어야 한다.
+  // Lua 중앙 알림 색 (RGB hex, KPlayer.lua 가 ASS BGR 로 반전). 기본 파라미터에 쓰여 클래스 선언보다 앞 필수.
   ALERT_INFO  = 'FFFFFF';
   ALERT_WARN  = 'FFC048';
   ALERT_ERROR = 'FF5555';
@@ -207,7 +208,7 @@ begin
   // 파일 없어도 플레이어 종료 방지
   MPVPlayer.SetOptionString('idle', 'yes');
 
-  // 자막 기본 표시 여부 (기본값은 비활성 — 자막 버튼으로 켜야 표시됨)
+  // 자막 기본 끔 — 자막 버튼으로 켬
   if FConfig.ReadInteger('sub_visible', 0) <> 0 then
     MPVPlayer.SetOptionString('sub-visibility', 'yes')
   else
@@ -216,8 +217,8 @@ begin
   MPVPlayer.SetOptionString('sub-font-size', IntToStr(FConfig.ReadInteger('sub_size', 55)));
   MPVPlayer.SetOptionString('slang', FConfig.ReadString('sub_lang', 'ko,kor,en,eng'));
 
-  // 렌더링 및 호환성 안정화 — 환경설정 '영상' 카드의 값 (재시작 시에만 반영)
-  MPVPlayer.SetOptionString('vo', CfgOpt('vo', VoValues)); // 기본은 gpu-next 대신 안정 버전
+  // 환경설정 '영상' 카드 값 — 재시작 시에만 반영
+  MPVPlayer.SetOptionString('vo', CfgOpt('vo', VoValues)); // 기본 = gpu-next 아닌 안정 버전
   MPVPlayer.SetOptionString('hwdec', CfgOpt('hwdec', HwdecValues));
   MPVPlayer.SetOptionString('gpu-api', CfgOpt('gpu_api', GpuApiValues));
   MPVPlayer.SetOptionString('video-sync', CfgOpt('video_sync', VideoSyncValues));
@@ -229,18 +230,18 @@ begin
   MPVPlayer.SetOptionString('scale', CfgOpt('scale', ScaleValues));
   MPVPlayer.SetOptionString('cscale', 'bilinear');
 
-  // mpv 로그 파일. 평소에는 쓰지 않는다.
+  // mpv 로그: 기본 미사용
   LLogFile := '';
   {$IFDEF DEBUG}
   //LLogFile := ExtractFilePath(ParamStr(0)) + 'KPlayer.log';
   {$ENDIF}
 
-  // 초기화 (4번째 인자 = 로그 파일 경로, 빈 문자열이면 기록하지 않음)
+  // 4번째 인자 = 로그 경로, '' = 기록 안 함
   MPVPlayer.InitPlayer(IntToStr(Handle), '', '', LLogFile, True);
 
   MPVPlayer.Command(['set', 'screenshot-directory', FConfig.ReadString('shot_dir', DesktopPath)]);
 
-  // 파일이 끝나면 마지막 프레임에서 멈춘다. 래퍼는 keep-open-pause=no 로 넣어 끝에서도 pause=false 로 남아 OSD 만 재생 중처럼 보인다.
+  // EOF 시 마지막 프레임 정지 — 래퍼의 keep-open-pause=no 는 EOF 에도 pause=false → OSD 가 재생 중처럼 보임
   MPVPlayer.Command(['set', 'keep-open-pause', 'yes']);
 
   MPVPlayer.Command(['set', 'screenshot-template', '%f-%n']);
@@ -253,7 +254,7 @@ begin
 
   MPVPlayer.Command(['load-script', Theme]);
 
-  // OSD 글자를 윈도우 UI 기본 폰트로 맞춘다.
+  // OSD 폰트 = 윈도우 UI 기본 폰트
   MPVPlayer.Command(['script-message', 'ui-font', Screen.MessageFont.Name]);
 
   FDragFile := TDragFile.Create(Self,
@@ -264,15 +265,14 @@ begin
     for var S in Files do
       FrmList.AddFile(S);
 
-    // HandlePlay 를 직접 부르면 mpv 만 재생하고 목록의 '재생 중' 표시가 빠진다
+    // HandlePlay 직접 호출 시 mpv 만 재생, 목록 '재생 중' 표시 누락 → FrmList.Play 경유
     if not IsPlay then
       FrmList.Play(Files[0]);
   end);
 
   SetTopMost(FConfig.ReadInteger('topmost', 0) <> 0);
 
-  // 등록해 둔 파일 연결의 exe 경로를 지금 위치로 다시 기록한다 (포터블이라
-  // 폴더를 옮기면 등록된 실행 명령이 옛 경로를 가리킨다).
+  // 파일 연결 exe 경로 재기록 — 포터블 폴더 이동 시 옛 경로 방지
   SyncFileAssoc;
 
   CheckUpdate(procedure(Quit: Boolean; Data: string)
@@ -298,7 +298,6 @@ begin
   Resize := (NewWidth >= 384) and (NewHeight >= 216);
 end;
 
-// ScriptMessage 처리하기
 procedure TFrmKPlayer.OnScriptMessage(ASender: TObject; const ACommand: string; AParams: TStrings);
 begin
   if SameText(ACommand, 'close') then
@@ -334,7 +333,7 @@ begin
     Exit;
   end;
 
-  // 전체화면에서 컨트롤바 표시 여부에 맞춰 마우스 커서 표시/숨김
+  // 전체화면 커서 표시/숨김 — 컨트롤바 표시에 동기화
   if SameText(ACommand, 'cursor') then
   begin
     if AParams.Count > 0 then
@@ -347,12 +346,12 @@ begin
     Exit;
   end;
 
-  // 우리가 KPlayer.lua 로 보낸 메시지다 (script-message 는 호스트에도 온다)
+  // 우리가 lua 로 보낸 메시지 (script-message 는 호스트에도 옴) — 무시
   if SameText(ACommand, 'mbtn') or SameText(ACommand, 'ui-font')
   or SameText(ACommand, 'dpi') or SameText(ACommand, 'alert') then
     Exit;
 
-  // 커서가 컨트롤 위에 있는지 (창 드래그 억제용)
+  // 커서가 컨트롤 위인지 — 창 드래그 억제용
   if SameText(ACommand, 'hit') then
   begin
     if AParams.Count > 0 then
@@ -388,7 +387,7 @@ begin
   ShowMessage('알 수 없는 script-message: ' + ACommand);
 end;
 
-// 환경설정에 콤보 인덱스로 저장된 값을 mpv 옵션 문자열로 바꾼다.
+// 콤보 인덱스(INI) → mpv 옵션 문자열
 function TFrmKPlayer.CfgOpt(const AKey: string; const AValues: array of string): string;
 begin
   Result := AValues[EnsureRange(FConfig.ReadInteger(AKey, 0), 0, High(AValues))];
@@ -408,8 +407,7 @@ begin
   FRepeatMode := Value;
   FConfig.WriteInteger('repeat', Value);
 
-  // 목록 창 아이콘을 바로 맞춘다. FormCreate 에서 INI 를 읽는 시점에는
-  // FrmList 가 아직 없다.
+  // 목록 창 아이콘 즉시 갱신 — FormCreate 의 INI 읽기 시점엔 FrmList 없음
   if FrmList <> nil then
     FrmList.UpdateModeIcons;
 end;
@@ -481,9 +479,8 @@ begin
   WindowState := wsMinimized;
 end;
 
-// 항상 위 (환경설정 '일반'). FormStyle := fsStayOnTop 은 쓰지 않는다 — VCL 이
-// 창 핸들을 다시 만들면 mpv 에 넘긴 wid 가 무효가 되어 영상이 사라진다.
-// 재생목록 창도 같이 올린다 (본체만 올리면 목록이 뒤로 숨는다).
+// 항상 위 ('일반' 카드). fsStayOnTop 금지 — VCL 핸들 재생성 시 mpv wid 무효 → 영상 사라짐.
+// 재생목록 창도 같이 올림 (본체만 올리면 목록이 뒤로 숨음).
 procedure TFrmKPlayer.SetTopMost(AState: Boolean);
 const
   SWP_FLAGS = SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE;
@@ -514,11 +511,10 @@ begin
     //FormStyle   := fsNormal;
     WindowState := wsNormal;
     SetFormCorners(Handle, True);
-    Screen.Cursor := crDefault;   // 창모드에선 항상 커서 표시 (안전장치)
+    Screen.Cursor := crDefault;   // 창모드는 항상 커서 표시 (안전장치)
   end;
 end;
 
-// 확대 (예: 0.1)
 procedure TFrmKPlayer.HandleZoomIn(AStep: Double);
 var
   LCur: Double;
@@ -528,7 +524,6 @@ begin
   MPVPlayer.SetPropertyDouble('video-zoom', LCur + AStep);
 end;
 
-// 축소 (예: 0.1)
 procedure TFrmKPlayer.HandleZoomOut(AStep: Double);
 var
   LCur: Double;
@@ -538,8 +533,7 @@ begin
   MPVPlayer.SetPropertyDouble('video-zoom', LCur - AStep);
 end;
 
-// mpv 에 파일이 열려 있는가 (일시정지 중이어도 True). IsPlay 와 달리
-// idle 인지를 가리는 데 쓴다.
+// 파일 열림 여부 (일시정지도 True) — IsPlay 와 달리 idle 판정용
 function TFrmKPlayer.IsLoaded: Boolean;
 var
   LName: string;
@@ -551,7 +545,7 @@ begin
   Result := LName <> '';
 end;
 
-// 파일이 끝에 도달해 멈춰 있는가 (keep-open 으로 마지막 프레임을 붙들고 있는 상태).
+// EOF 정지 상태인가 (keep-open 이 마지막 프레임 유지 중)
 function TFrmKPlayer.IsEOF: Boolean;
 var
   LEOF: string;
@@ -563,8 +557,7 @@ begin
   Result := SameText(LEOF, 'yes');
 end;
 
-// 화면 중앙에 잠시 뜨는 알림 (표시/사라짐은 KPlayer.lua 가 한다).
-// 색상은 RGB 16진수 문자열이고 위 ALERT_* 상수를 쓴다.
+// 화면 중앙 일시 알림 — 표시/소멸은 KPlayer.lua. 색 = RGB hex (ALERT_* 상수)
 procedure TFrmKPlayer.Alert(const AMsg: string; const AColor: string);
 begin
   if (MPVPlayer = nil) or (AMsg = '') then Exit;
@@ -659,7 +652,6 @@ begin
     MPVPlayer.Command(['cycle','pause']);
 end;
 
-// 키보드 입력
 procedure TFrmKPlayer.FormKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 var
@@ -773,7 +765,7 @@ begin
         Key := 0;
       end;
 
-    // 일시정지 (열린 파일이 없으면 다음 곡)
+    // 일시정지 — 열린 파일 없으면 다음 곡
     VK_SPACE:
       begin
         FrmList.Play('');
@@ -818,7 +810,7 @@ begin
 
     VK_ESCAPE:
       begin
-        // mpv fullscreen 속성을 단일 상태원으로 유지 (observer가 HandleFullScreen 호출)
+        // mpv fullscreen 속성 = 단일 상태원 (observer → HandleFullScreen)
         if WindowState = wsMaximized then
           MPVPlayer.Command(['set', 'fullscreen', 'no']);
         Key := 0;
@@ -848,7 +840,6 @@ begin
   end;
 end;
 
-// 마우스 입력
 procedure TFrmKPlayer.WMMouseWheel(var Msg: TWMMouseWheel);
 begin
   if MPVPlayer = nil then Exit;
@@ -861,7 +852,7 @@ begin
   Msg.Result := 1;
 end;
 
-// 왼쪽 버튼 상태를 KPlayer.lua 로. 바뀔 때만 보낸다.
+// 왼쪽 버튼 상태 → KPlayer.lua
 procedure TFrmKPlayer.SendLeftButton(ADown: Boolean);
 begin
   if FLeftDown = ADown then Exit;

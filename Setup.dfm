@@ -208,7 +208,7 @@ object FrmSetup: TFrmSetup
           object LblSaveList: TLabel
             Left = 24
             Top = 149
-            Width = 78
+            Width = 75
             Height = 15
             Caption = #51116#49373#47785#47197' '#51200#51109
             Transparent = True
@@ -216,7 +216,7 @@ object FrmSetup: TFrmSetup
           object LblSaveListDesc: TLabel
             Left = 24
             Top = 167
-            Width = 195
+            Width = 187
             Height = 13
             Caption = #45149#44592' '#46412' '#47785#47197#51012' KPlayer.lst '#50640' '#51200#51109#54620#45796
             Font.Charset = DEFAULT_CHARSET
