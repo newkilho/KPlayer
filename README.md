@@ -1,36 +1,38 @@
+**한국어** | [English](README.en.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md)
+
 # KPlayer
 
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![Engine](https://img.shields.io/badge/engine-libmpv-green)
 ![License](https://img.shields.io/badge/license-Freeware-lightgrey)
 
-A clean Windows media player — no ads, no adware, no bloat.  
-Built on the open-source media engine **libmpv**.
+광고도, 애드웨어도, 군더더기도 없는 깔끔한 윈도우 미디어 플레이어.  
+오픈 소스 미디어 엔진 **libmpv** 기반.
 
 ![KPlayer](https://kilho.net/wp-content/uploads/2026/03/K-949.png)
 
-## Features
+## 기능
 
-- Supports MP4, MKV, AVI, MOV, WMV, ASF, MP3 and more
-- Drag and drop files or folders to add them instantly
-- Reorder playlist items by dragging
-- Repeat and shuffle playback
+- MP4, MKV, AVI, MOV, WMV, ASF, MP3 등 지원
+- 파일이나 폴더를 끌어다 놓으면 곧바로 추가
+- 재생목록 항목을 끌어서 순서 변경
+- 반복 재생과 무작위 재생
 
-## Playback Speed
+## 재생 속도
 
-| Key | Action |
+| 키 | 동작 |
 |-----|--------|
-| `Z` | Reset to normal speed (1.0×) |
-| `X` | Slow down (−0.1×) |
-| `C` | Speed up (+0.1×) |
-| `[` / `]` | Fine adjust (−10% / +10%) |
+| `Z` | 기본 속도로 되돌리기 (1.0×) |
+| `X` | 느리게 (−0.1×) |
+| `C` | 빠르게 (+0.1×) |
+| `[` / `]` | 미세 조정 (−10% / +10%) |
 
-Speed is limited to the 0.25×–4.0× range, and the current value is shown briefly on screen when changed.
+속도는 0.25×–4.0× 범위로 제한되며, 값을 바꾸면 현재 배속이 화면에 잠시 표시된다.
 
-## License
+## 라이선스
 
-Freeware · Open Source · Free to redistribute
+프리웨어 · 오픈 소스 · 자유롭게 재배포 가능
 
-## Author
+## 만든 이
 
 **Kilho.net** · https://global.kilho.net
