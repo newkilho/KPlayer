@@ -35,4 +35,4 @@
 
 ## 만든 이
 
-**Kilho.net** · https://global.kilho.net
+**Kilho.net** · https://v2.kilho.net

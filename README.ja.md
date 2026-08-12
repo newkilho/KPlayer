@@ -35,4 +35,4 @@
 
 ## 作者
 
-**Kilho.net** · https://global.kilho.net
+**Kilho.net** · https://v2.kilho.net
