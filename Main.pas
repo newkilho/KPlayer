@@ -13,10 +13,14 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 해야할일:
 =========
-  항상 위 추가하기
 
 히스토리:
 ========
+  0.9.5
+  [*] 시작 시 저장 목록을 디스크 확인 없이 로드 - 네트워크 드라이브 타임아웃으로 창 표시가 늦던 문제, 없는 파일은 재생 시 SkipMissing 이 정리 (List.pas: LoadPlaylist, AddFile ACheckDisk 파라미터)
+  [*] 시작 로드의 중복 검사를 전체 노드 탐색(O(n²)) 대신 줄 단위 정렬 필터로 변경 (List.pas: LoadPlaylist)
+  [*] 시작 로드의 목록 추가를 BeginUpdate/EndUpdate 로 묶음 (List.pas: LoadPlaylist)
+
   0.9.4
   [*] 랜덤 재생이 한 바퀴 끝나면 반복 설정과 무관하게 새 사이클을 시작 (List.pas: Rand)
   [+] 없는 파일은 재생 시 목록에서 빼고 다음 곡으로 (List.pas: SkipMissing)
@@ -234,10 +238,9 @@ begin
   // 초기화 (4번째 인자 = 로그 파일 경로, 빈 문자열이면 기록하지 않음)
   MPVPlayer.InitPlayer(IntToStr(Handle), '', '', LLogFile, True);
 
-  MPVPlayer.Command(['set', 'screenshot-directory',
-    FConfig.ReadString('shot_dir', DesktopPath)]);
-  // 파일이 끝나면 마지막 프레임에서 멈춘다. 래퍼는 keep-open-pause=no 로 넣어
-  // 끝에서도 pause=false 로 남아 OSD 만 재생 중처럼 보인다.
+  MPVPlayer.Command(['set', 'screenshot-directory', FConfig.ReadString('shot_dir', DesktopPath)]);
+
+  // 파일이 끝나면 마지막 프레임에서 멈춘다. 래퍼는 keep-open-pause=no 로 넣어 끝에서도 pause=false 로 남아 OSD 만 재생 중처럼 보인다.
   MPVPlayer.Command(['set', 'keep-open-pause', 'yes']);
 
   MPVPlayer.Command(['set', 'screenshot-template', '%f-%n']);
@@ -246,8 +249,7 @@ begin
 
   // 음량 평준화 (환경설정 '음성' 카드)
   if FConfig.ReadInteger('normalize', 1) <> 0 then
-    MPVPlayer.Command(['set', 'af',
-      NormFilters[EnsureRange(FConfig.ReadInteger('norm_level', 1), 0, High(NormFilters))]]);
+    MPVPlayer.Command(['set', 'af', NormFilters[EnsureRange(FConfig.ReadInteger('norm_level', 1), 0, High(NormFilters))]]);
 
   MPVPlayer.Command(['load-script', Theme]);
 

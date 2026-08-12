@@ -107,7 +107,7 @@ type
     procedure UpdateModeIcons;
     procedure SavePlaylist;
     procedure LoadPlaylist;
-    procedure AddFile(AFileName: string);
+    procedure AddFile(AFileName: string; ACheckDisk: Boolean = True);
     procedure DelFile(AMode: TDeleteMode);
     procedure SetRepeat;
     procedure SetRandom;
@@ -777,11 +777,12 @@ begin
 end;
 
 // 시작할 때 명령줄 처리보다 먼저 부른다 (TFrmList.FormCreate).
-// 없는 파일·중복·지원하지 않는 확장자는 AddFile 이 걸러낸다.
+// 없는 파일은 거르지 않는다 — 네트워크 드라이브 목록이면 존재 확인의
+// 타임아웃으로 창 표시가 늦는다. 재생 시점의 SkipMissing 이 정리한다.
 procedure TFrmList.LoadPlaylist;
 var
-  LLines: TStringList;
-  LLine: string;
+  LLines, LSeen: TStringList;
+  LLine, LPath: string;
 begin
   if not SavePlaylistEnabled then
     Exit;
@@ -791,16 +792,33 @@ begin
       Exit;
 
     LLines := TStringList.Create;
+    LSeen := TStringList.Create;
     try
+      // AddFile 의 노드 중복 검사를 생략하는 대신 줄 단위로 미리 거른다.
+      LSeen.Sorted := True;
+      LSeen.CaseSensitive := False;
+
       LLines.Text := ReadPlaylistText(PlaylistFile);
 
-      for LLine in LLines do
-      begin
-        if (Trim(LLine) = '') or Trim(LLine).StartsWith('#') then
-          Continue;
-        AddFile(Trim(LLine));
+      ListData.BeginUpdate;
+      try
+        for LLine in LLines do
+        begin
+          LPath := Trim(LLine);
+          if (LPath = '') or LPath.StartsWith('#') then
+            Continue;
+
+          if LSeen.IndexOf(LPath) >= 0 then
+            Continue;
+          LSeen.Add(LPath);
+
+          AddFile(LPath, False);
+        end;
+      finally
+        ListData.EndUpdate;
       end;
     finally
+      LSeen.Free;
       LLines.Free;
     end;
   except
@@ -808,29 +826,34 @@ begin
   end;
 end;
 
-procedure TFrmList.AddFile(AFileName: string);
+// ACheckDisk=False 는 시작 로드 전용 — 디스크를 전혀 건드리지 않는다
+// (이유는 LoadPlaylist 주석 참고).
+procedure TFrmList.AddFile(AFileName: string; ACheckDisk: Boolean);
 var
   Node: PVirtualNode;
   Item: PItemData;
   SearchRec: TSearchRec;
 begin
-  if TDirectory.Exists(AFileName) then
+  if ACheckDisk then
   begin
-    if FindFirst(TPath.Combine(AFileName, '*'), faAnyFile, SearchRec) = 0 then
-    try
-      repeat
-        if (SearchRec.Name = '.') or (SearchRec.Name = '..') then
-          Continue;
-        AddFile(TPath.Combine(AFileName, SearchRec.Name));
-      until FindNext(SearchRec) <> 0;
-    finally
-      FindClose(SearchRec);
+    if TDirectory.Exists(AFileName) then
+    begin
+      if FindFirst(TPath.Combine(AFileName, '*'), faAnyFile, SearchRec) = 0 then
+      try
+        repeat
+          if (SearchRec.Name = '.') or (SearchRec.Name = '..') then
+            Continue;
+          AddFile(TPath.Combine(AFileName, SearchRec.Name));
+        until FindNext(SearchRec) <> 0;
+      finally
+        FindClose(SearchRec);
+      end;
+      Exit;
     end;
-    Exit;
-  end;
 
-  if not FileExists(AFileName) then
-    Exit;
+    if not FileExists(AFileName) then
+      Exit;
+  end;
 
   // 지원 확장자 목록은 Assoc.pas 의 AssocExts 하나다 (파일 연결 카드와 공용).
   if not IsMediaFile(AFileName) then
@@ -841,17 +864,23 @@ begin
   // 다음/이전 버튼이 실제 재생과 어긋난다.
   if IsPlaylistFile(AFileName) then
   begin
-    AddPlaylist(AFileName);
+    // 시작 로드에서는 펼치지 않는다 (읽기 자체가 디스크 접근이다).
+    if ACheckDisk then
+      AddPlaylist(AFileName);
     Exit;
   end;
 
-  Node := ListData.GetFirst;
-  while Assigned(Node) do
+  // 시작 로드는 빈 목록 + 사전 중복 필터라 노드 검사(O(n²))를 생략한다.
+  if ACheckDisk then
   begin
-    Item := ListData.GetNodeData(Node);
-    if Assigned(Item) and SameText(Item^.FileName, AFileName) then
-      Exit;
-    Node := ListData.GetNext(Node);
+    Node := ListData.GetFirst;
+    while Assigned(Node) do
+    begin
+      Item := ListData.GetNodeData(Node);
+      if Assigned(Item) and SameText(Item^.FileName, AFileName) then
+        Exit;
+      Node := ListData.GetNext(Node);
+    end;
   end;
 
   Node := ListData.AddChild(nil);

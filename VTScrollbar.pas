@@ -1,5 +1,32 @@
 ﻿unit VTScrollbar;
 
+{
+  재생목록 트리용 오버레이 스크롤바.
+
+  ── 표시 규칙: 이벤트로만, 즉시 전환 ──────────────────────────
+  · 평소에는 보이지 않는다
+  · 스크롤이 일어나면 2px 로 나타난다
+  · 트랙에 마우스를 올리면 6px (잡기 쉽게)
+  · 잠잠해지면(900ms) 사라진다 — 호버·드래그 중에는 사라지지 않는다
+
+  처음 판은 페이드였다 — 15ms 틱마다 불투명도를 올렸다 내렸다 하며
+  배경과 섞어 그렸는데, 그 중간 단계가 색이 변하며 깜빡이는 것처럼
+  보였다 (Nemo 의 메모 스크롤바에서 먼저 드러나 그쪽을 이 구조로
+  고쳤고, 여기도 맞춘 것이다). 지금은 '잠잠해졌나' 를 보는 일회성
+  타이머 하나만 남고, 나타나고 사라지는 것은 전부 즉시 전환이다.
+
+  그리기는 띠(TrackR)를 화면에서 떠 와 메모리 비트맵에 합성한 뒤
+  BitBlt 한 방으로 되돌린다 — 화면 DC 에 트랙·썸을 차례로 그리면
+  그 중간 과정이 떨림으로 보인다. 트리 본문이 띠 밑까지 그려지므로
+  (에디트처럼 여백을 잡을 수 없다) 배경을 칠하는 대신 화면을 뜬다.
+  같은 이유로 바를 지울 때는 띠를 무효화해 트리가 제 내용을 다시
+  그리게 한다.
+
+  Nemo 의 MemoScrollbar.pas 와 구조가 같다. 다른 것은 좌표계(여기는
+  OffsetY/RangeY 픽셀, 그쪽은 에디트 줄 단위)와 색(여기는 어두운 배경의
+  고정 팔레트, 그쪽은 노트 배경의 음영)뿐이다.
+}
+
 interface
 
 uses
@@ -24,32 +51,26 @@ type
 
     FClrTrack : TColor;
     FClrThumb : TColor;
-    FClrHot   : TColor;
     FClrDrag  : TColor;
 
+    FVisible  : Boolean;   // 지금 바가 화면에 있는가
+    FHot      : Boolean;   // 트랙 위에 마우스가 있는가 → 6px
     FDragging : Boolean;
     FDragScrY : Integer;
     FDragPos0 : Integer;
-    FHot      : Boolean;
-    FOpacity      : Byte;
-    FTargetOpacity: Byte;
-    FFadeStep     : Byte;
-    FFadeInterval : Cardinal;
-    FAutoHideDelay: Cardinal;
-    FHideTick     : Cardinal;
-    FTimerOn      : Boolean;
+    FTimerOn  : Boolean;
 
     procedure TreeWndProc(var M: TMessage);
     procedure PaintOverlay;
+    procedure BarShow;
+    procedure BarHide;
+    procedure InvalidateStrip;
+    procedure StartHideTimer;
+    procedure StopHideTimer;
     procedure RequestMouseLeave;
-    procedure StartFadeTimer;
-    procedure StopFadeTimer;
-    procedure KickFadeIn(Strong: Boolean = False);
-    procedure UpdateFadeTarget;
-    function BlendColor(Bg, Fg: TColor; A: Byte): TColor;
-    function VisualTrackR: TRect;
 
     function TrackR: TRect;
+    function VisualTrackR: TRect;
     function ThumbR: TRect;
     function CurPos: Integer;
     function MaxScrollPos: Integer;
@@ -78,15 +99,7 @@ begin
 
   FClrTrack := $00242424;
   FClrThumb := $00606060;
-  FClrHot   := $008C8C8C;
   FClrDrag  := $00B0B0B0;
-  FOpacity := 0;
-  FTargetOpacity := 0;
-  FFadeStep := 24;
-  FFadeInterval := 15;
-  FAutoHideDelay := 900;
-  FHideTick := GetTickCount;
-  FTimerOn := False;
 
   FOldWnd := ATree.WindowProc;
   ATree.WindowProc := TreeWndProc;
@@ -96,7 +109,7 @@ destructor TVTDarkScrollbar.Destroy;
 begin
   if Assigned(FTree) then
   begin
-    StopFadeTimer;
+    StopHideTimer;
     FTree.WindowProc := FOldWnd;
   end;
   inherited;
@@ -114,6 +127,7 @@ begin
   );
 end;
 
+// 눈에 보이는 좁은 띠. 평소 2px, 호버·드래그 중 6px — 즉시 전환.
 function TVTDarkScrollbar.VisualTrackR: TRect;
 var
   W: Integer;
@@ -122,7 +136,7 @@ begin
   if FDragging or FHot then
     W := 6
   else
-    W := 4;
+    W := 2;
 
   if W > Result.Width then
     W := Result.Width;
@@ -145,14 +159,12 @@ begin
 end;
 
 procedure TVTDarkScrollbar.ScrollTo(NewPos: Integer);
-var
-  R: TRect;
 begin
   FTree.OffsetY :=
     -Max(0, Min(NewPos, MaxScrollPos));
 
-  R := TrackR;
-  InvalidateRect(FTree.Handle, @R, False);
+  // BarShow 가 띠 무효화 + UpdateWindow 로 밀린 본문과 바를 한 번에 정리한다
+  BarShow;
 end;
 
 function TVTDarkScrollbar.ThumbR: TRect;
@@ -196,91 +208,53 @@ begin
   InflateRect(Result, -2, -2);
 end;
 
-{ ================= Painting ================= }
+{ ================= Show / Hide ================= }
 
-function TVTDarkScrollbar.BlendColor(Bg, Fg: TColor; A: Byte): TColor;
-var
-  BR, BGn, BB: Byte;
-  FR, FGn, FB: Byte;
-  R, G, B: Integer;
+procedure TVTDarkScrollbar.BarShow;
 begin
-  Bg := ColorToRGB(Bg);
-  Fg := ColorToRGB(Fg);
+  FVisible := True;
+  StartHideTimer;   // 잠잠해지면 숨긴다 — 다시 부르면 시계가 처음부터 돈다
 
-  BR := GetRValue(Bg);
-  BGn := GetGValue(Bg);
-  BB := GetBValue(Bg);
-  FR := GetRValue(Fg);
-  FGn := GetGValue(Fg);
-  FB := GetBValue(Fg);
-
-  R := (BR * (255 - A) + FR * A) div 255;
-  G := (BGn * (255 - A) + FGn * A) div 255;
-  B := (BB * (255 - A) + FB * A) div 255;
-  Result := RGB(R, G, B);
+  // 바로 PaintOverlay 를 부르지 않는다. 여기 그리기는 화면을 떠 와 합성하는
+  // 방식이라, 트리가 ScrollWindow 로 민 화면에는 이전에 그려 둔 바의 잔상이
+  // 남아 있고 그것까지 판에 뜨면 지워지지 않는다. 띠를 무효화해 트리가 제
+  // 내용으로 되살리게 한 뒤(UpdateWindow → WM_PAINT), 훅의 WM_PAINT 처리가
+  // 깨끗한 판 위에 바를 얹는다.
+  InvalidateStrip;
+  UpdateWindow(FTree.Handle);
 end;
 
-procedure TVTDarkScrollbar.PaintOverlay;
-var
-  DC: HDC;
-  Thumb: TRect;
-  VTrack, VThumb: TRect;
-  Br: HBRUSH;
-  OldPen, OldBr: HGDIOBJ;
-  ThColor: TColor;
-  BaseColor: TColor;
+// 트리 본문이 띠 밑까지 그려져 있으므로 배경을 칠해 지울 수 없다 —
+// 무효화해서 트리가 제 내용을 다시 그리게 한다.
+procedure TVTDarkScrollbar.BarHide;
 begin
-  if (MaxScrollPos <= 0) or (FOpacity = 0) then
+  FVisible := False;
+  StopHideTimer;
+  InvalidateStrip;
+end;
+
+procedure TVTDarkScrollbar.InvalidateStrip;
+var
+  R: TRect;
+begin
+  R := TrackR;
+  InvalidateRect(FTree.Handle, @R, False);
+end;
+
+procedure TVTDarkScrollbar.StartHideTimer;
+begin
+  // SetTimer 는 같은 ID 로 다시 부르면 시간을 처음부터 다시 잰다
+  SetTimer(FTree.Handle, CTimerID, 900, nil);
+  FTimerOn := True;
+end;
+
+procedure TVTDarkScrollbar.StopHideTimer;
+begin
+  if not FTimerOn then
     Exit;
-
-  DC := GetDC(FTree.Handle);
-  if DC = 0 then Exit;
-
-  try
-    Thumb := ThumbR;
-    VTrack := VisualTrackR;
-    VThumb := Thumb;
-    VThumb.Left := VTrack.Left;
-    VThumb.Right := VTrack.Right;
-    BaseColor := FTree.Color;
-
-    Br := CreateSolidBrush(ColorToRGB(BlendColor(BaseColor, FClrTrack, FOpacity)));
-    FillRect(DC, VTrack, Br);
-    DeleteObject(Br);
-
-    if Thumb.IsEmpty then Exit;
-
-    if FDragging then
-      ThColor := FClrDrag
-    else if FHot then
-      ThColor := FClrHot
-    else
-      ThColor := FClrThumb;
-
-    Br := CreateSolidBrush(ColorToRGB(BlendColor(BaseColor, ThColor, FOpacity)));
-    OldPen := SelectObject(DC, GetStockObject(NULL_PEN));
-    OldBr  := SelectObject(DC, Br);
-
-    RoundRect(
-      DC,
-      VThumb.Left,
-      VThumb.Top,
-      VThumb.Right,
-      VThumb.Bottom,
-      Min(VThumb.Width, 8),
-      Min(VThumb.Width, 8)
-    );
-
-    SelectObject(DC, OldPen);
-    SelectObject(DC, OldBr);
-    DeleteObject(Br);
-
-  finally
-    ReleaseDC(FTree.Handle, DC);
-  end;
+  KillTimer(FTree.Handle, CTimerID);
+  FTimerOn := False;
 end;
-
-{ ================= Mouse Leave ================= }
 
 procedure TVTDarkScrollbar.RequestMouseLeave;
 var
@@ -293,59 +267,95 @@ begin
   TrackMouseEvent(TME);
 end;
 
-{ ================= Fade ================= }
+{ ================= Painting ================= }
 
-procedure TVTDarkScrollbar.StartFadeTimer;
+procedure TVTDarkScrollbar.PaintOverlay;
+var
+  DC, MemDC: HDC;
+  Bmp: HBITMAP;
+  OldBmp: HGDIOBJ;
+  Strip: TRect;
+  Thumb, VTrack, VThumb: TRect;
+  Br: HBRUSH;
+  OldPen, OldBr: HGDIOBJ;
 begin
-  if FTimerOn then
+  if not FVisible then
     Exit;
-  SetTimer(FTree.Handle, CTimerID, FFadeInterval, nil);
-  FTimerOn := True;
-end;
 
-procedure TVTDarkScrollbar.StopFadeTimer;
-begin
-  if not FTimerOn then
+  Strip := TrackR;
+  if (Strip.Width <= 0) or (Strip.Height <= 0) then
     Exit;
-  KillTimer(FTree.Handle, CTimerID);
-  FTimerOn := False;
-end;
 
-procedure TVTDarkScrollbar.KickFadeIn(Strong: Boolean);
-begin
+  // 스크롤할 것이 없어졌다(목록이 줄었다) — 바를 거둔다
   if MaxScrollPos <= 0 then
   begin
-    FTargetOpacity := 0;
-    FOpacity := 0;
-    StopFadeTimer;
+    BarHide;
     Exit;
   end;
 
-  if Strong or FDragging then
-    FTargetOpacity := 220
-  else
-    FTargetOpacity := 180;
+  DC := GetDC(FTree.Handle);
+  if DC = 0 then Exit;
 
-  FHideTick := GetTickCount + FAutoHideDelay;
-  StartFadeTimer;
-end;
+  try
+    MemDC := CreateCompatibleDC(DC);
+    Bmp := CreateCompatibleBitmap(DC, Strip.Width, Strip.Height);
+    OldBmp := SelectObject(MemDC, Bmp);
+    try
+      // 지금 화면을 떠 와서 그 위에 그린다 — 띠 밑의 본문을 살리기 위해서다
+      BitBlt(MemDC, 0, 0, Strip.Width, Strip.Height,
+        DC, Strip.Left, Strip.Top, SRCCOPY);
 
-procedure TVTDarkScrollbar.UpdateFadeTarget;
-begin
-  if FDragging then
-  begin
-    FTargetOpacity := 220;
-    Exit;
+      // 이하 좌표는 비트맵 기준 — 띠의 원점만큼 옮긴다
+      VTrack := VisualTrackR;
+      OffsetRect(VTrack, -Strip.Left, -Strip.Top);
+      Thumb := ThumbR;
+      OffsetRect(Thumb, -Strip.Left, -Strip.Top);
+      VThumb := Thumb;
+      VThumb.Left := VTrack.Left;
+      VThumb.Right := VTrack.Right;
+
+      Br := CreateSolidBrush(ColorToRGB(FClrTrack));
+      FillRect(MemDC, VTrack, Br);
+      DeleteObject(Br);
+
+      if not Thumb.IsEmpty then
+      begin
+        // 호버로는 색을 바꾸지 않는다(굵기만 6px). 드래그 중에만 밝아진다.
+        if FDragging then
+          Br := CreateSolidBrush(ColorToRGB(FClrDrag))
+        else
+          Br := CreateSolidBrush(ColorToRGB(FClrThumb));
+
+        OldPen := SelectObject(MemDC, GetStockObject(NULL_PEN));
+        OldBr  := SelectObject(MemDC, Br);
+
+        // NULL_PEN 이면 오른쪽·아래 경계 1px 이 채워지지 않는다 —
+        // +1 로 보정해야 2px 가 정말 2px 로 나온다.
+        RoundRect(
+          MemDC,
+          VThumb.Left,
+          VThumb.Top,
+          VThumb.Right + 1,
+          VThumb.Bottom + 1,
+          Min(VThumb.Width, 8),
+          Min(VThumb.Width, 8)
+        );
+
+        SelectObject(MemDC, OldPen);
+        SelectObject(MemDC, OldBr);
+        DeleteObject(Br);
+      end;
+
+      BitBlt(DC, Strip.Left, Strip.Top, Strip.Width, Strip.Height,
+        MemDC, 0, 0, SRCCOPY);
+    finally
+      SelectObject(MemDC, OldBmp);
+      DeleteObject(Bmp);
+      DeleteDC(MemDC);
+    end;
+  finally
+    ReleaseDC(FTree.Handle, DC);
   end;
-
-  if FHot then
-  begin
-    FTargetOpacity := 200;
-    Exit;
-  end;
-
-  if Integer(GetTickCount - FHideTick) >= 0 then
-    FTargetOpacity := 0;
 end;
 
 { ================= WndProc ================= }
@@ -354,7 +364,7 @@ procedure TVTDarkScrollbar.TreeWndProc(var M: TMessage);
 var
   X, Y: Integer;
   CursorPos: TPoint;
-  TrackH, ThLen, NewPos: Integer;
+  TrackH, ThLen, NewPos, PrevPos: Integer;
   ThR: TRect;
   WasHot: Boolean;
 begin
@@ -368,16 +378,32 @@ begin
 
     WM_PAINT:
       begin
+        // 바가 떠 있는 동안에는 바 기둥을 업데이트 영역에서 뺀다. 빼지 않으면
+        // 트리가 그 자리를 제 내용으로 지우고 우리가 다시 얹는 두 번 쓰기가
+        // 되는데, 드래그처럼 다시 그리기가 잦을 때 그 사이가 깜빡임으로
+        // 보인다. 기둥의 잔상은 어차피 PaintOverlay 가 전체 높이를 덮고,
+        // 기둥 밖 여백은 트리가 정상적으로 되살린다.
+        if FVisible and (MaxScrollPos > 0) then
+        begin
+          ThR := VisualTrackR;
+          ValidateRect(FTree.Handle, @ThR);
+        end;
+
         FOldWnd(M);
-        PaintOverlay;
+        PaintOverlay;   // 본문이 다시 그려질 때 바를 다시 얹는다
         Exit;
       end;
 
+    // 트리는 휠·키·스크롤 메시지를 스스로 처리한다. 실제로 밀렸을 때만
+    // 바를 보인다 (커서 이동처럼 화면이 안 움직이는 키는 바를 띄우지 않게).
     WM_MOUSEWHEEL, WM_VSCROLL, WM_KEYDOWN:
       begin
+        PrevPos := CurPos;
         FOldWnd(M);
-        KickFadeIn(False);
-        PaintOverlay;
+        if CurPos <> PrevPos then
+          BarShow
+        else if FVisible then
+          PaintOverlay;   // 밀리지 않았어도 다시 그려진 본문 위에 얹는다
         Exit;
       end;
 
@@ -386,20 +412,18 @@ begin
         X := SmallInt(LoWord(M.LParam));
         Y := SmallInt(HiWord(M.LParam));
 
-        if PtInRect(TrackR, Point(X, Y)) then
+        if PtInRect(TrackR, Point(X, Y)) and (MaxScrollPos > 0) then
         begin
-          KickFadeIn(True);
           ThR := ThumbR;
 
           if PtInRect(ThR, Point(X, Y)) then
           begin
             FDragging := True;
-            KickFadeIn(True);
             GetCursorPos(CursorPos);
             FDragScrY := CursorPos.Y;
             FDragPos0 := CurPos;
             SetCapture(FTree.Handle);
-            PaintOverlay;
+            BarShow;   // 드래그 색·6px 로
           end
           else
           begin
@@ -424,7 +448,6 @@ begin
 
         if FDragging then
         begin
-          KickFadeIn(True);
           GetCursorPos(CursorPos);
 
           TrackH := TrackR.Height;
@@ -445,17 +468,21 @@ begin
           Exit;
         end;
 
+        // 호버는 트랙 안/밖이 바뀌는 순간에만 처리한다 (2px ↔ 6px).
+        // 굵기가 바뀌므로 이전 폭의 흔적을 트리가 지우게 한 뒤 다시 얹는다.
         WasHot := FHot;
-        FHot := PtInRect(TrackR, Point(X, Y));
-
-        if (not WasHot) and FHot then
-          RequestMouseLeave;
-
-        if FHot then
-          KickFadeIn(False);
+        FHot := PtInRect(TrackR, Point(X, Y)) and (MaxScrollPos > 0);
 
         if FHot <> WasHot then
-          PaintOverlay;
+        begin
+          if FHot then
+          begin
+            RequestMouseLeave;   // 트랙을 벗어날 때 WM_MOUSELEAVE 를 받기 위해
+            FVisible := True;
+          end;
+          StartHideTimer;
+          InvalidateStrip;
+        end;
 
         FOldWnd(M);
         Exit;
@@ -467,8 +494,7 @@ begin
         begin
           FDragging := False;
           ReleaseCapture;
-          FHideTick := GetTickCount + FAutoHideDelay;
-          PaintOverlay;
+          BarShow;   // 보통 색으로 되돌리고 숨김 시계를 다시 돈다
           Exit;
         end;
 
@@ -481,29 +507,21 @@ begin
         if FHot then
         begin
           FHot := False;
-          FHideTick := GetTickCount + 120;
-          StartFadeTimer;
-          PaintOverlay;
+          StartHideTimer;
+          InvalidateStrip;   // 6px → 2px
         end;
         Exit;
       end;
 
+    // 잠잠해졌다 — 즉시 숨긴다 (페이드 없음). 호버·드래그 중이면 미룬다.
     WM_TIMER:
       begin
         if M.WParam = CTimerID then
         begin
-          UpdateFadeTarget;
+          if FHot or FDragging then
+            Exit;   // 시계가 도는 채로 둔다 — 다음 틱에 다시 본다
 
-          if FOpacity < FTargetOpacity then
-            FOpacity := Min(255, FOpacity + FFadeStep)
-          else if FOpacity > FTargetOpacity then
-            FOpacity := Max(0, FOpacity - FFadeStep);
-
-          if (FOpacity = 0) and (FTargetOpacity = 0) and (not FHot) and (not FDragging) then
-            StopFadeTimer;
-
-          ThR := TrackR;
-          InvalidateRect(FTree.Handle, @ThR, False);
+          BarHide;
           Exit;
         end;
       end;
