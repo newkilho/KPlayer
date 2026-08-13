@@ -108,6 +108,7 @@ type
     procedure SavePlaylist;
     procedure LoadPlaylist;
     procedure AddFile(AFileName: string; ACheckDisk: Boolean = True);
+    procedure AddFiles(const AFiles: TArray<string>; APlay: Boolean);
     procedure DelFile(AMode: TDeleteMode);
     procedure SetRepeat;
     procedure SetRandom;
@@ -199,8 +200,7 @@ begin
   FDragFile := TDragFile.Create(ListData,
   procedure(const Files: TArray<string>)
   begin
-    for var S in Files do
-      AddFile(S);
+    AddFiles(Files, False);   // 목록 창 드롭은 추가만 (재생은 본체 창 드롭에서)
   end);
 
   // 저장 목록 먼저, 명령줄 파일 뒤에. 재생은 명령줄 파일이 가져감
@@ -869,6 +869,49 @@ begin
   ListData.NodeHeight[Node] := 24;
   Item^.FileName := AFileName;
   Item^.IsActive := False;
+end;
+
+// 일괄 추가 + 재생. 드롭 경로를 그대로 Play 하면 안 되는 이유 — 폴더는 내용물만 항목이
+// 되고(AddFile 재귀), 비지원 확장자는 걸러지고, 재생목록은 내부 경로로 펼쳐진다.
+// 셋 다 '목록에 없는 경로' 라 Play 가 SkipMissing/mpv 오류로 빠졌다 (폴더 드롭 시
+// "파일을 찾을 수 없습니다 — <폴더명>" + 재생 안 됨).
+// 그래서 추가 전 마지막 노드를 표시해 두고 그 다음(= 이번에 새로 들어간 첫) 노드부터 재생.
+procedure TFrmList.AddFiles(const AFiles: TArray<string>; APlay: Boolean);
+var
+  Mark, Node: PVirtualNode;
+  Item: PItemData;
+begin
+  if Length(AFiles) = 0 then
+    Exit;
+
+  Mark := ListData.GetLast;
+
+  ListData.BeginUpdate;
+  try
+    for var S in AFiles do
+      AddFile(S);
+  finally
+    ListData.EndUpdate;
+  end;
+
+  if not APlay then
+    Exit;
+
+  if Assigned(Mark) then
+    Node := ListData.GetNext(Mark)
+  else
+    Node := ListData.GetFirst;
+
+  // 새로 들어간 것 없음(전부 중복) → 드롭한 첫 경로가 이미 목록에 있으면 그것을 재생.
+  if not Assigned(Node) then
+    Node := FindNodeByName(AFiles[0]);
+
+  if not Assigned(Node) then
+    Exit;
+
+  Item := ListData.GetNodeData(Node);
+  if Assigned(Item) then
+    Play(Item^.FileName);
 end;
 
 procedure TFrmList.DelFile(AMode: TDeleteMode);
