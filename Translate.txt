@@ -1,0 +1,1149 @@
+﻿ko=만든이 오길호
+en=Created by Kilho Oh
+ja=製作者 オ・キルホ
+zh=作者 吴吉浩
+ru=Автор Килхо О
+it=Creato da Kilho Oh
+fr=Créé par Kilho Oh
+es=Creado por Kilho Oh
+ar=المطور كيلهو أوه
+
+ko=MPV DLL 로드 실패
+en=Failed to load the MPV DLL
+ja=MPV DLL の読み込みに失敗しました
+zh=加载 MPV DLL 失败
+ru=Не удалось загрузить MPV DLL
+it=Caricamento della DLL MPV non riuscito
+fr=Échec du chargement de la DLL MPV
+es=No se pudo cargar la DLL de MPV
+ar=فشل تحميل مكتبة MPV
+
+ko=필수 파일이 없습니다.
+en=A required file is missing.
+ja=必要なファイルがありません。
+zh=缺少必需的文件。
+ru=Отсутствует необходимый файл.
+it=Manca un file necessario.
+fr=Un fichier requis est introuvable.
+es=Falta un archivo necesario.
+ar=ملف مطلوب غير موجود.
+
+ko=알 수 없는 script-message
+en=Unknown script-message
+ja=不明な script-message
+zh=未知的 script-message
+ru=Неизвестное script-message
+it=script-message sconosciuto
+fr=script-message inconnu
+es=script-message desconocido
+ar=رسالة script-message غير معروفة
+
+ko=재생목록
+en=Playlist
+ja=プレイリスト
+zh=播放列表
+ru=Плейлист
+it=Playlist
+fr=Liste de lecture
+es=Lista de reproducción
+ar=قائمة التشغيل
+
+ko=추가 — 파일 / 폴더
+en=Add — file / folder
+ja=追加 — ファイル / フォルダー
+zh=添加 — 文件 / 文件夹
+ru=Добавить — файл / папка
+it=Aggiungi — file / cartella
+fr=Ajouter — fichier / dossier
+es=Añadir — archivo / carpeta
+ar=إضافة — ملف / مجلد
+
+ko=삭제 — 선택 / 선택 외 / 전체 / 없는 파일 (Del 키: 선택 항목)
+en=Remove — selected / unselected / all / missing files (Del key: selected items)
+ja=削除 — 選択 / 選択以外 / すべて / 存在しないファイル (Del キー: 選択項目)
+zh=删除 — 选中 / 未选中 / 全部 / 不存在的文件 (Del 键: 选中项)
+ru=Удалить — выбранные / невыбранные / все / отсутствующие файлы (клавиша Del: выбранные)
+it=Rimuovi — selezionati / non selezionati / tutti / file mancanti (tasto Canc: selezionati)
+fr=Supprimer — sélection / hors sélection / tout / fichiers manquants (touche Suppr : sélection)
+es=Eliminar — seleccionados / no seleccionados / todos / archivos ausentes (tecla Supr: seleccionados)
+ar=حذف — المحدد / غير المحدد / الكل / الملفات المفقودة (مفتاح Del: العناصر المحددة)
+
+ko=파일
+en=File
+ja=ファイル
+zh=文件
+ru=Файл
+it=File
+fr=Fichier
+es=Archivo
+ar=ملف
+
+ko=폴더
+en=Folder
+ja=フォルダー
+zh=文件夹
+ru=Папка
+it=Cartella
+fr=Dossier
+es=Carpeta
+ar=مجلد
+
+ko=선택된 파일
+en=Selected files
+ja=選択したファイル
+zh=选中的文件
+ru=Выбранные файлы
+it=File selezionati
+fr=Fichiers sélectionnés
+es=Archivos seleccionados
+ar=الملفات المحددة
+
+ko=선택 안 된 파일
+en=Unselected files
+ja=選択していないファイル
+zh=未选中的文件
+ru=Невыбранные файлы
+it=File non selezionati
+fr=Fichiers non sélectionnés
+es=Archivos no seleccionados
+ar=الملفات غير المحددة
+
+ko=전부
+en=All items
+ja=すべて
+zh=全部
+ru=Все
+it=Tutti
+fr=Tout
+es=Todo
+ar=الكل
+
+ko=존재하지 않는 파일
+en=Missing files
+ja=存在しないファイル
+zh=不存在的文件
+ru=Отсутствующие файлы
+it=File mancanti
+fr=Fichiers manquants
+es=Archivos ausentes
+ar=الملفات المفقودة
+
+ko=삭제
+en=Remove
+ja=削除
+zh=删除
+ru=Удалить
+it=Rimuovi
+fr=Supprimer
+es=Eliminar
+ar=حذف
+
+ko=폴더 선택
+en=Select a folder
+ja=フォルダーの選択
+zh=选择文件夹
+ru=Выбор папки
+it=Seleziona una cartella
+fr=Sélectionner un dossier
+es=Seleccionar una carpeta
+ar=اختر مجلدًا
+
+ko=파일을 찾을 수 없습니다
+en=File not found
+ja=ファイルが見つかりません
+zh=找不到文件
+ru=Файл не найден
+it=File non trovato
+fr=Fichier introuvable
+es=Archivo no encontrado
+ar=الملف غير موجود
+
+ko=반복 없음
+en=No repeat
+ja=リピートなし
+zh=不重复
+ru=Без повтора
+it=Nessuna ripetizione
+fr=Pas de répétition
+es=Sin repetición
+ar=بدون تكرار
+
+ko=전체 반복
+en=Repeat all
+ja=全曲リピート
+zh=全部重复
+ru=Повтор всего
+it=Ripeti tutto
+fr=Répéter tout
+es=Repetir todo
+ar=تكرار الكل
+
+ko=한 곡 반복
+en=Repeat one
+ja=1曲リピート
+zh=单曲重复
+ru=Повтор одного
+it=Ripeti uno
+fr=Répéter un
+es=Repetir uno
+ar=تكرار واحد
+
+ko=(랜덤이 켜져 있어 계속 재생됩니다)
+en=(Shuffle is on, so playback continues)
+ja=(ランダムがオンのため再生は続きます)
+zh=(随机播放已开启，将继续播放)
+ru=(Случайный порядок включён — воспроизведение продолжится)
+it=(La riproduzione casuale è attiva, la riproduzione continua)
+fr=(La lecture aléatoire est activée, la lecture continue)
+es=(La reproducción aleatoria está activada, la reproducción continúa)
+ar=(التشغيل العشوائي مفعّل، لذا يستمر التشغيل)
+
+ko=랜덤 켜짐 — 목록을 섞어 재생하고, 한 바퀴 돌면 다시 섞습니다
+en=Shuffle on — plays the list in random order and reshuffles after a full cycle
+ja=ランダムオン — リストをシャッフルして再生し、一巡すると再シャッフルします
+zh=随机播放开启 — 打乱列表播放，播完一轮后重新打乱
+ru=Случайный порядок включён — список перемешивается и после круга перемешивается снова
+it=Casuale attivo — riproduce la lista in ordine casuale e rimescola dopo un giro
+fr=Aléatoire activé — lit la liste dans le désordre et remélange après un tour
+es=Aleatorio activado — reproduce la lista al azar y la vuelve a mezclar tras una vuelta
+ar=التشغيل العشوائي مفعّل — يشغّل القائمة عشوائيًا ويعيد الخلط بعد دورة كاملة
+
+ko=랜덤 꺼짐 — 목록 순서대로 재생합니다
+en=Shuffle off — plays the list in order
+ja=ランダムオフ — リストの順に再生します
+zh=随机播放关闭 — 按列表顺序播放
+ru=Случайный порядок выключен — воспроизведение по порядку
+it=Casuale disattivo — riproduce la lista in ordine
+fr=Aléatoire désactivé — lit la liste dans l'ordre
+es=Aleatorio desactivado — reproduce la lista en orden
+ar=التشغيل العشوائي متوقف — يشغّل القائمة بالترتيب
+
+ko=환경설정
+en=Settings
+ja=環境設定
+zh=设置
+ru=Настройки
+it=Impostazioni
+fr=Paramètres
+es=Configuración
+ar=الإعدادات
+
+ko=일반
+en=General
+ja=一般
+zh=常规
+ru=Общие
+it=Generale
+fr=Général
+es=General
+ar=عام
+
+ko=영상
+en=Video
+ja=映像
+zh=视频
+ru=Видео
+it=Video
+fr=Vidéo
+es=Vídeo
+ar=الفيديو
+
+ko=음성
+en=Audio
+ja=音声
+zh=音频
+ru=Звук
+it=Audio
+fr=Audio
+es=Audio
+ar=الصوت
+
+ko=자막
+en=Subtitles
+ja=字幕
+zh=字幕
+ru=Субтитры
+it=Sottotitoli
+fr=Sous-titres
+es=Subtítulos
+ar=الترجمة
+
+ko=연결
+en=File types
+ja=関連付け
+zh=文件关联
+ru=Ассоциации
+it=Associazioni
+fr=Associations
+es=Asociaciones
+ar=اقترانات الملفات
+
+ko=정보
+en=About
+ja=情報
+zh=关于
+ru=О программе
+it=Informazioni
+fr=À propos
+es=Acerca de
+ar=حول
+
+ko=기본값 복원
+en=Default
+ja=既定値
+zh=默认值
+ru=По умолчанию
+it=Predefiniti
+fr=Par défaut
+es=Predeterminados
+ar=الافتراضي
+
+ko=자동
+en=Auto
+ja=自動
+zh=自动
+ru=Авто
+it=Automatico
+fr=Automatique
+es=Automático
+ar=تلقائي
+
+ko=반복 모드
+en=Repeat mode
+ja=リピートモード
+zh=重复模式
+ru=Режим повтора
+it=Modalità ripetizione
+fr=Mode de répétition
+es=Modo de repetición
+ar=وضع التكرار
+
+ko=랜덤 재생
+en=Shuffle
+ja=ランダム再生
+zh=随机播放
+ru=Случайный порядок
+it=Riproduzione casuale
+fr=Lecture aléatoire
+es=Reproducción aleatoria
+ar=تشغيل عشوائي
+
+ko=재생목록 저장
+en=Save playlist
+ja=プレイリストの保存
+zh=保存播放列表
+ru=Сохранять плейлист
+it=Salva playlist
+fr=Enregistrer la liste
+es=Guardar lista
+ar=حفظ قائمة التشغيل
+
+ko=끝기 때 목록을 KPlayer.lst 에 저장한다
+en=Saves the list to KPlayer.lst on exit
+ja=終了時にリストを KPlayer.lst に保存します
+zh=退出时将列表保存到 KPlayer.lst
+ru=При выходе список сохраняется в KPlayer.lst
+it=Salva la lista in KPlayer.lst all'uscita
+fr=Enregistre la liste dans KPlayer.lst à la fermeture
+es=Guarda la lista en KPlayer.lst al salir
+ar=يحفظ القائمة في KPlayer.lst عند الخروج
+
+ko=저장 폴더
+en=Save folder
+ja=保存フォルダー
+zh=保存文件夹
+ru=Папка сохранения
+it=Cartella di salvataggio
+fr=Dossier d'enregistrement
+es=Carpeta de guardado
+ar=مجلد الحفظ
+
+ko=스크린샷을 저장할 위치
+en=Where screenshots are saved
+ja=スクリーンショットの保存先
+zh=截图的保存位置
+ru=Куда сохранять скриншоты
+it=Dove salvare le schermate
+fr=Emplacement des captures d'écran
+es=Dónde se guardan las capturas
+ar=مكان حفظ لقطات الشاشة
+
+ko=형식
+en=Format
+ja=形式
+zh=格式
+ru=Формат
+it=Formato
+fr=Format
+es=Formato
+ar=الصيغة
+
+ko=항상 위
+en=Always on top
+ja=常に手前に表示
+zh=总在最前
+ru=Поверх всех окон
+it=Sempre in primo piano
+fr=Toujours au premier plan
+es=Siempre visible
+ar=دائمًا في المقدمة
+
+ko=사용안함
+en=Off
+ja=オフ
+zh=关闭
+ru=Выкл.
+it=Off
+fr=Désactivé
+es=Desactivado
+ar=معطّل
+
+ko=사용함
+en=On
+ja=オン
+zh=开启
+ru=Вкл.
+it=On
+fr=Activé
+es=Activado
+ar=مفعّل
+
+ko=찾기
+en=Browse
+ja=参照
+zh=浏览
+ru=Обзор
+it=Sfoglia
+fr=Parcourir
+es=Examinar
+ar=استعراض
+
+ko=하드웨어 디코딩
+en=Hardware decoding
+ja=ハードウェアデコード
+zh=硬件解码
+ru=Аппаратное декодирование
+it=Decodifica hardware
+fr=Décodage matériel
+es=Decodificación por hardware
+ar=فك الترميز بالعتاد
+
+ko=재시작 후 적용
+en=Applied after restart
+ja=再起動後に適用
+zh=重启后生效
+ru=Применяется после перезапуска
+it=Applicato dopo il riavvio
+fr=Appliqué après redémarrage
+es=Se aplica tras reiniciar
+ar=يُطبَّق بعد إعادة التشغيل
+
+ko=출력 드라이버
+en=Output driver
+ja=出力ドライバー
+zh=输出驱动
+ru=Драйвер вывода
+it=Driver di output
+fr=Pilote de sortie
+es=Controlador de salida
+ar=مشغّل الإخراج
+
+ko=재시작 후 적용 / gpu-next 는 실험적
+en=Applied after restart / gpu-next is experimental
+ja=再起動後に適用 / gpu-next は実験的
+zh=重启后生效 / gpu-next 为实验性
+ru=Применяется после перезапуска / gpu-next экспериментален
+it=Applicato dopo il riavvio / gpu-next è sperimentale
+fr=Appliqué après redémarrage / gpu-next est expérimental
+es=Se aplica tras reiniciar / gpu-next es experimental
+ar=يُطبَّق بعد إعادة التشغيل / gpu-next تجريبي
+
+ko=그래픽 API
+en=Graphics API
+ja=グラフィック API
+zh=图形 API
+ru=Графический API
+it=API grafica
+fr=API graphique
+es=API gráfica
+ar=واجهة الرسوميات
+
+ko=화면 동기화
+en=Display sync
+ja=画面同期
+zh=画面同步
+ru=Синхронизация экрана
+it=Sincronizzazione schermo
+fr=Synchronisation d'affichage
+es=Sincronización de pantalla
+ar=مزامنة العرض
+
+ko=업스케일러
+en=Upscaler
+ja=アップスケーラー
+zh=放大算法
+ru=Апскейлер
+it=Upscaler
+fr=Rééchantillonneur
+es=Escalador
+ar=مُحسِّن الدقة
+
+ko=인터레이스 해제
+en=Deinterlace
+ja=インターレース解除
+zh=反交错
+ru=Деинтерлейсинг
+it=Deinterlacciamento
+fr=Désentrelacement
+es=Desentrelazado
+ar=إزالة التشابك
+
+ko=자동(안전)
+en=Auto (safe)
+ja=自動(安全)
+zh=自动(安全)
+ru=Авто (безопасно)
+it=Automatico (sicuro)
+fr=Automatique (sûr)
+es=Automático (seguro)
+ar=تلقائي (آمن)
+
+ko=사용 안 함
+en=Disabled
+ja=使用しない
+zh=不使用
+ru=Отключено
+it=Disattivato
+fr=Désactivé (aucun)
+es=No usar
+ar=بدون استخدام
+
+ko=디스플레이 리샘플
+en=Display resample
+ja=ディスプレイリサンプル
+zh=显示重采样
+ru=Ресемплинг по экрану
+it=Ricampionamento display
+fr=Rééchantillonnage écran
+es=Remuestreo de pantalla
+ar=إعادة عيّنة العرض
+
+ko=오디오 기준
+en=Audio based
+ja=オーディオ基準
+zh=以音频为准
+ru=По звуку
+it=Basato sull'audio
+fr=Basé sur l'audio
+es=Basado en audio
+ar=حسب الصوت
+
+ko=항상 사용
+en=Always on
+ja=常に使用
+zh=始终使用
+ru=Всегда включено
+it=Sempre attivo
+fr=Toujours activé
+es=Siempre activo
+ar=دائم التشغيل
+
+ko=기본 볼륨
+en=Default volume
+ja=既定の音量
+zh=默认音量
+ru=Громкость по умолчанию
+it=Volume predefinito
+fr=Volume par défaut
+es=Volumen predeterminado
+ar=مستوى الصوت الافتراضي
+
+ko=현재 볼륨 / 다음 실행에도 유지 (최대 100)
+en=Current volume / kept for the next run (max 100)
+ja=現在の音量 / 次回起動時も維持 (最大 100)
+zh=当前音量 / 下次启动仍保持 (最大 100)
+ru=Текущая громкость / сохраняется до следующего запуска (макс. 100)
+it=Volume attuale / mantenuto al prossimo avvio (max 100)
+fr=Volume actuel / conservé au prochain lancement (max 100)
+es=Volumen actual / se mantiene en el próximo inicio (máx. 100)
+ar=مستوى الصوت الحالي / يُحفظ للتشغيل القادم (بحد أقصى 100)
+
+ko=음량 평준화 사용
+en=Use volume normalization
+ja=音量の平準化を使用
+zh=使用音量标准化
+ru=Нормализация громкости
+it=Usa la normalizzazione del volume
+fr=Utiliser la normalisation du volume
+es=Usar normalización de volumen
+ar=استخدام معادلة مستوى الصوت
+
+ko=구간별 음량 차이를 줄인다 (dynaudnorm)
+en=Reduces loudness differences between passages (dynaudnorm)
+ja=区間ごとの音量差を抑えます (dynaudnorm)
+zh=减小段落之间的音量差异 (dynaudnorm)
+ru=Уменьшает разницу громкости между фрагментами (dynaudnorm)
+it=Riduce le differenze di volume tra le parti (dynaudnorm)
+fr=Réduit les écarts de volume entre les passages (dynaudnorm)
+es=Reduce las diferencias de volumen entre pasajes (dynaudnorm)
+ar=يقلّل فروق مستوى الصوت بين المقاطع (dynaudnorm)
+
+ko=평준화 강도
+en=Normalization strength
+ja=平準化の強さ
+zh=标准化强度
+ru=Сила нормализации
+it=Intensità di normalizzazione
+fr=Intensité de normalisation
+es=Intensidad de normalización
+ar=قوة المعادلة
+
+ko=낮게
+en=Low
+ja=弱め
+zh=弱
+ru=Слабо
+it=Bassa
+fr=Faible
+es=Baja
+ar=منخفضة
+
+ko=보통
+en=Medium
+ja=標準
+zh=中
+ru=Средне
+it=Media
+fr=Moyenne
+es=Media
+ar=متوسطة
+
+ko=강하게
+en=Strong
+ja=強め
+zh=强
+ru=Сильно
+it=Alta
+fr=Forte
+es=Alta
+ar=قوية
+
+ko=자막 기본 표시
+en=Show subtitles by default
+ja=字幕を既定で表示
+zh=默认显示字幕
+ru=Показывать субтитры по умолчанию
+it=Mostra i sottotitoli per impostazione predefinita
+fr=Afficher les sous-titres par défaut
+es=Mostrar subtítulos de forma predeterminada
+ar=إظهار الترجمة افتراضيًا
+
+ko=끄면 자막 버튼으로 켜야 보인다
+en=If off, subtitles appear only after the subtitle button is used
+ja=オフの場合は字幕ボタンで有効にすると表示されます
+zh=关闭时需用字幕按钮开启才会显示
+ru=Если выключено, субтитры включаются кнопкой субтитров
+it=Se disattivato, i sottotitoli si attivano con l'apposito pulsante
+fr=Si désactivé, activez les sous-titres avec le bouton dédié
+es=Si está desactivado, actívalos con el botón de subtítulos
+ar=عند الإيقاف تظهر الترجمة فقط بعد تفعيلها من زر الترجمة
+
+ko=자막 크기
+en=Subtitle size
+ja=字幕サイズ
+zh=字幕大小
+ru=Размер субтитров
+it=Dimensione sottotitoli
+fr=Taille des sous-titres
+es=Tamaño de los subtítulos
+ar=حجم الترجمة
+
+ko=기본 자막 언어
+en=Preferred subtitle languages
+ja=既定の字幕言語
+zh=默认字幕语言
+ru=Предпочитаемые языки субтитров
+it=Lingue dei sottotitoli preferite
+fr=Langues de sous-titres préférées
+es=Idiomas de subtítulos preferidos
+ar=لغات الترجمة المفضلة
+
+ko=쉼표로 구분 (예: ko,kor,en,eng)
+en=Comma separated (e.g. ko,kor,en,eng)
+ja=カンマ区切り (例: ko,kor,en,eng)
+zh=用逗号分隔 (例: ko,kor,en,eng)
+ru=Через запятую (например: ko,kor,en,eng)
+it=Separati da virgola (es. ko,kor,en,eng)
+fr=Séparées par des virgules (ex. ko,kor,en,eng)
+es=Separados por comas (ej. ko,kor,en,eng)
+ar=مفصولة بفواصل (مثال: ko,kor,en,eng)
+
+ko=모두 선택
+en=Select all
+ja=すべて選択
+zh=全选
+ru=Выбрать все
+it=Seleziona tutto
+fr=Tout sélectionner
+es=Seleccionar todo
+ar=تحديد الكل
+
+ko=모두 해제
+en=Clear all
+ja=すべて解除
+zh=全部取消
+ru=Снять все
+it=Deseleziona tutto
+fr=Tout désélectionner
+es=Anular toda la selección
+ar=إلغاء تحديد الكل
+
+ko=주요 파일
+en=Common types
+ja=主なファイル
+zh=常用类型
+ru=Основные типы
+it=Tipi principali
+fr=Types courants
+es=Tipos principales
+ar=الأنواع الشائعة
+
+ko=Windows 기본 앱 설정 열기
+en=Open Windows default apps settings
+ja=Windows の既定のアプリ設定を開く
+zh=打开 Windows 默认应用设置
+ru=Открыть параметры приложений по умолчанию Windows
+it=Apri le impostazioni delle app predefinite di Windows
+fr=Ouvrir les paramètres des applications par défaut de Windows
+es=Abrir la configuración de aplicaciones predeterminadas de Windows
+ar=فتح إعدادات التطبيقات الافتراضية في ويندوز
+
+ko=적용안됨
+en=Not applied
+ja=未適用
+zh=未生效
+ru=Не применено
+it=Non applicato
+fr=Non appliqué
+es=Sin aplicar
+ar=غير مُطبَّق
+
+ko=%d개 확장자를 다른 프로그램이 사용 중입니다. 등록은 되었지만 Windows 가 그쪽을 우선하므로, 기본 앱 설정에서 KPlayer 로 직접 바꿔야 합니다.
+en=%d file types are held by another program. They are registered, but Windows prefers that program, so switch them to KPlayer in the default apps settings.
+ja=%d 個の拡張子は他のプログラムが使用中です。登録済みですが Windows がそちらを優先するため、既定のアプリ設定で KPlayer に変更してください。
+zh=%d 个扩展名正被其他程序占用。虽已注册，但 Windows 会优先使用该程序，请在默认应用设置中改为 KPlayer。
+ru=%d расширений занято другой программой. Они зарегистрированы, но Windows отдаёт приоритет ей — измените их на KPlayer в параметрах приложений по умолчанию.
+it=%d estensioni sono usate da un altro programma. Sono registrate, ma Windows dà la priorità a quel programma: impostale su KPlayer nelle app predefinite.
+fr=%d extensions sont utilisées par un autre programme. Elles sont enregistrées, mais Windows lui donne la priorité : basculez-les sur KPlayer dans les applications par défaut.
+es=%d extensiones las usa otro programa. Están registradas, pero Windows le da prioridad: cámbialas a KPlayer en las aplicaciones predeterminadas.
+ar=‏%d امتدادًا يستخدمها برنامج آخر. تم التسجيل، لكن ويندوز يفضّل ذلك البرنامج، لذا غيّرها إلى KPlayer من إعدادات التطبيقات الافتراضية.
+
+ko=%d개 확장자는 연결이 끊어져 있습니다. [적용안됨] 을 누르면 되살립니다.
+en=%d file types have a broken association. Click [Not applied] to restore them.
+ja=%d 個の拡張子は関連付けが切れています。[未適用] を押すと復元します。
+zh=%d 个扩展名的关联已断开。点击 [未生效] 可恢复。
+ru=У %d расширений нарушена ассоциация. Нажмите [Не применено], чтобы восстановить.
+it=%d estensioni hanno l'associazione interrotta. Fai clic su [Non applicato] per ripristinarle.
+fr=%d extensions ont une association rompue. Cliquez sur [Non appliqué] pour les rétablir.
+es=%d extensiones tienen la asociación rota. Haz clic en [Sin aplicar] para restaurarlas.
+ar=‏%d امتدادًا اقترانها معطّل. اضغط [غير مُطبَّق] لاستعادتها.
+
+ko=모든 설정을 기본값으로 되돌립니다.
+en=Restore all settings to their defaults.
+ja=すべての設定を既定値に戻します。
+zh=将所有设置恢复为默认值。
+ru=Восстановить все настройки по умолчанию.
+it=Ripristina tutte le impostazioni ai valori predefiniti.
+fr=Rétablir tous les paramètres par défaut.
+es=Restaurar todos los ajustes a sus valores predeterminados.
+ar=استعادة جميع الإعدادات إلى قيمها الافتراضية.
+
+ko=지금 화면의 값과 저장된 설정이 모두 기본값으로 바뀝니다.
+en=The values on screen and the saved settings will all be reset.
+ja=画面の値と保存された設定がすべて既定値に変わります。
+zh=当前界面的值与已保存的设置都将被重置。
+ru=Значения на экране и сохранённые настройки будут сброшены.
+it=I valori a schermo e le impostazioni salvate verranno reimpostati.
+fr=Les valeurs affichées et les paramètres enregistrés seront réinitialisés.
+es=Los valores en pantalla y los ajustes guardados se restablecerán.
+ar=ستُعاد القيم الظاهرة والإعدادات المحفوظة إلى الوضع الافتراضي.
+
+ko=파일 연결은 바뀌지 않습니다.
+en=File associations are not changed.
+ja=ファイルの関連付けは変更されません。
+zh=文件关联不会改变。
+ru=Ассоциации файлов не изменятся.
+it=Le associazioni dei file non vengono modificate.
+fr=Les associations de fichiers ne sont pas modifiées.
+es=Las asociaciones de archivos no cambian.
+ar=لن تتغيّر اقترانات الملفات.
+
+ko=스크린샷을 저장할 폴더를 선택하세요.
+en=Choose a folder for screenshots.
+ja=スクリーンショットの保存先フォルダーを選択してください。
+zh=请选择保存截图的文件夹。
+ru=Выберите папку для скриншотов.
+it=Scegli una cartella per le schermate.
+fr=Choisissez un dossier pour les captures d'écran.
+es=Elige una carpeta para las capturas de pantalla.
+ar=اختر مجلدًا لحفظ لقطات الشاشة.
+
+ko=실행 파일
+en=Executable
+ja=実行ファイル
+zh=可执行文件
+ru=Исполняемый файл
+it=Eseguibile
+fr=Exécutable
+es=Ejecutable
+ar=الملف التنفيذي
+
+ko=이 프로그램은 libmpv (GPL-2.0-or-later) 를 사용합니다.
+en=This program uses libmpv (GPL-2.0-or-later).
+ja=このプログラムは libmpv (GPL-2.0-or-later) を使用しています。
+zh=本程序使用 libmpv (GPL-2.0-or-later)。
+ru=Эта программа использует libmpv (GPL-2.0-or-later).
+it=Questo programma usa libmpv (GPL-2.0-or-later).
+fr=Ce programme utilise libmpv (GPL-2.0-or-later).
+es=Este programa usa libmpv (GPL-2.0-or-later).
+ar=يستخدم هذا البرنامج libmpv (GPL-2.0-or-later).
+
+ko=재생 목록은 Virtual Treeview (MPL 1.1) 를 사용합니다.
+en=The playlist uses Virtual Treeview (MPL 1.1).
+ja=プレイリストは Virtual Treeview (MPL 1.1) を使用しています。
+zh=播放列表使用 Virtual Treeview (MPL 1.1)。
+ru=Плейлист использует Virtual Treeview (MPL 1.1).
+it=La playlist usa Virtual Treeview (MPL 1.1).
+fr=La liste de lecture utilise Virtual Treeview (MPL 1.1).
+es=La lista de reproducción usa Virtual Treeview (MPL 1.1).
+ar=تستخدم قائمة التشغيل Virtual Treeview (MPL 1.1).
+
+ko=libmpv 기반 미디어 플레이어
+en=libmpv based media player
+ja=libmpv ベースのメディアプレーヤー
+zh=基于 libmpv 的媒体播放器
+ru=Медиаплеер на основе libmpv
+it=Lettore multimediale basato su libmpv
+fr=Lecteur multimédia basé sur libmpv
+es=Reproductor multimedia basado en libmpv
+ar=مشغّل وسائط يعتمد على libmpv
+
+ko=비디오
+en=Video files
+ja=ビデオ
+zh=视频文件
+ru=Видеофайлы
+it=File video
+fr=Fichiers vidéo
+es=Archivos de vídeo
+ar=ملفات الفيديو
+
+ko=오디오
+en=Audio files
+ja=オーディオ
+zh=音频文件
+ru=Аудиофайлы
+it=File audio
+fr=Fichiers audio
+es=Archivos de audio
+ar=ملفات الصوت
+
+ko=MP4 비디오
+en=MP4 Video
+ja=MP4 ビデオ
+zh=MP4 视频
+ru=Видео MP4
+it=Video MP4
+fr=Vidéo MP4
+es=Vídeo MP4
+ar=فيديو MP4
+
+ko=Matroska 비디오
+en=Matroska Video
+ja=Matroska ビデオ
+zh=Matroska 视频
+ru=Видео Matroska
+it=Video Matroska
+fr=Vidéo Matroska
+es=Vídeo Matroska
+ar=فيديو Matroska
+
+ko=AVI 비디오
+en=AVI Video
+ja=AVI ビデオ
+zh=AVI 视频
+ru=Видео AVI
+it=Video AVI
+fr=Vidéo AVI
+es=Vídeo AVI
+ar=فيديو AVI
+
+ko=QuickTime 비디오
+en=QuickTime Video
+ja=QuickTime ビデオ
+zh=QuickTime 视频
+ru=Видео QuickTime
+it=Video QuickTime
+fr=Vidéo QuickTime
+es=Vídeo QuickTime
+ar=فيديو QuickTime
+
+ko=Windows Media 비디오
+en=Windows Media Video
+ja=Windows Media ビデオ
+zh=Windows Media 视频
+ru=Видео Windows Media
+it=Video Windows Media
+fr=Vidéo Windows Media
+es=Vídeo de Windows Media
+ar=فيديو Windows Media
+
+ko=Flash 비디오
+en=Flash Video
+ja=Flash ビデオ
+zh=Flash 视频
+ru=Видео Flash
+it=Video Flash
+fr=Vidéo Flash
+es=Vídeo Flash
+ar=فيديو Flash
+
+ko=WebM 비디오
+en=WebM Video
+ja=WebM ビデオ
+zh=WebM 视频
+ru=Видео WebM
+it=Video WebM
+fr=Vidéo WebM
+es=Vídeo WebM
+ar=فيديو WebM
+
+ko=MPEG-4 비디오
+en=MPEG-4 Video
+ja=MPEG-4 ビデオ
+zh=MPEG-4 视频
+ru=Видео MPEG-4
+it=Video MPEG-4
+fr=Vidéo MPEG-4
+es=Vídeo MPEG-4
+ar=فيديو MPEG-4
+
+ko=MPEG 비디오
+en=MPEG Video
+ja=MPEG ビデオ
+zh=MPEG 视频
+ru=Видео MPEG
+it=Video MPEG
+fr=Vidéo MPEG
+es=Vídeo MPEG
+ar=فيديو MPEG
+
+ko=MPEG-2 비디오
+en=MPEG-2 Video
+ja=MPEG-2 ビデオ
+zh=MPEG-2 视频
+ru=Видео MPEG-2
+it=Video MPEG-2
+fr=Vidéo MPEG-2
+es=Vídeo MPEG-2
+ar=فيديو MPEG-2
+
+ko=MPEG 전송 스트림
+en=MPEG Transport Stream
+ja=MPEG トランスポートストリーム
+zh=MPEG 传输流
+ru=Транспортный поток MPEG
+it=Transport Stream MPEG
+fr=Flux de transport MPEG
+es=Flujo de transporte MPEG
+ar=تدفق نقل MPEG
+
+ko=Blu-ray 비디오
+en=Blu-ray Video
+ja=Blu-ray ビデオ
+zh=蓝光视频
+ru=Видео Blu-ray
+it=Video Blu-ray
+fr=Vidéo Blu-ray
+es=Vídeo Blu-ray
+ar=فيديو Blu-ray
+
+ko=AVCHD 비디오
+en=AVCHD Video
+ja=AVCHD ビデオ
+zh=AVCHD 视频
+ru=Видео AVCHD
+it=Video AVCHD
+fr=Vidéo AVCHD
+es=Vídeo AVCHD
+ar=فيديو AVCHD
+
+ko=DVD 비디오
+en=DVD Video
+ja=DVD ビデオ
+zh=DVD 视频
+ru=Видео DVD
+it=Video DVD
+fr=Vidéo DVD
+es=Vídeo DVD
+ar=فيديو DVD
+
+ko=ASF 비디오
+en=ASF Video
+ja=ASF ビデオ
+zh=ASF 视频
+ru=Видео ASF
+it=Video ASF
+fr=Vidéo ASF
+es=Vídeo ASF
+ar=فيديو ASF
+
+ko=RealMedia 비디오
+en=RealMedia Video
+ja=RealMedia ビデオ
+zh=RealMedia 视频
+ru=Видео RealMedia
+it=Video RealMedia
+fr=Vidéo RealMedia
+es=Vídeo RealMedia
+ar=فيديو RealMedia
+
+ko=Ogg 비디오
+en=Ogg Video
+ja=Ogg ビデオ
+zh=Ogg 视频
+ru=Видео Ogg
+it=Video Ogg
+fr=Vidéo Ogg
+es=Vídeo Ogg
+ar=فيديو Ogg
+
+ko=3GPP 비디오
+en=3GPP Video
+ja=3GPP ビデオ
+zh=3GPP 视频
+ru=Видео 3GPP
+it=Video 3GPP
+fr=Vidéo 3GPP
+es=Vídeo 3GPP
+ar=فيديو 3GPP
+
+ko=DivX 비디오
+en=DivX Video
+ja=DivX ビデオ
+zh=DivX 视频
+ru=Видео DivX
+it=Video DivX
+fr=Vidéo DivX
+es=Vídeo DivX
+ar=فيديو DivX
+
+ko=MP3 오디오
+en=MP3 Audio
+ja=MP3 オーディオ
+zh=MP3 音频
+ru=Аудио MP3
+it=Audio MP3
+fr=Audio MP3
+es=Audio MP3
+ar=صوت MP3
+
+ko=FLAC 오디오
+en=FLAC Audio
+ja=FLAC オーディオ
+zh=FLAC 音频
+ru=Аудио FLAC
+it=Audio FLAC
+fr=Audio FLAC
+es=Audio FLAC
+ar=صوت FLAC
+
+ko=AAC 오디오
+en=AAC Audio
+ja=AAC オーディオ
+zh=AAC 音频
+ru=Аудио AAC
+it=Audio AAC
+fr=Audio AAC
+es=Audio AAC
+ar=صوت AAC
+
+ko=MPEG-4 오디오
+en=MPEG-4 Audio
+ja=MPEG-4 オーディオ
+zh=MPEG-4 音频
+ru=Аудио MPEG-4
+it=Audio MPEG-4
+fr=Audio MPEG-4
+es=Audio MPEG-4
+ar=صوت MPEG-4
+
+ko=WAV 오디오
+en=WAV Audio
+ja=WAV オーディオ
+zh=WAV 音频
+ru=Аудио WAV
+it=Audio WAV
+fr=Audio WAV
+es=Audio WAV
+ar=صوت WAV
+
+ko=Ogg 오디오
+en=Ogg Audio
+ja=Ogg オーディオ
+zh=Ogg 音频
+ru=Аудио Ogg
+it=Audio Ogg
+fr=Audio Ogg
+es=Audio Ogg
+ar=صوت Ogg
+
+ko=Opus 오디오
+en=Opus Audio
+ja=Opus オーディオ
+zh=Opus 音频
+ru=Аудио Opus
+it=Audio Opus
+fr=Audio Opus
+es=Audio Opus
+ar=صوت Opus
+
+ko=Windows Media 오디오
+en=Windows Media Audio
+ja=Windows Media オーディオ
+zh=Windows Media 音频
+ru=Аудио Windows Media
+it=Audio Windows Media
+fr=Audio Windows Media
+es=Audio de Windows Media
+ar=صوت Windows Media
+
+ko=AIFF 오디오
+en=AIFF Audio
+ja=AIFF オーディオ
+zh=AIFF 音频
+ru=Аудио AIFF
+it=Audio AIFF
+fr=Audio AIFF
+es=Audio AIFF
+ar=صوت AIFF
+
+ko=Matroska 오디오
+en=Matroska Audio
+ja=Matroska オーディオ
+zh=Matroska 音频
+ru=Аудио Matroska
+it=Audio Matroska
+fr=Audio Matroska
+es=Audio Matroska
+ar=صوت Matroska
+
+ko=DSD 오디오
+en=DSD Audio
+ja=DSD オーディオ
+zh=DSD 音频
+ru=Аудио DSD
+it=Audio DSD
+fr=Audio DSD
+es=Audio DSD
+ar=صوت DSD

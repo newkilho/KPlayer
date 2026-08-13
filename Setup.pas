@@ -10,7 +10,7 @@ uses
   Winapi.ShellAPI, Winapi.ShLwApi, Winapi.CommCtrl,
   VirtualTrees.BaseAncestorVCL, VirtualTrees.BaseTree,
   VirtualTrees.AncestorVCL, VirtualTrees.Types, VirtualTrees,
-  K.Theme, K.Config.INI, Assoc;
+  K.Theme, K.Config.INI, K.Translate, Assoc;
 
 // 캡처 기본 폴더 = 바탕화면. exe 폴더 금지 — Program Files 쓰기 권한 없음 + 프로그램 폴더에 캡처 쌓임.
 function DesktopPath: string;
@@ -102,6 +102,8 @@ type
     BtnReset: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure FormActivate(Sender: TObject);
+    procedure FormHide(Sender: TObject);
     procedure BtnNavClick(Sender: TObject);
     procedure BtnResetClick(Sender: TObject);
     procedure BtnShotDirClick(Sender: TObject);
@@ -167,6 +169,11 @@ type
     // 선택 창 띄우는 중 — 내부에서 메시지 루프 돌므로 연타 방지.
     FPicking: Boolean;
 
+    // 트리에 그릴 번역 문구. _() 는 리소스 전체를 훑는데 GetText 는 셀마다 불린다 —
+    // 그대로 두면 스크롤이 끈다. 갱신 지점은 FormCreate 한 곳.
+    FGroupText: array[TAssocGroup] of string;
+    FBadgeText: string;
+
     procedure FillAbout;
 
     procedure SetupAssocTree;
@@ -185,8 +192,6 @@ type
     procedure ClosePicker;
     procedure LogAssoc(const AMsg: string);
     procedure TreeAssocClick(Sender: TObject);
-    procedure FormActivate(Sender: TObject);
-    procedure FormHide(Sender: TObject);
 
     procedure LoadValues;
     procedure SaveValues;
@@ -267,15 +272,21 @@ begin
 end;
 
 procedure TFrmSetup.FormCreate(Sender: TObject);
+var
+  LGroup: TAssocGroup;
 begin
   PnlMain.ActiveCardIndex := 0;
   LblTitle.Caption := BtnGeneral.Caption;
 
-  SetupAssocTree;
+  Translate(Self);
 
-  // DFM 아닌 코드로 붙임 (디자이너가 못 지우게). 역할은 각 핸들러 주석에.
-  OnActivate := FormActivate;
-  OnHide := FormHide;
+  // 트리에 그릴 문구는 미리 캐시 — SetupAssocTree 의 열 폭 계산이 뱃지 번역문을 잰다.
+  for LGroup := Low(TAssocGroup) to High(TAssocGroup) do
+    FGroupText[LGroup] := _(AssocGroupNames[LGroup]);
+
+  FBadgeText := _(BadgeTextNormal);
+
+  SetupAssocTree;
 
   FApplyTimer := TTimer.Create(Self);
   FApplyTimer.Enabled := False;
@@ -570,7 +581,7 @@ begin
     LBmp.Canvas.Font.Assign(TreeAssoc.Font);
     LBmp.Canvas.Font.Height := BadgeFontSize;
 
-    LWidth := LBmp.Canvas.TextWidth(BadgeTextNormal);
+    LWidth := LBmp.Canvas.TextWidth(FBadgeText);
   finally
     LBmp.Free;
   end;
@@ -771,7 +782,7 @@ begin
   if LData^.IsGroup then
   begin
     if Column <= 0 then
-      CellText := AssocGroupNames[LData^.Group];
+      CellText := FGroupText[LData^.Group];
     Exit;
   end;
 
@@ -780,7 +791,7 @@ begin
   else if AssocNeedsUser(LData^.State) then
     // 사용자 개입 필요 — 남이 기본 앱이거나, 기본 앱은 우리인데 등록 없음(Broken).
     // 글자는 상태 무관 고정 (바꾸면 뱃지 크기 변동, 거슬림).
-    CellText := BadgeTextNormal;
+    CellText := FBadgeText;
 end;
 
 procedure TFrmSetup.TreeAssocGetImageIndex(Sender: TBaseVirtualTree;
@@ -992,8 +1003,8 @@ begin
   LText := '';
 
   if LOther > 0 then
-    LText := Format('%d개 확장자를 다른 프로그램이 사용 중입니다. 등록은 되었지만 ' +
-      'Windows 가 그쪽을 우선하므로, 기본 앱 설정에서 KPlayer 로 직접 바꿔야 합니다.',
+    LText := Format(_('%d개 확장자를 다른 프로그램이 사용 중입니다. 등록은 되었지만 ' +
+      'Windows 가 그쪽을 우선하므로, 기본 앱 설정에서 KPlayer 로 직접 바꿔야 합니다.'),
       [LOther]);
 
   // 기본 앱 = KPlayer 인데 연결 없음 — 아무것도 안 열리는 상태.
@@ -1002,8 +1013,8 @@ begin
     if LText <> '' then
       LText := LText + sLineBreak + sLineBreak;
 
-    LText := LText + Format('%d개 확장자는 연결이 끊어져 있습니다. ' +
-      '[적용안됨] 을 누르면 되살립니다.', [LBroken]);
+    LText := LText + Format(_('%d개 확장자는 연결이 끊어져 있습니다. ' +
+      '[적용안됨] 을 누르면 되살립니다.'), [LBroken]);
   end;
 
   LblAssocHint.Caption := LText;
@@ -1134,8 +1145,8 @@ begin
   LFontHeight := ACanvas.Font.Height;
   try
     ACanvas.Font.Height := BadgeFontSize;
-    LWidth := ACanvas.TextWidth(BadgeTextNormal) + BadgePadX * 2;
-    LHeight := ACanvas.TextHeight(BadgeTextNormal) + BadgePadY * 2;
+    LWidth := ACanvas.TextWidth(FBadgeText) + BadgePadX * 2;
+    LHeight := ACanvas.TextHeight(FBadgeText) + BadgePadY * 2;
   finally
     ACanvas.Font.Height := LFontHeight;
   end;
@@ -1293,9 +1304,9 @@ procedure TFrmSetup.BtnResetClick(Sender: TObject);
 begin
   if Config = nil then Exit;
 
-  if TaskMessageDlg('모든 설정을 기본값으로 되돌립니다.',
-       '지금 화면의 값과 저장된 설정이 모두 기본값으로 바뀝니다.' + sLineBreak +
-       '파일 연결은 바뀌지 않습니다.',
+  if TaskMessageDlg(_('모든 설정을 기본값으로 되돌립니다.'),
+       _('지금 화면의 값과 저장된 설정이 모두 기본값으로 바뀝니다.') + sLineBreak +
+       _('파일 연결은 바뀌지 않습니다.'),
        mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
     Exit;
 
@@ -1335,7 +1346,7 @@ var
 begin
   Dir := EdtShotDir.Text;
 
-  if SelectDirectory('스크린샷을 저장할 폴더를 선택하세요.', '', Dir) then
+  if SelectDirectory(_('스크린샷을 저장할 폴더를 선택하세요.'), '', Dir) then
   begin
     EdtShotDir.Text := Dir;
 
@@ -1370,10 +1381,10 @@ begin
   end;
 
   MemAbout.Lines.Add('');
-  MemAbout.Lines.Add('실행 파일: ' + ParamStr(0));
+  MemAbout.Lines.Add(_('실행 파일') + ': ' + ParamStr(0));
   MemAbout.Lines.Add('');
-  MemAbout.Lines.Add('이 프로그램은 libmpv (GPL-2.0-or-later) 를 사용합니다.');
-  MemAbout.Lines.Add('재생 목록은 Virtual Treeview (MPL 1.1) 를 사용합니다.');
+  MemAbout.Lines.Add(_('이 프로그램은 libmpv (GPL-2.0-or-later) 를 사용합니다.'));
+  MemAbout.Lines.Add(_('재생 목록은 Virtual Treeview (MPL 1.1) 를 사용합니다.'));
 end;
 
 // 값

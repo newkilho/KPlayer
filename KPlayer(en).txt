@@ -1,0 +1,12 @@
+﻿       
+                KPlayer, Copyright (c) 2026 Kilho.net
+
+
+  • A lightweight media player that supports a wide range of formats.
+
+    - Plays many media formats right away, with no extra codecs to install.
+    - Hardware acceleration keeps high-resolution video smooth.
+    - Ready to use as soon as it is installed, and it stays light and fast.
+
+    - Feel free to use it at work, at home, in government offices, at school, etc.
+    - The program is freeware.

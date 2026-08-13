@@ -156,7 +156,11 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="Assoc.pas" />
+        <RcCompile Include="KPlayerResource.rc">
+            <Form>KPlayerResource.res</Form>
+        </RcCompile>
         <None Include="Const.inc" />
+        <None Include="Translate.txt" />
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

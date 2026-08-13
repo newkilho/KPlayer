@@ -76,8 +76,8 @@ AppendDefaultDirName=false
 DisableReadyPage=True
 
 [Languages]
-Name: en; MessagesFile: "compiler:Default.isl"
-Name: ko; MessagesFile: "compiler:Languages\Korean.isl"
+Name: en; InfoBeforeFile: "KPlayer(en).txt"; MessagesFile: "compiler:Default.isl"
+Name: ko; InfoBeforeFile: "KPlayer(ko).txt"; MessagesFile: "compiler:Languages\Korean.isl"
 
 [CustomMessages]
 en.MyAppName=KPlayer

@@ -8,7 +8,7 @@ uses
   System.ImageList, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls,
   Vcl.FileCtrl, Vcl.Menus, Vcl.ImgList, VirtualTrees.BaseAncestorVCL, VirtualTrees.BaseTree,
   VirtualTrees.AncestorVCL, VirtualTrees.Types,VirtualTrees, SVGIconImage, SVGIconImageListBase,
-  SVGIconImageList, VTScrollbar, K.DragFile;
+  SVGIconImageList, VTScrollbar, K.DragFile, K.Translate;
 
 type
   TDeleteMode = (
@@ -195,6 +195,13 @@ begin
   ListData.Colors.UnfocusedSelectionColor := COLOR_SELECT_UNFOCUSED;
   ListData.Colors.UnfocusedSelectionBorderColor := COLOR_SELECT_UNFOCUSED;
 
+  Translate(Self);
+
+  // Translate 는 Caption 계열만 훑는다 — Hint 는 직접. 지금 문구를 키로 쓰므로
+  // 언어를 바꿔 다시 불러도 된다 (반복/랜덤 힌트는 UpdateButtonColor 가 만듦).
+  BtnAdd.Hint := _(BtnAdd.Hint);
+  BtnDel.Hint := _(BtnDel.Hint);
+
   FDarkSB := TVTDarkScrollbar.Create(ListData);
 
   FDragFile := TDragFile.Create(ListData,
@@ -307,7 +314,7 @@ var
   FolderPath: string;
 begin
   FolderPath := '';
-  if SelectDirectory('폴더 선택', '', FolderPath) then
+  if SelectDirectory(_('폴더 선택'), '', FolderPath) then
     AddFile(FolderPath);
 end;
 
@@ -523,23 +530,23 @@ end;
 function RepeatHint: string;
 begin
   case FrmKPlayer.RepeatMode of
-    1: Result := '전체 반복';
-    2: Result := '한 곡 반복';
+    1: Result := _('전체 반복');
+    2: Result := _('한 곡 반복');
   else
-    Result := '반복 없음';
+    Result := _('반복 없음');
   end;
 
   // 랜덤 = 한 바퀴 후 재섞어 계속 재생 → '반복 없음' 무의미.
   if (FrmKPlayer.RepeatMode = 0) and (FrmKPlayer.RandomMode = 1) then
-    Result := Result + ' (랜덤이 켜져 있어 계속 재생됩니다)';
+    Result := Result + ' ' + _('(랜덤이 켜져 있어 계속 재생됩니다)');
 end;
 
 function RandomHint: string;
 begin
   if FrmKPlayer.RandomMode = 1 then
-    Result := '랜덤 켜짐 — 목록을 섞어 재생하고, 한 바퀴 돌면 다시 섞습니다'
+    Result := _('랜덤 켜짐 — 목록을 섞어 재생하고, 한 바퀴 돌면 다시 섞습니다')
   else
-    Result := '랜덤 꺼짐 — 목록 순서대로 재생합니다';
+    Result := _('랜덤 꺼짐 — 목록 순서대로 재생합니다');
 end;
 
 procedure TFrmList.UpdateButtonColor(Btn: TSVGIconImage; Hover: Boolean);
@@ -1072,7 +1079,7 @@ begin
   NextName := '';
 
   // 건너뛴 이유 화면 알림 (목록 창 닫혀 있으면 항목 삭제 인지 불가)
-  FrmKPlayer.Alert('파일을 찾을 수 없습니다 — ' + ExtractFileName(AFileName),
+  FrmKPlayer.Alert(_('파일을 찾을 수 없습니다') + ' — ' + ExtractFileName(AFileName),
     ALERT_ERROR);
 
   Node := FindNodeByName(AFileName);

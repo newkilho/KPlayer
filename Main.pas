@@ -13,14 +13,16 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 해야할일:
 =========
-  [+] 설치 프로그램 실행시 간단한 소개 추가
   [+] 설치 후 첫 실행시 파일 연결 등록(레지스터리)
+  [*] 재생목록에 대량으로 추가가 될 때 우선 목록에 추가한 후 쓰레드를 통해 재생 불가능 또는 파일을 찾을 수 없는 경우 제거하도록 하자
 
 히스토리:
 ========
   0.9.6
   [+] 일괄 추가+재생 함수 추가 - 새로 들어간 첫 항목 판별, 추가 루프 BeginUpdate/EndUpdate (TFrmList.AddFiles)
   [*] 드롭 시 폴더/비지원 확장자/재생목록 경로가 그대로 재생되어 "파일을 찾을 수 없습니다 - <폴더명>" 후 재생 안 되던 문제 - 드롭 경로 대신 목록 항목부터 재생 (Main.FormCreate FDragFile, TFrmList.FormCreate FDragFile)
+  [+] 다국어 지원 - ko/en/ja/zh/ru/it/fr/es/ar
+  [+] 설치 시작 시 소개 화면 추가
 
   0.9.5
   [*] 시작 시 저장 목록을 디스크 확인 없이 로드 - 네트워크 드라이브 타임아웃으로 창 표시가 늦던 문제, 없는 파일은 재생 시 SkipMissing 이 정리 (List.pas: LoadPlaylist, AddFile ACheckDisk 파라미터)
@@ -165,7 +167,7 @@ implementation
 
 {$R *.dfm}
 
-uses List, Setup, Assoc;
+uses List, Setup, Assoc, K.Translate;
 
 {$I Const.inc}
 
@@ -173,6 +175,8 @@ procedure TFrmKPlayer.FormCreate(Sender: TObject);
 var
   LLogFile: string;
 begin
+  //Lang := 'en';
+  Translate(Self);
   Application.Title := Caption;
 
   BorderStyle := bsNone;
@@ -194,14 +198,14 @@ begin
 
   if not MPVLibLoaded(ExtractFilePath(ParamStr(0))) then
   begin
-    ShowMessage('MPV DLL 로드 실패');
+    ShowMessage(_('MPV DLL 로드 실패'));
     Application.Terminate;
     Exit;
   end;
 
   if not FileExists(Theme) then
   begin
-    Showmessage('필수 파일이 없습니다.');
+    Showmessage(_('필수 파일이 없습니다.'));
     Application.Terminate;
     Exit;
   end;
@@ -383,7 +387,7 @@ begin
     Exit;
   end;
 
-  ShowMessage('알 수 없는 script-message: ' + ACommand);
+  ShowMessage(_('알 수 없는 script-message') + ': ' + ACommand);
 end;
 
 // 콤보 인덱스(INI) → mpv 옵션 문자열

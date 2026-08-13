@@ -12,7 +12,9 @@ object FrmSetup: TFrmSetup
   Font.Name = 'Segoe UI'
   Font.Style = []
   Position = poScreenCenter
+  OnActivate = FormActivate
   OnCreate = FormCreate
+  OnHide = FormHide
   OnShow = FormShow
   TextHeight = 15
   object PnlMenu: TPanel

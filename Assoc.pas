@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, Winapi.ShlObj, Winapi.ShellAPI,
   Winapi.ShLwApi, Winapi.Dwmapi, System.SysUtils, System.Classes,
-  System.Generics.Collections, System.Win.Registry, Vcl.Forms;
+  System.Generics.Collections, System.Win.Registry, Vcl.Forms, K.Translate;
 
 type
   // 연결 카드의 확장자 분류
@@ -911,7 +911,7 @@ begin
     if LReg.OpenKey(AssocCapKey, True) then
     try
       LReg.WriteString('ApplicationName', 'KPlayer');
-      LReg.WriteString('ApplicationDescription', 'libmpv 기반 미디어 플레이어');
+      LReg.WriteString('ApplicationDescription', _('libmpv 기반 미디어 플레이어'));
     finally
       LReg.CloseKey;
     end;
@@ -944,7 +944,8 @@ begin
 
     if LReg.OpenKey(AssocClassKey + LPID, True) then
     try
-      LReg.WriteString('', AssocExts[AIndex].Desc);
+      // 탐색기 표시 이름 = 등록 시점 언어. 언어를 바꾸면 SyncFileAssoc 이 다시 쓴다.
+      LReg.WriteString('', _(AssocExts[AIndex].Desc));
     finally
       LReg.CloseKey;
     end;
