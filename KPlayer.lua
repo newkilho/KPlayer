@@ -922,6 +922,201 @@ local function put(ov, W, H, text)
     ov:update()
 end
 
+-- ==============================================================
+-- 정보 패널 (Delphi 가 TAB 에서 script-message "info" 로 토글).
+-- mpv 내장 stats.lua 를 안 쓰는 이유: stats 는 mp.osd_message(=show-text) 로 그리는데
+-- 여기선 osd-level 이 0 이라(기본 OSD 가 우리 베젤과 겹쳐서) 화면에 아무것도 안 나온다.
+-- 페이지 전환 키도 mpv 로 안 간다 — 입력은 전부 VCL 폼이 받는다.
+-- 컨트롤바 페이드(state.opacity)와 무관하게 떠 있어야 해서 오버레이·타이머를 따로 쓴다.
+-- ==============================================================
+local ov_info = mp.create_osd_overlay("ass-events")
+
+local info_ui = {
+    font_size = 14,
+    line_h    = 20,
+    pad_x     = 14,
+    pad_y     = 10,
+    radius    = 8,
+    margin    = 14,   -- 화면 좌측 여백
+    gap_top   = 8,    -- 상단바 아래 여백
+    key_w     = 62,   -- 라벨 열 폭 (값 열 시작 위치)
+}
+
+local info_shown = false
+local info_timer = nil
+
+local function info_prop(name, def)
+    local v = mp.get_property(name)
+    if v == nil or v == "" then return def or "-" end
+    return v
+end
+
+local function info_size(bytes)
+    local n = tonumber(bytes)
+    if not n or n <= 0 then return "-" end
+    if n >= 1073741824 then return string.format("%.2f GB", n / 1073741824) end
+    if n >= 1048576    then return string.format("%.1f MB", n / 1048576) end
+    return string.format("%.0f KB", n / 1024)
+end
+
+local function info_kbps(bps)
+    local n = tonumber(bps)
+    if not n or n <= 0 then return "-" end
+    return string.format("%d kbps", math.floor(n / 1000 + 0.5))
+end
+
+local function info_num(v, fmt)
+    local n = tonumber(v)
+    if not n then return "-" end
+    return string.format(fmt, n)
+end
+
+-- approx_text_w 는 바이트 단위라 UTF-8 한글이 3배로 세진다. 여기선 선행 바이트만 세고
+-- 멀티바이트 1글자를 1.0em 으로 본다 (숫자·영문은 approx_text_w 와 같은 계수).
+local function info_text_w(str, fs)
+    local w, i, n = 0, 1, #str
+    while i <= n do
+        local b = str:byte(i)
+        if b < 0x80 then
+            local ch = str:sub(i, i)
+            if ch == ":" or ch == " " or ch == "." then w = w + 0.30
+            elseif ch == "/" then w = w + 0.34
+            else w = w + 0.56 end
+            i = i + 1
+        else
+            local len = (b >= 0xF0 and 4) or (b >= 0xE0 and 3) or 2
+            w = w + 1.0
+            i = i + len
+        end
+    end
+    return w * fs
+end
+
+-- 글자 수(바이트 아님) 기준 자르기 — 긴 파일명이 화면을 넘지 않게.
+local function info_clip(str, maxchars)
+    local out, cnt, i, n = {}, 0, 1, #str
+    while i <= n do
+        local b = str:byte(i)
+        local len = (b < 0x80 and 1) or (b >= 0xF0 and 4) or (b >= 0xE0 and 3) or 2
+        if cnt >= maxchars then return table.concat(out) .. "..." end
+        out[#out + 1] = str:sub(i, i + len - 1)
+        cnt = cnt + 1
+        i = i + len
+    end
+    return str
+end
+
+-- 표시 항목. 값이 없으면 "-" (재생 전에도 패널은 뜬다).
+local function info_rows()
+    local rows = {}
+    local function add(k, v) rows[#rows + 1] = { k = k, v = v } end
+
+    local spd = string.format("%.2f", mp.get_property_number("speed") or 1)
+    spd = spd:gsub("0+$", ""):gsub("%.$", "")
+
+    add("File", info_clip(info_prop("filename"), 60))
+    add("Format", string.format("%s   %s", info_prop("file-format"),
+                                info_size(mp.get_property_number("file-size"))))
+    add("Time", string.format("%s / %s   x%s",
+        format_time(mp.get_property_number("time-pos") or 0),
+        format_time(mp.get_property_number("duration") or 0), spd))
+
+    local vw = mp.get_property_number("width")
+    local vh = mp.get_property_number("height")
+    local fps = mp.get_property_number("container-fps") or mp.get_property_number("estimated-vf-fps")
+    add("Video", string.format("%s   %sx%s   %s   %s",
+        info_prop("video-format"), vw or "-", vh or "-",
+        fps and string.format("%.3f fps", fps) or "-",
+        info_kbps(mp.get_property_number("video-bitrate"))))
+    add("Decoder", string.format("%s   hwdec: %s",
+        info_prop("current-tracks/video/decoder-desc"), info_prop("hwdec-current", "no")))
+
+    add("Audio", string.format("%s   %sch   %s Hz   %s",
+        info_prop("audio-codec-name"),
+        info_prop("audio-params/channel-count"),
+        info_prop("audio-params/samplerate"),
+        info_kbps(mp.get_property_number("audio-bitrate"))))
+
+    local sid = mp.get_property("sid")
+    if sid and sid ~= "no" and sid ~= "" then
+        add("Subtitle", string.format("#%s   %s", sid,
+            info_prop("current-tracks/sub/title", info_prop("current-tracks/sub/lang", ""))))
+    else
+        add("Subtitle", "off")
+    end
+
+    add("Sync", string.format("A/V %s   drop %s / %s",
+        info_num(mp.get_property_number("avsync"), "%+.3f"),
+        info_prop("frame-drop-count", "0"),
+        info_prop("decoder-frame-drop-count", "0")))
+
+    add("Volume", string.format("%d%%%s",
+        math.floor((mp.get_property_number("volume") or 0) + 0.5),
+        mp.get_property_bool("mute") and "   (muted)" or ""))
+
+    return rows
+end
+
+local function render_info()
+    if not info_shown then return end
+    if state.osd_w <= 0 or state.osd_h <= 0 then return end
+
+    local s  = ui_scale()
+    local fs = math.floor(info_ui.font_size * s + 0.5)
+    local lh = info_ui.line_h * s
+    local kw = info_ui.key_w * s
+    local px = info_ui.pad_x * s
+    local py = info_ui.pad_y * s
+
+    local rows = info_rows()
+
+    local wmax = 0
+    for _, r in ipairs(rows) do
+        local w = kw + info_text_w(r.v, fs)
+        if w > wmax then wmax = w end
+    end
+
+    local bw = math.min(wmax + px * 2, state.osd_w - info_ui.margin * s * 2)
+    local bh = #rows * lh + py * 2
+    local bx = info_ui.margin * s
+    local by = tb.h + info_ui.gap_top * s
+
+    local a = assdraw.ass_new()
+    draw_rounded_rect(a, bx, by, bw, bh, info_ui.radius * s, color.dark_bar, alpha.bar_bg)
+
+    -- 한 줄씩 별도 이벤트 — \N 은 폰트 줄높이를 따라가 배경 높이와 어긋난다.
+    for i, r in ipairs(rows) do
+        local y = by + py + (i - 1) * lh
+        a:new_event(); a:pos(bx + px, y); a:an(7)
+        a:append(string.format("{\\fn%s\\fs%d\\bord0\\shad0\\q2\\1c&H%s&\\1a&H%s&}%s",
+            options.num_font, fs, color.gray_light, alpha.full, ass_escape(r.k)))
+        a:new_event(); a:pos(bx + px + kw, y); a:an(7)
+        a:append(string.format("{\\fn%s\\fs%d\\bord0\\shad0\\q2\\1c&H%s&\\1a&H%s&}%s",
+            options.num_font, fs, color.white, alpha.full, ass_escape(r.v)))
+    end
+
+    put(ov_info, state.osd_w, state.osd_h, a.text)
+end
+
+-- 1초 주기 갱신 — 시간·비트레이트·드롭 카운트가 계속 변한다.
+local function set_info(on)
+    if info_shown == on then return end
+    info_shown = on
+
+    if info_timer then info_timer:kill(); info_timer = nil end
+
+    if on then
+        render_info()
+        info_timer = mp.add_periodic_timer(1, render_info)
+    else
+        put(ov_info, state.osd_w, state.osd_h, "")
+    end
+end
+
+mp.register_script_message("info", function()
+    set_info(not info_shown)
+end)
+
 local function render()
     update_cursor()
 

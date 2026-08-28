@@ -5,6 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, Winapi.Dwmapi, Winapi.UxTheme, System.SysUtils,
   System.Variants, System.Classes, System.IOUtils, System.StrUtils, System.Types,
+  System.Generics.Collections,
   System.ImageList, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls,
   Vcl.FileCtrl, Vcl.Menus, Vcl.ImgList, VirtualTrees.BaseAncestorVCL, VirtualTrees.BaseTree,
   VirtualTrees.AncestorVCL, VirtualTrees.Types,VirtualTrees, SVGIconImage, SVGIconImageListBase,
@@ -21,6 +22,7 @@ type
   TItemData = record
     FileName: string;
     IsActive: Boolean;
+    Missing: Boolean;   // 파일 없음. 판정은 TFileCheckThread — 그리기 경로에서 디스크 안 본다.
   end;
   PItemData = ^TItemData;
 
@@ -81,6 +83,7 @@ type
     FSkipDepth: Integer;       // 없는 파일 연속 건너뛰기 안전장치
     FDragStart: TPoint;
     FSavedSelection: TArray<PVirtualNode>;
+    FAddSeen: TDictionary<string, Boolean>;   // 일괄 추가 중에만 사는 중복 검사표 (nil = 노드 선형 검사)
 
     // 랜덤 상태 (사이클 내 중복 없음)
     FShuffleHistory: TArray<string>;  // 실제 재생 순서 (Prev 가 되짚음)
@@ -100,6 +103,7 @@ type
     procedure AddPlaylist(const AFileName: string);
     function FindNodeByName(const AFileName: string): PVirtualNode;
     procedure SkipMissing(const AFileName: string);
+    procedure StartVerify;
   private
     procedure EndPlayback;
     procedure PlayFirst;
@@ -109,6 +113,7 @@ type
     procedure LoadPlaylist;
     procedure AddFile(AFileName: string; ACheckDisk: Boolean = True);
     procedure AddFiles(const AFiles: TArray<string>; APlay: Boolean);
+    procedure ReplaceFiles(const AFiles: TArray<string>);
     procedure DelFile(AMode: TDeleteMode);
     procedure SetRepeat;
     procedure SetRandom;
@@ -117,6 +122,7 @@ type
     procedure Next;
     procedure Rand;
     procedure TrackFinished;
+    procedure ApplyMissing(const AMissing: TArray<string>);
   end;
 
 const
@@ -143,6 +149,61 @@ implementation
 uses Main, Setup, Assoc;
 
 {$I Const.inc}
+
+// 목록 파일 존재 확인 = 배경 스레드. UI 스레드에서 하면 대량 드롭·네트워크 경로에서 멈춘다.
+// 세대(GVerifyGen)로 취소한다 — 새 검사 시작·폼 파괴 때 증가하고, 지난 스레드는 결과를 버린다.
+type
+  TFileCheckThread = class(TThread)
+  private
+    FFiles: TArray<string>;
+    FGen: Integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const AFiles: TArray<string>; AGen: Integer);
+  end;
+
+var
+  GVerifyGen: Integer = 0;
+
+constructor TFileCheckThread.Create(const AFiles: TArray<string>; AGen: Integer);
+begin
+  FFiles := AFiles;
+  FGen := AGen;
+  FreeOnTerminate := True;
+  inherited Create(False);
+end;
+
+procedure TFileCheckThread.Execute;
+var
+  LMissing: TArray<string>;
+  LCount, I, LGen: Integer;
+begin
+  LGen := FGen;
+  SetLength(LMissing, Length(FFiles));
+  LCount := 0;
+
+  for I := 0 to High(FFiles) do
+  begin
+    if Terminated or (GVerifyGen <> LGen) then
+      Exit;
+
+    if not FileExists(FFiles[I]) then
+    begin
+      LMissing[LCount] := FFiles[I];
+      Inc(LCount);
+    end;
+  end;
+  SetLength(LMissing, LCount);
+
+  // FreeOnTerminate 라 Self 캡처 금지 — 큐 실행 시점엔 이미 해제됐을 수 있다. 지역 변수만 캡처.
+  TThread.Queue(nil,
+    procedure
+    begin
+      if (GVerifyGen = LGen) and (FrmList <> nil) then
+        FrmList.ApplyMissing(LMissing);
+    end);
+end;
 
 procedure SetDarkTitleBar(AHandle: HWND);
 var
@@ -219,6 +280,8 @@ end;
 
 procedure TFrmList.FormDestroy(Sender: TObject);
 begin
+  Inc(GVerifyGen);   // 돌고 있는 검사 스레드 결과 폐기 (폼이 사라진다)
+
   // 이 폼이 FrmKPlayer 보다 먼저 파괴(dpr 생성 역순) — 여기서 저장해야 Config 생존.
   SavePlaylist;
 
@@ -294,7 +357,6 @@ end;
 procedure TFrmList.BtnAddPopupClick(Sender: TObject);
 var
   Dialog: TOpenDialog;
-  FileName: string;
 begin
   Dialog := TOpenDialog.Create(nil);
   try
@@ -302,8 +364,7 @@ begin
     Dialog.Filter := 'Media Files|*.mp3;*.mp4;*.avi;*.mkv;*.asf;*.mov;*.wmv|All Files|*.*';
 
     if Dialog.Execute then
-      for FileName in Dialog.Files do
-        AddFile(FileName);
+      AddFiles(Dialog.Files.ToStringArray, False);   // 중복 해시표·배경 존재 확인 공용
   finally
     Dialog.Free;
   end;
@@ -315,7 +376,7 @@ var
 begin
   FolderPath := '';
   if SelectDirectory(_('폴더 선택'), '', FolderPath) then
-    AddFile(FolderPath);
+    AddFiles([FolderPath], False);
 end;
 
 procedure TFrmList.ListDataFreeNode(Sender: TBaseVirtualTree;
@@ -336,10 +397,11 @@ begin
   Item := Sender.GetNodeData(Node);
   if not Assigned(Item) then Exit;
 
-  if FileExists(Item^.FileName) then
-    Text := TPath.GetFileNameWithoutExtension(Item^.FileName)
+  // 그리기마다 호출 — 디스크 확인 금지. TFileCheckThread 가 채운 Missing 만 본다.
+  if Item^.Missing then
+    Text := Item^.FileName
   else
-    Text := Item^.FileName;
+    Text := TPath.GetFileNameWithoutExtension(Item^.FileName);
 
   case Column of
     0: CellText := Text;
@@ -811,42 +873,48 @@ begin
       LSeen.Free;
       LLines.Free;
     end;
+
+    StartVerify;   // 시작 로드도 존재 확인은 배경 (네트워크 경로 타임아웃 → 창 표시 지연 방지)
   except
     on E: Exception do ;
   end;
 end;
 
 // ACheckDisk=False = 시작 로드 전용, 디스크 무접근 (이유: LoadPlaylist 주석).
+//
+// ACheckDisk=True 여도 파일 존재는 확인하지 않는다 — 대량 드롭에서 FileExists 가 항목 수만큼
+// 디스크를 때려 UI 가 멈췄다. 없는 파일 표시는 StartVerify 스레드가 나중에 켠다.
+// 디스크를 보는 경우는 둘뿐: 미디어 확장자가 아닌 경로의 폴더 여부(폴더 드롭 전개)와
+// 재생목록 파일 읽기. 미디어 파일만 잔뜩 떨구면 디스크 접근 0회.
 procedure TFrmList.AddFile(AFileName: string; ACheckDisk: Boolean);
 var
   Node: PVirtualNode;
   Item: PItemData;
   SearchRec: TSearchRec;
+  LKey: string;
 begin
-  if ACheckDisk then
-  begin
-    if TDirectory.Exists(AFileName) then
-    begin
-      if FindFirst(TPath.Combine(AFileName, '*'), faAnyFile, SearchRec) = 0 then
-      try
-        repeat
-          if (SearchRec.Name = '.') or (SearchRec.Name = '..') then
-            Continue;
-          AddFile(TPath.Combine(AFileName, SearchRec.Name));
-        until FindNext(SearchRec) <> 0;
-      finally
-        FindClose(SearchRec);
-      end;
-      Exit;
-    end;
-
-    if not FileExists(AFileName) then
-      Exit;
-  end;
-
   // 지원 확장자 = Assoc.pas AssocExts 단일 출처 (파일 연결 카드 공용).
   if not IsMediaFile(AFileName) then
+  begin
+    if not ACheckDisk then
+      Exit;
+
+    // 확장자로 안 걸린 것만 폴더인지 물어본다.
+    if not TDirectory.Exists(AFileName) then
+      Exit;
+
+    if FindFirst(TPath.Combine(AFileName, '*'), faAnyFile, SearchRec) = 0 then
+    try
+      repeat
+        if (SearchRec.Name = '.') or (SearchRec.Name = '..') then
+          Continue;
+        AddFile(TPath.Combine(AFileName, SearchRec.Name));
+      until FindNext(SearchRec) <> 0;
+    finally
+      FindClose(SearchRec);
+    end;
     Exit;
+  end;
 
   // 재생목록 = 항목으로 안 넣고 내부 경로 전개. 넣으면 목록엔 한 줄인데
   // mpv 는 내부 재생목록 별도 진행 → 다음/이전 버튼과 실제 재생 어긋남.
@@ -861,13 +929,24 @@ begin
   // 시작 로드: 빈 목록 + 사전 중복 필터 → 노드 검사(O(n²)) 생략.
   if ACheckDisk then
   begin
-    Node := ListData.GetFirst;
-    while Assigned(Node) do
+    if Assigned(FAddSeen) then
     begin
-      Item := ListData.GetNodeData(Node);
-      if Assigned(Item) and SameText(Item^.FileName, AFileName) then
+      // 일괄 추가 중 — 해시표 O(1). 노드 선형 검사는 항목 수² 라 대량 드롭에선 그것만으로 멈춘다.
+      LKey := LowerCase(AFileName);
+      if FAddSeen.ContainsKey(LKey) then
         Exit;
-      Node := ListData.GetNext(Node);
+      FAddSeen.Add(LKey, True);
+    end
+    else
+    begin
+      Node := ListData.GetFirst;
+      while Assigned(Node) do
+      begin
+        Item := ListData.GetNodeData(Node);
+        if Assigned(Item) and SameText(Item^.FileName, AFileName) then
+          Exit;
+        Node := ListData.GetNext(Node);
+      end;
     end;
   end;
 
@@ -876,6 +955,78 @@ begin
   ListData.NodeHeight[Node] := 24;
   Item^.FileName := AFileName;
   Item^.IsActive := False;
+  Item^.Missing := False;   // 확인 전엔 있다고 본다 (StartVerify 가 정정)
+end;
+
+// 목록 전체를 배경 스레드로 넘겨 존재 여부를 확인시킨다. 이전 검사는 세대 증가로 취소.
+procedure TFrmList.StartVerify;
+var
+  LFiles: TArray<string>;
+  LCount: Integer;
+  Node: PVirtualNode;
+  Item: PItemData;
+begin
+  Inc(GVerifyGen);
+
+  SetLength(LFiles, ListData.RootNodeCount);
+  LCount := 0;
+  Node := ListData.GetFirst;
+  while Assigned(Node) do
+  begin
+    Item := ListData.GetNodeData(Node);
+    if Assigned(Item) then
+    begin
+      if LCount >= Length(LFiles) then
+        SetLength(LFiles, LCount + 64);
+      LFiles[LCount] := Item^.FileName;
+      Inc(LCount);
+    end;
+    Node := ListData.GetNext(Node);
+  end;
+  SetLength(LFiles, LCount);
+
+  if LCount = 0 then
+    Exit;
+
+  TFileCheckThread.Create(LFiles, GVerifyGen);
+end;
+
+// 스레드 결과 반영 (메인 스레드). 그 사이 노드가 바뀔 수 있어 포인터가 아닌 경로로 대조한다.
+procedure TFrmList.ApplyMissing(const AMissing: TArray<string>);
+var
+  LSet: TDictionary<string, Boolean>;
+  Node: PVirtualNode;
+  Item: PItemData;
+  LName: string;
+  LMiss, LDirty: Boolean;
+begin
+  LDirty := False;
+  LSet := TDictionary<string, Boolean>.Create;
+  try
+    for LName in AMissing do
+      LSet.AddOrSetValue(LowerCase(LName), True);
+
+    Node := ListData.GetFirst;
+    while Assigned(Node) do
+    begin
+      Item := ListData.GetNodeData(Node);
+      if Assigned(Item) then
+      begin
+        LMiss := LSet.ContainsKey(LowerCase(Item^.FileName));
+        if Item^.Missing <> LMiss then
+        begin
+          Item^.Missing := LMiss;
+          LDirty := True;
+        end;
+      end;
+      Node := ListData.GetNext(Node);
+    end;
+  finally
+    LSet.Free;
+  end;
+
+  if LDirty then
+    ListData.Invalidate;
 end;
 
 // 일괄 추가 + 재생. 드롭 경로를 그대로 Play 하면 안 되는 이유 — 폴더는 내용물만 항목이
@@ -893,13 +1044,29 @@ begin
 
   Mark := ListData.GetLast;
 
-  ListData.BeginUpdate;
+  FAddSeen := TDictionary<string, Boolean>.Create;
   try
-    for var S in AFiles do
-      AddFile(S);
+    Node := ListData.GetFirst;
+    while Assigned(Node) do
+    begin
+      Item := ListData.GetNodeData(Node);
+      if Assigned(Item) then
+        FAddSeen.AddOrSetValue(LowerCase(Item^.FileName), True);
+      Node := ListData.GetNext(Node);
+    end;
+
+    ListData.BeginUpdate;
+    try
+      for var S in AFiles do
+        AddFile(S);
+    finally
+      ListData.EndUpdate;
+    end;
   finally
-    ListData.EndUpdate;
+    FreeAndNil(FAddSeen);
   end;
+
+  StartVerify;   // 존재 확인은 여기서부터 배경으로
 
   if not APlay then
     Exit;
@@ -919,6 +1086,16 @@ begin
   Item := ListData.GetNodeData(Node);
   if Assigned(Item) then
     Play(Item^.FileName);
+end;
+
+// 본체 창 드롭 전용 — 기존 목록을 버리고 떨군 것만 남긴다 (목록 창 드롭은 AddFiles = 덧붙임).
+procedure TFrmList.ReplaceFiles(const AFiles: TArray<string>);
+begin
+  if Length(AFiles) = 0 then
+    Exit;
+
+  DelFile(dmAll);              // 재생 중이던 항목도 사라짐 → 아래 AddFiles 가 새 첫 곡을 건다
+  AddFiles(AFiles, True);
 end;
 
 procedure TFrmList.DelFile(AMode: TDeleteMode);

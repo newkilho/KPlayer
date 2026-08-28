@@ -128,14 +128,24 @@ begin
   ProcKill('TFrmKPlayer');
 end;
 
-function InitializeUninstall(): Boolean;
+procedure RunAsShellUser(FileName, Params: String);
 var
+  Link: String;
   ErrorCode: Integer;
+begin
+  Link := ExpandConstant('{tmp}') + '\KPlayerUninst.lnk';
+  CreateShellLink(Link, '', FileName, Params, ExtractFileDir(FileName), FileName, 0, SW_HIDE);
+  Exec(ExpandConstant('{win}') + '\explorer.exe', '"' + Link + '"', '', SW_HIDE, ewNoWait, ErrorCode);
+  Sleep(2000);
+  DeleteFile(Link);
+end;
+
+function InitializeUninstall(): Boolean;
 begin
   Result := True;
 
   TaskKill('KPlayer.exe');
   ProcKill('TFrmKPlayer');
 
-  ExecAsOriginalUser(ExpandConstant('{app}') + '\KPlayer.exe', '/uninst', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  RunAsShellUser(ExpandConstant('{app}') + '\KPlayer.exe', '/uninst');
 end;

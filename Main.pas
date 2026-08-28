@@ -14,10 +14,20 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 해야할일:
 =========
   [+] 설치 후 첫 실행시 파일 연결 등록(레지스터리)
-  [*] 재생목록에 대량으로 추가가 될 때 우선 목록에 추가한 후 쓰레드를 통해 재생 불가능 또는 파일을 찾을 수 없는 경우 제거하도록 하자
 
 히스토리:
 ========
+  0.9.7
+  [*] 대량 드롭 시 UI 멈춤 - 추가 시점의 파일 존재 확인 제거, 미디어 확장자면 디스크 접근 없이 바로 추가 (List.pas: AddFile)
+  [+] 파일 존재 확인을 배경 스레드로 - 결과만 목록에 반영, 세대 카운터로 이전 검사 취소 (List.pas: TFileCheckThread, StartVerify, ApplyMissing, GVerifyGen)
+  [*] 그리기 경로(OnGetText)의 FileExists 제거 - 스레드가 채우는 Missing 캐시 사용 (List.pas: TItemData.Missing, ListDataGetText)
+  [*] 일괄 추가 중복 검사를 노드 탐색(O(n²)) 대신 해시표로 (List.pas: FAddSeen, AddFiles, AddFile)
+  [*] 시작 로드 후에도 존재 확인을 배경으로 수행 (List.pas: LoadPlaylist)
+  [*] 파일/폴더 추가 메뉴도 일괄 추가 경로 사용 (List.pas: BtnAddPopupClick, BtnAddPopupFolderClick)
+  [+] 본체 창 드롭은 목록을 비우고 떨군 것만 추가 후 재생, 목록 창 드롭은 기존 목록에 덧붙임 (List.pas: ReplaceFiles / Main.FormCreate FDragFile)
+  [*] 무음 상태에서 음량을 조절해 0 이 아니게 되면 무음 해제 (Main.pas: AddVolume, FormKeyDown)
+  [+] TAB 으로 재생/파일 정보 패널 토글 - 자체 ASS 패널 1초 갱신, TAB 은 VCL 이 먹으므로 Application.OnMessage 에서 가로챔 (Main.pas: AppMessage, OnScriptMessage 'info' 무시 / KPlayer.lua: ov_info, info_rows, render_info, set_info, script-message 'info')
+
   0.9.6
   [+] 일괄 추가+재생 함수 추가 - 새로 들어간 첫 항목 판별, 추가 루프 BeginUpdate/EndUpdate (TFrmList.AddFiles)
   [*] 드롭 시 폴더/비지원 확장자/재생목록 경로가 그대로 재생되어 "파일을 찾을 수 없습니다 - <폴더명>" 후 재생 안 되던 문제 - 드롭 경로 대신 목록 항목부터 재생 (Main.FormCreate FDragFile, TFrmList.FormCreate FDragFile)
@@ -118,6 +128,7 @@ type
     FLeftDown: Boolean;
 
     procedure SendLeftButton(ADown: Boolean);
+    procedure AppMessage(var Msg: TMsg; var Handled: Boolean);
     procedure OnScriptMessage(ASender: TObject; const ACommand: string; AParams: TStrings);
 
     procedure HandleClose;
@@ -136,6 +147,7 @@ type
 
     procedure SetSpeed(const Value: Double);
     procedure AddSpeed(const Delta: Double);
+    procedure AddVolume(const Delta: Integer);
 
     function CfgOpt(const AKey: string; const AValues: array of string): string;
   public
@@ -265,12 +277,18 @@ begin
   // OSD 폰트 = 윈도우 UI 기본 폰트
   MPVPlayer.Command(['script-message', 'ui-font', Screen.MessageFont.Name]);
 
+  // TAB 은 FormKeyDown 까지 오지 않는다 — VCL 이 포커스 이동(다이얼로그 키)으로 먼저 먹는다.
+  // 실측 2026-08-28: 폼이 받은 키를 로그로 찍어보니 Shift(16)·Space(32)·'\'(220) 은 오는데
+  // TAB(9) 은 안 왔다. 그래서 VCL 배분 전 단계인 Application.OnMessage 에서 가로챈다.
+  Application.OnMessage := AppMessage;
+
   FDragFile := TDragFile.Create(Self,
   procedure(const Files: TArray<string>)
   begin
     // HandlePlay 직접 호출 시 mpv 만 재생, 목록 '재생 중' 표시 누락 → FrmList 경유.
     // 재생 시작점은 드롭 경로가 아니라 목록에 실제로 들어간 첫 항목 (AddFiles 주석).
-    FrmList.AddFiles(Files, not IsPlay);
+    // 본체 창 드롭 = 목록 교체 + 재생. 덧붙이려면 목록 창에 떨군다 (TFrmList.FormCreate).
+    FrmList.ReplaceFiles(Files);
   end);
 
   SetTopMost(FConfig.ReadInteger('topmost', 0) <> 0);
@@ -290,6 +308,8 @@ end;
 
 procedure TFrmKPlayer.FormDestroy(Sender: TObject);
 begin
+  Application.OnMessage := nil;   // 폼보다 오래 사는 Application 이 죽은 메서드를 부르지 않게
+
   FreeAndNil(MPVPlayer);
   FreeAndNil(FDragFile);
   FreeAndNil(FConfig);
@@ -351,7 +371,8 @@ begin
 
   // 우리가 lua 로 보낸 메시지 (script-message 는 호스트에도 옴) — 무시
   if SameText(ACommand, 'mbtn') or SameText(ACommand, 'ui-font')
-  or SameText(ACommand, 'dpi') or SameText(ACommand, 'alert') then
+  or SameText(ACommand, 'dpi') or SameText(ACommand, 'alert')
+  or SameText(ACommand, 'info') then
     Exit;
 
   // 커서가 컨트롤 위인지 — 창 드래그 억제용
@@ -419,6 +440,26 @@ procedure TFrmKPlayer.SetVolume(const Value: Double);
 begin
   FVolume := Value;
   FConfig.WriteDouble('volume', Value);
+end;
+
+// 음량 증감. 무음 중이라도 결과 음량이 0 이 아니면 무음 해제 (KPlayer.lua 슬라이더와 동일 규칙).
+procedure TFrmKPlayer.AddVolume(const Delta: Integer);
+var
+  LVol: Double;
+  LMute: Boolean;
+begin
+  if MPVPlayer = nil then Exit;
+
+  MPVPlayer.Command(['add', 'volume', IntToStr(Delta)]);
+
+  LVol := 0;
+  // TMPVErrorCode 는 Integer — 음수만 실패 (MPV_ERROR_SUCCESS 는 MPVClient 유닛이라 uses 밖).
+  if MPVPlayer.GetPropertyDouble('volume', LVol) < 0 then Exit;
+  if LVol <= 0 then Exit;
+
+  LMute := False;
+  if (MPVPlayer.GetPropertyBool('mute', LMute) >= 0) and LMute then
+    MPVPlayer.SetPropertyBool('mute', False);
 end;
 
 const
@@ -702,25 +743,25 @@ begin
     // 음량
     VK_UP:
       begin
-        MPVPlayer.Command(['add', 'volume', '5']);
+        AddVolume(5);
         Key := 0;
       end;
 
     VK_DOWN:
       begin
-        MPVPlayer.Command(['add', 'volume', '-5']);
+        AddVolume(-5);
         Key := 0;
       end;
 
     Ord('9'):
       begin
-        MPVPlayer.Command(['add', 'volume', '-2']);
+        AddVolume(-2);
         Key := 0;
       end;
 
     Ord('0'):
       begin
-        MPVPlayer.Command(['add', 'volume', '2']);
+        AddVolume(2);
         Key := 0;
       end;
 
@@ -853,6 +894,21 @@ begin
     MPVPlayer.Command(['seek', '5']);
 
   Msg.Result := 1;
+end;
+
+// TAB = 재생/파일 정보 패널 토글 (KPlayer.lua 의 script-message 'info').
+// FormKeyDown 이 아닌 여기서 받는다 — TAB 은 VCL 이 다이얼로그 키로 먼저 먹어 거기까지 안 온다.
+// 본체 창이 활성일 때만 (환경설정·목록 창의 탭 이동은 그대로 둔다). Ctrl+Tab 은 창 전환이라 제외.
+procedure TFrmKPlayer.AppMessage(var Msg: TMsg; var Handled: Boolean);
+begin
+  if Msg.message <> WM_KEYDOWN then Exit;
+  if Msg.wParam <> VK_TAB then Exit;
+  if MPVPlayer = nil then Exit;
+  if Screen.ActiveCustomForm <> Self then Exit;
+  if GetKeyState(VK_CONTROL) < 0 then Exit;
+
+  MPVPlayer.Command(['script-message', 'info']);
+  Handled := True;
 end;
 
 // 왼쪽 버튼 상태 → KPlayer.lua

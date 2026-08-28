@@ -1,11 +1,11 @@
 ﻿ko=만든이 오길호
-en=Created by Kilho Oh
+en=Created by Kilho
 ja=製作者 オ・キルホ
 zh=作者 吴吉浩
-ru=Автор Килхо О
-it=Creato da Kilho Oh
-fr=Créé par Kilho Oh
-es=Creado por Kilho Oh
+ru=Автор Килхо
+it=Creato da Kilho
+fr=Créé par Kilho
+es=Creado por Kilho
 ar=المطور كيلهو أوه
 
 ko=MPV DLL 로드 실패
