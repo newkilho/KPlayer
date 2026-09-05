@@ -14,10 +14,21 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 해야할일:
 =========
   [+] 설치 후 첫 실행시 파일 연결 등록(레지스터리)
+  [+] DLL 파일을 포함하여 원파일로 가능한지 확인
+  [+] ICO 파일을 EXE 로 포함해서 진행하는 것으로 확인
 
 히스토리:
 ========
-  0.9.7
+  0.9.8.0
+  [+] 목록 창 드롭·[추가] 버튼·폴더 추가도 추가한 첫 항목부터 자동 재생 - 불러왔는데 더블클릭해야 시작되던 혼동 해소 (List.pas: FormCreate FDragFile, BtnAddPopupClick, BtnAddPopupFolderClick)
+  [*] 탐색기 더블클릭·명령줄 인자로 재생목록/폴더를 열면 재생이 안 걸리던 문제 - 인자 경로 대신 목록에 들어간 첫 항목부터 재생, 폴더 인자도 처리 (Main.pas: HandleStartupParams / List.pas: AddFiles, AddFile, FAddFirst)
+  [*] 없는 파일을 재생 시 목록에서 자동 삭제하던 것 제거 - 항목은 두고 전체 경로로 표시만, 삭제는 [삭제]→없는 파일 (List.pas: SkipMissing, Play)
+  [*] 재생 중인 파일이 전체 경로로 표시되던 문제 - 재생 성공 시 Missing 해제 (List.pas: Play)
+  [+] 드라이브 연결/해제와 목록 창 표시 때 존재 재검사 - 없음 표시 항목만, 드라이브 통지는 2초 디바운스 (Main.pas: FVerifyTimer, WMDeviceChange, VerifyTimerTick, HandlePlayList / List.pas: StartVerify)
+  [*] 존재 확인 스레드가 루트(드라이브/UNC 공유) 단위로 선판정 - 끊긴 공유에서 파일마다 수 초 막히던 것 제거 (List.pas: PathRoot, TFileCheckThread.Execute)
+  [*] 부분 재검사 결과가 검사 범위 밖 항목을 덮어쓰지 않도록 확인 목록 전달 (List.pas: ApplyMissing)
+
+  0.9.7.0
   [*] 대량 드롭 시 UI 멈춤 - 추가 시점의 파일 존재 확인 제거, 미디어 확장자면 디스크 접근 없이 바로 추가 (List.pas: AddFile)
   [+] 파일 존재 확인을 배경 스레드로 - 결과만 목록에 반영, 세대 카운터로 이전 검사 취소 (List.pas: TFileCheckThread, StartVerify, ApplyMissing, GVerifyGen)
   [*] 그리기 경로(OnGetText)의 FileExists 제거 - 스레드가 채우는 Missing 캐시 사용 (List.pas: TItemData.Missing, ListDataGetText)
@@ -28,18 +39,18 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
   [*] 무음 상태에서 음량을 조절해 0 이 아니게 되면 무음 해제 (Main.pas: AddVolume, FormKeyDown)
   [+] TAB 으로 재생/파일 정보 패널 토글 - 자체 ASS 패널 1초 갱신, TAB 은 VCL 이 먹으므로 Application.OnMessage 에서 가로챔 (Main.pas: AppMessage, OnScriptMessage 'info' 무시 / KPlayer.lua: ov_info, info_rows, render_info, set_info, script-message 'info')
 
-  0.9.6
+  0.9.6.0
   [+] 일괄 추가+재생 함수 추가 - 새로 들어간 첫 항목 판별, 추가 루프 BeginUpdate/EndUpdate (TFrmList.AddFiles)
   [*] 드롭 시 폴더/비지원 확장자/재생목록 경로가 그대로 재생되어 "파일을 찾을 수 없습니다 - <폴더명>" 후 재생 안 되던 문제 - 드롭 경로 대신 목록 항목부터 재생 (Main.FormCreate FDragFile, TFrmList.FormCreate FDragFile)
   [+] 다국어 지원 - ko/en/ja/zh/ru/it/fr/es/ar
   [+] 설치 시작 시 소개 화면 추가
 
-  0.9.5
+  0.9.5.0
   [*] 시작 시 저장 목록을 디스크 확인 없이 로드 - 네트워크 드라이브 타임아웃으로 창 표시가 늦던 문제, 없는 파일은 재생 시 SkipMissing 이 정리 (List.pas: LoadPlaylist, AddFile ACheckDisk 파라미터)
   [*] 시작 로드의 중복 검사를 전체 노드 탐색(O(n²)) 대신 줄 단위 정렬 필터로 변경 (List.pas: LoadPlaylist)
   [*] 시작 로드의 목록 추가를 BeginUpdate/EndUpdate 로 묶음 (List.pas: LoadPlaylist)
 
-  0.9.4
+  0.9.4.0
   [*] 랜덤 재생이 한 바퀴 끝나면 반복 설정과 무관하게 새 사이클을 시작 (List.pas: Rand)
   [+] 없는 파일은 재생 시 목록에서 빼고 다음 곡으로 (List.pas: SkipMissing)
   [+] 목록에서 Del 키로 선택 항목 삭제 (List.pas: ListDataKeyDown)
@@ -63,7 +74,7 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
   [*] 연결 해제를 확장자 기반으로 분리 - 노출 목록(AssocExts)에서 빠진 확장자도 소유 목록으로 해제 (Assoc.pas: AssocUnregisterExt)
   [+] Inno Setup 설치 스크립트 추가 - 사용자별 설치(%LOCALAPPDATA%\Programs\KPlayer), Icon 폴더 동봉 (KPlayer.iss)
 
-  0.9.3
+  0.9.3.0
   [+] 키보드 배속 조절 추가 - Z(1.0 리셋)/X(-0.1)/C(+0.1), 수식키 없을 때만, 0.1 단위 정규화·0.25~4.0 clamp (SetSpeed, AddSpeed, FormKeyDown)
   [+] 배속 변경 시 화면 중앙 OSD 토스트 표시 (KPlayer.lua: draw_speed_toast, show_speed_toast, speed observer)
   [+] 자막 토글 버튼 추가 - 트랙 유무로 활성/비활성, 클릭 시 표시 토글 (KPlayer.lua: icons.sub, sub_btn, sid observer, render, click handler)
@@ -75,10 +86,10 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
   [*] 노드 추가 시 높이값 직접 지정 - ListData.NodeHeight[Node] := 24 추가 (TFrmList.AddFile)
   [+] 오디오 노멀라이징(음량 평준화) 추가
 
-  0.9.2
+  0.9.2.0
   [*] 실행 인자에 전달된 기존 파일을 재생 목록에 추가하고 첫 파일을 자동 재생하도록 처리
 
-  0.9.1
+  0.9.1.0
   [*] 렌더링 및 디코딩 기본 옵션 추가 - vo=gpu, hwdec=auto-safe, gpu-api=auto 설정 추가
   [*] 화면 동기화 옵션 추가 - video-sync=display-resample 설정 추가
   [*] 인터레이싱 처리 방식 변경 - deinterlace=yes → deinterlace=auto 로 변경
@@ -126,6 +137,7 @@ type
     FLastMouseX: Integer;
     FLastMouseY: Integer;
     FLeftDown: Boolean;
+    FVerifyTimer: TTimer;   // 드라이브 변경 통지 뭉침 방지 (WMDeviceChange)
 
     procedure SendLeftButton(ADown: Boolean);
     procedure AppMessage(var Msg: TMsg; var Handled: Boolean);
@@ -138,6 +150,9 @@ type
     procedure HandleFullScreen(AState: Boolean);
     procedure HandleSettings;
     procedure HandlePlayList;
+
+    procedure WMDeviceChange(var Msg: TMessage); message WM_DEVICECHANGE;
+    procedure VerifyTimerTick(Sender: TObject);
 
     procedure WMNCHitTest(var Msg: TWMNCHitTest); message WM_NCHITTEST;
     procedure WMMouseWheel(var Msg: TWMMouseWheel); message WM_MOUSEWHEEL;
@@ -292,6 +307,12 @@ begin
   end);
 
   SetTopMost(FConfig.ReadInteger('topmost', 0) <> 0);
+
+  // 드라이브 연결/해제 통지는 여러 번 연달아 온다 + 붙은 직후엔 아직 못 읽는다 → 2초 뒤 한 번만.
+  FVerifyTimer := TTimer.Create(Self);
+  FVerifyTimer.Enabled := False;
+  FVerifyTimer.Interval := 2000;
+  FVerifyTimer.OnTimer := VerifyTimerTick;
 
   // 파일 연결 exe 경로 재기록 — 포터블 폴더 이동 시 옛 경로 방지
   SyncFileAssoc;
@@ -480,6 +501,34 @@ begin
   SetSpeed(Round((LCur + Delta) * 10) / 10);
 end;
 
+// USB·네트워크 드라이브가 붙거나 빠지면 목록의 '없는 파일' 판정이 통째로 뒤집힌다.
+// 검사 자체는 배경 스레드(TFileCheckThread) 라 여기선 타이머만 다시 건다.
+// DBT_DEVNODES_CHANGED 까지 받는 이유 — 매핑 드라이브 복구가 볼륨 통지 없이 오는 경우가 있다.
+procedure TFrmKPlayer.WMDeviceChange(var Msg: TMessage);
+const
+  DBT_DEVICEARRIVAL        = $8000;
+  DBT_DEVICEREMOVECOMPLETE = $8004;
+  DBT_DEVNODES_CHANGED     = $0007;
+begin
+  inherited;
+
+  if (Msg.WParam = DBT_DEVICEARRIVAL) or (Msg.WParam = DBT_DEVICEREMOVECOMPLETE) or
+     (Msg.WParam = DBT_DEVNODES_CHANGED) then
+    if FVerifyTimer <> nil then
+    begin
+      FVerifyTimer.Enabled := False;   // 통지 뭉침 → 마지막 것 기준으로 재시작
+      FVerifyTimer.Enabled := True;
+    end;
+end;
+
+procedure TFrmKPlayer.VerifyTimerTick(Sender: TObject);
+begin
+  FVerifyTimer.Enabled := False;
+
+  if FrmList <> nil then
+    FrmList.StartVerify(True);   // 재연결로 바뀌는 건 '없음 → 있음' 뿐
+end;
+
 procedure TFrmKPlayer.WMNCHitTest(var Msg: TWMNCHitTest);
 const
   ResizeBorder = 8;
@@ -640,6 +689,7 @@ begin
   end
   else
   begin
+    FrmList.StartVerify(True);   // 없음 표시된 항목만 재확인 (전수 검사는 부하)
     R := Self.Monitor.WorkareaRect;
 
     FrmList.Left := R.Right - FrmList.Width;
@@ -649,28 +699,34 @@ begin
   end;
 end;
 
+// 탐색기 더블클릭 / '연결 프로그램' / 명령줄로 들어온 경로.
+// 인자를 그대로 Play 하면 안 된다 (AddFiles 주석과 같은 이유) — 재생목록(.m3u/.pls)은
+// 항목이 아니라 내부 경로로 펼쳐지고, 폴더는 내용물만 항목이 되며, 비지원 확장자는
+// 걸러진다. 셋 다 '목록에 없는 경로' 라 Play 가 그대로 mpv 에 넘겨 무반응이었다
+// (재생목록을 열면 목록엔 들어오는데 재생이 안 걸려 더블클릭해야 시작됐다 — 2026-08-29 문의).
+// → 드롭과 같은 AddFiles 로 넘겨 '목록에 실제로 들어간 첫 항목' 부터 재생.
+// FileExists 로 거르지 않는다 — 폴더 인자가 통째로 무시됐다. 존재 확인은 AddFiles 의 배경 검사.
 procedure TFrmKPlayer.HandleStartupParams;
 var
   I: Integer;
   FileName: string;
-  FirstFile: string;
+  Files: TArray<string>;
 begin
-  FirstFile := '';
-
   for I := 1 to ParamCount do
   begin
     FileName := ParamStr(I);
-    if not FileExists(FileName) then
+
+    // 스위치(/uninst 등)는 KPlayer.dpr 이 처리 — 여기선 경로만.
+    if (FileName = '') or CharInSet(FileName[1], ['/', '-']) then
       Continue;
 
-    FrmList.AddFile(FileName);
-
-    if FirstFile = '' then
-      FirstFile := FileName;
+    Files := Files + [FileName];
   end;
 
-  if (FirstFile <> '') and not IsPlay then
-    FrmList.Play(FirstFile);
+  if Length(Files) = 0 then
+    Exit;
+
+  FrmList.AddFiles(Files, not IsPlay);
 end;
 
 procedure TFrmKPlayer.HandleSettings;

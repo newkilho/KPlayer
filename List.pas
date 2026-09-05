@@ -84,6 +84,7 @@ type
     FDragStart: TPoint;
     FSavedSelection: TArray<PVirtualNode>;
     FAddSeen: TDictionary<string, Boolean>;   // 일괄 추가 중에만 사는 중복 검사표 (nil = 노드 선형 검사)
+    FAddFirst: string;                        // 일괄 추가 중 처음 만난 미디어 경로 (전부 중복일 때의 재생 기준)
 
     // 랜덤 상태 (사이클 내 중복 없음)
     FShuffleHistory: TArray<string>;  // 실제 재생 순서 (Prev 가 되짚음)
@@ -103,11 +104,11 @@ type
     procedure AddPlaylist(const AFileName: string);
     function FindNodeByName(const AFileName: string): PVirtualNode;
     procedure SkipMissing(const AFileName: string);
-    procedure StartVerify;
   private
     procedure EndPlayback;
     procedure PlayFirst;
   public
+    procedure StartVerify(AMissingOnly: Boolean = False);   // 외부 사건(드라이브 재연결·목록 창 표시) 뒤 재검사
     procedure UpdateModeIcons;
     procedure SavePlaylist;
     procedure LoadPlaylist;
@@ -122,7 +123,7 @@ type
     procedure Next;
     procedure Rand;
     procedure TrackFinished;
-    procedure ApplyMissing(const AMissing: TArray<string>);
+    procedure ApplyMissing(const AChecked, AMissing: TArray<string>);
   end;
 
 const
@@ -174,25 +175,51 @@ begin
   inherited Create(False);
 end;
 
+// 경로의 루트 = 드라이브(D:\) 또는 UNC 공유(\\서버\공유\). ExtractFileDrive 가 둘 다 준다.
+function PathRoot(const APath: string): string;
+begin
+  Result := ExtractFileDrive(APath);
+  if Result <> '' then
+    Result := Result + '\';
+end;
+
 procedure TFileCheckThread.Execute;
 var
-  LMissing: TArray<string>;
+  LFiles, LMissing: TArray<string>;
+  LRoots: TDictionary<string, Boolean>;
+  LRoot: string;
   LCount, I, LGen: Integer;
+  LRootUp: Boolean;
 begin
   LGen := FGen;
-  SetLength(LMissing, Length(FFiles));
+  LFiles := FFiles;
+  SetLength(LMissing, Length(LFiles));
   LCount := 0;
 
-  for I := 0 to High(FFiles) do
-  begin
-    if Terminated or (GVerifyGen <> LGen) then
-      Exit;
-
-    if not FileExists(FFiles[I]) then
+  // 루트 단위 선판정 — 끊긴 공유는 FileExists 하나가 수 초 막힌다. 루트가 죽었으면
+  // 그 아래는 파일별로 묻지 않고 전부 없음 처리 (호출 N회 → 루트 수 회).
+  LRoots := TDictionary<string, Boolean>.Create;
+  try
+    for I := 0 to High(LFiles) do
     begin
-      LMissing[LCount] := FFiles[I];
-      Inc(LCount);
+      if Terminated or (GVerifyGen <> LGen) then
+        Exit;
+
+      LRoot := LowerCase(PathRoot(LFiles[I]));
+      if not LRoots.TryGetValue(LRoot, LRootUp) then
+      begin
+        LRootUp := (LRoot = '') or DirectoryExists(LRoot);
+        LRoots.Add(LRoot, LRootUp);
+      end;
+
+      if (not LRootUp) or (not FileExists(LFiles[I])) then
+      begin
+        LMissing[LCount] := LFiles[I];
+        Inc(LCount);
+      end;
     end;
+  finally
+    LRoots.Free;
   end;
   SetLength(LMissing, LCount);
 
@@ -201,7 +228,7 @@ begin
     procedure
     begin
       if (GVerifyGen = LGen) and (FrmList <> nil) then
-        FrmList.ApplyMissing(LMissing);
+        FrmList.ApplyMissing(LFiles, LMissing);
     end);
 end;
 
@@ -268,7 +295,9 @@ begin
   FDragFile := TDragFile.Create(ListData,
   procedure(const Files: TArray<string>)
   begin
-    AddFiles(Files, False);   // 목록 창 드롭은 추가만 (재생은 본체 창 드롭에서)
+    // 목록 창 드롭도 추가한 첫 항목부터 재생 (본체 창 드롭과 달리 기존 목록은 유지).
+    // 불러왔는데 재생이 안 걸려 더블클릭해야 했다는 문의 (2026-08-29) → 자동 재생으로 통일.
+    AddFiles(Files, True);
   end);
 
   // 저장 목록 먼저, 명령줄 파일 뒤에. 재생은 명령줄 파일이 가져감
@@ -364,7 +393,7 @@ begin
     Dialog.Filter := 'Media Files|*.mp3;*.mp4;*.avi;*.mkv;*.asf;*.mov;*.wmv|All Files|*.*';
 
     if Dialog.Execute then
-      AddFiles(Dialog.Files.ToStringArray, False);   // 중복 해시표·배경 존재 확인 공용
+      AddFiles(Dialog.Files.ToStringArray, True);   // 중복 해시표·배경 존재 확인 공용, 추가 후 재생
   finally
     Dialog.Free;
   end;
@@ -376,7 +405,7 @@ var
 begin
   FolderPath := '';
   if SelectDirectory(_('폴더 선택'), '', FolderPath) then
-    AddFiles([FolderPath], False);
+    AddFiles([FolderPath], True);   // 폴더 추가도 첫 항목부터 재생
 end;
 
 procedure TFrmList.ListDataFreeNode(Sender: TBaseVirtualTree;
@@ -926,6 +955,11 @@ begin
     Exit;
   end;
 
+  // 전부 중복이라 새 노드가 하나도 안 생겼을 때 AddFiles 가 재생할 기준.
+  // 인자 경로로는 못 찾는 경우가 있다 — 재생목록/폴더는 목록에 그 경로가 없다(내용물만 들어간다).
+  if Assigned(FAddSeen) and (FAddFirst = '') then
+    FAddFirst := AFileName;
+
   // 시작 로드: 빈 목록 + 사전 중복 필터 → 노드 검사(O(n²)) 생략.
   if ACheckDisk then
   begin
@@ -959,22 +993,24 @@ begin
 end;
 
 // 목록 전체를 배경 스레드로 넘겨 존재 여부를 확인시킨다. 이전 검사는 세대 증가로 취소.
-procedure TFrmList.StartVerify;
+// AMissingOnly=True = 이미 없음으로 표시된 항목만 다시 본다 (드라이브 재연결·목록 창 표시).
+// 목록 전체를 훑는 것은 추가/로드 때뿐 — 수천 항목짜리 목록에서 창 열 때마다 전수 검사하면
+// 디스크·네트워크를 그만큼 때린다. 재연결로 바뀌는 것은 '없음 → 있음' 뿐이고, 반대 방향
+// (있던 파일이 사라짐) 은 재생 시점 SkipMissing 이 잡는다.
+procedure TFrmList.StartVerify(AMissingOnly: Boolean);
 var
   LFiles: TArray<string>;
   LCount: Integer;
   Node: PVirtualNode;
   Item: PItemData;
 begin
-  Inc(GVerifyGen);
-
   SetLength(LFiles, ListData.RootNodeCount);
   LCount := 0;
   Node := ListData.GetFirst;
   while Assigned(Node) do
   begin
     Item := ListData.GetNodeData(Node);
-    if Assigned(Item) then
+    if Assigned(Item) and ((not AMissingOnly) or Item^.Missing) then
     begin
       if LCount >= Length(LFiles) then
         SetLength(LFiles, LCount + 64);
@@ -985,26 +1021,33 @@ begin
   end;
   SetLength(LFiles, LCount);
 
+  // 검사할 게 없으면 세대도 올리지 않는다 — 진행 중인 전수 검사를 헛되이 취소하지 않게.
   if LCount = 0 then
     Exit;
 
+  Inc(GVerifyGen);
   TFileCheckThread.Create(LFiles, GVerifyGen);
 end;
 
 // 스레드 결과 반영 (메인 스레드). 그 사이 노드가 바뀔 수 있어 포인터가 아닌 경로로 대조한다.
-procedure TFrmList.ApplyMissing(const AMissing: TArray<string>);
+// AChecked = 이 스레드가 실제로 확인한 범위. 그 밖의 노드는 건드리지 않는다 —
+// 부분 검사(StartVerify(True)) 결과로 검사하지 않은 항목까지 '있음' 으로 되돌리면 안 된다.
+procedure TFrmList.ApplyMissing(const AChecked, AMissing: TArray<string>);
 var
-  LSet: TDictionary<string, Boolean>;
+  LSet, LScope: TDictionary<string, Boolean>;
   Node: PVirtualNode;
   Item: PItemData;
-  LName: string;
+  LName, LKey: string;
   LMiss, LDirty: Boolean;
 begin
   LDirty := False;
   LSet := TDictionary<string, Boolean>.Create;
+  LScope := TDictionary<string, Boolean>.Create;
   try
     for LName in AMissing do
       LSet.AddOrSetValue(LowerCase(LName), True);
+    for LName in AChecked do
+      LScope.AddOrSetValue(LowerCase(LName), True);
 
     Node := ListData.GetFirst;
     while Assigned(Node) do
@@ -1012,16 +1055,21 @@ begin
       Item := ListData.GetNodeData(Node);
       if Assigned(Item) then
       begin
-        LMiss := LSet.ContainsKey(LowerCase(Item^.FileName));
-        if Item^.Missing <> LMiss then
+        LKey := LowerCase(Item^.FileName);
+        if LScope.ContainsKey(LKey) then
         begin
-          Item^.Missing := LMiss;
-          LDirty := True;
+          LMiss := LSet.ContainsKey(LKey);
+          if Item^.Missing <> LMiss then
+          begin
+            Item^.Missing := LMiss;
+            LDirty := True;
+          end;
         end;
       end;
       Node := ListData.GetNext(Node);
     end;
   finally
+    LScope.Free;
     LSet.Free;
   end;
 
@@ -1044,6 +1092,7 @@ begin
 
   Mark := ListData.GetLast;
 
+  FAddFirst := '';
   FAddSeen := TDictionary<string, Boolean>.Create;
   try
     Node := ListData.GetFirst;
@@ -1076,7 +1125,12 @@ begin
   else
     Node := ListData.GetFirst;
 
-  // 새로 들어간 것 없음(전부 중복) → 드롭한 첫 경로가 이미 목록에 있으면 그것을 재생.
+  // 새로 들어간 것 없음(전부 중복) → 이번에 처음 만난 미디어 경로부터 재생.
+  // FAddFirst 를 먼저 보는 이유 — 재생목록/폴더 인자는 AFiles 에 그 경로가 있어도
+  // 목록엔 없다(내용물만 들어간다). 남은 경우 대비로 인자 경로도 한 번 본다.
+  if not Assigned(Node) and (FAddFirst <> '') then
+    Node := FindNodeByName(FAddFirst);
+
   if not Assigned(Node) then
     Node := FindNodeByName(AFiles[0]);
 
@@ -1089,6 +1143,7 @@ begin
 end;
 
 // 본체 창 드롭 전용 — 기존 목록을 버리고 떨군 것만 남긴다 (목록 창 드롭은 AddFiles = 덧붙임).
+// 재생 시작은 양쪽 같다.
 procedure TFrmList.ReplaceFiles(const AFiles: TArray<string>);
 begin
   if Length(AFiles) = 0 then
@@ -1242,10 +1297,12 @@ begin
   end;
 end;
 
-// 없는 파일 하나 제거 + 다음 곡. 일괄 정리 금지 — 네트워크/USB 일시 분리 시 목록이 조용히 비워짐.
+// 없는 파일 = 목록에서 지우지 않고 '없음' 표시만 + 다음 곡 (표시는 전체 경로 — ListDataGetText).
+// 자동 삭제 금지 (2026-09-05 결정) — 네트워크/USB 일시 분리면 목록이 조용히 비워지고,
+// 지우는 시점은 사용자가 정한다 ([삭제] → 없는 파일).
 procedure TFrmList.SkipMissing(const AFileName: string);
 const
-  MaxSkip = 64;   // 목록 전체가 없는 파일일 때 안전장치
+  MaxSkip = 64;   // 목록 전체가 없는 파일일 때 안전장치 (항목이 남으니 목록이 비어 끝나지 않는다)
 var
   Node, NextNode: PVirtualNode;
   Item: PItemData;
@@ -1255,15 +1312,22 @@ begin
   IsRandom := FrmKPlayer.RandomMode = 1;
   NextName := '';
 
-  // 건너뛴 이유 화면 알림 (목록 창 닫혀 있으면 항목 삭제 인지 불가)
+  // 건너뛴 이유 화면 알림 (목록 창 닫혀 있으면 표시 변화 인지 불가)
   FrmKPlayer.Alert(_('파일을 찾을 수 없습니다') + ' — ' + ExtractFileName(AFileName),
     ALERT_ERROR);
 
   Node := FindNodeByName(AFileName);
   if Assigned(Node) then
   begin
-    // 삭제 전 다음 항목 기억 — 삭제 후엔 활성 없음 → Next 가 맨 처음으로 감.
-    if not IsRandom then
+    Item := ListData.GetNodeData(Node);
+    if Assigned(Item) then
+      Item^.Missing := True;
+    ListData.InvalidateNode(Node);
+
+    if IsRandom then
+      // 항목이 남으므로 이번 사이클에 다시 뽑힐 수 있다 → 재생한 것으로 쳐서 제외.
+      FCyclePlayed.Add(AFileName)
+    else
     begin
       NextNode := ListData.GetNext(Node);
       if Assigned(NextNode) then
@@ -1273,9 +1337,6 @@ begin
           NextName := Item^.FileName;
       end;
     end;
-
-    ListData.DeleteNode(Node);
-    PruneShuffleMissing;   // 셔플 이력/사이클에서도 제거
   end;
 
   if ListData.RootNodeCount = 0 then
@@ -1285,7 +1346,10 @@ begin
   end;
 
   if FSkipDepth >= MaxSkip then
+  begin
+    EndPlayback;   // 전부 없는 파일 — 삭제를 안 하니 목록이 비어 멈추는 경로가 없다.
     Exit;
+  end;
 
   Inc(FSkipDepth);
   try
@@ -1294,7 +1358,7 @@ begin
     else if NextName <> '' then
       Play(NextName)
     else if FrmKPlayer.RepeatMode = 1 then
-      // 마지막 항목이 없는 파일 — 삭제 후 Next 무동작 → 처음 곡 직접 재생.
+      // 마지막 항목이 없는 파일 → Next 가 갈 곳 없음 → 처음 곡 직접 재생.
       PlayFirst
     else if not FrmKPlayer.IsPlay then
       // 뒤에 재생할 것 없음 → 정지. 다른 곡 재생 중이면 불간섭
@@ -1333,7 +1397,7 @@ begin
     Exit;
   end;
 
-  // 파일 소실(외부 삭제/이동, USB 분리 등) → 목록 제거 + 다음. mpv 에 넘기면 오류 후 재생 정지.
+  // 파일 소실(외부 삭제/이동, USB 분리 등) → 항목은 두고 '없음' 표시 + 다음. mpv 에 넘기면 오류 후 재생 정지.
   if not FileExists(AFileName) then
   begin
     SkipMissing(AFileName);
@@ -1351,7 +1415,13 @@ begin
         Item^.IsActive := SameText(Item^.FileName, AFileName);
         ListData.Selected[Node] := Item^.IsActive;
         if Item^.IsActive then
+        begin
+          // 위 FileExists 통과 = 실존 확인. StartVerify 는 추가/로드 때만 도므로
+          // 검사 당시 없던(네트워크·USB 지연) 파일의 Missing 이 그대로 남아
+          // 재생 중인데도 전체 경로로 표시됐다 → 여기서 해제.
+          Item^.Missing := False;
           ListData.FocusedNode := Node;
+        end;
       end;
       Node := ListData.GetNext(Node);
     end;
