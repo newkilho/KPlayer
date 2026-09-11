@@ -11,7 +11,8 @@ uses
   Main in 'Main.pas' {FrmKPlayer},
   List in 'List.pas' {FrmList},
   Setup in 'Setup.pas' {FrmSetup},
-  Assoc in 'Assoc.pas';
+  Assoc in 'Assoc.pas',
+  Hotkey in 'Hotkey.pas';
 
 {$R *.res}
 // 다국어 문자열 (Translate.txt → RCDATA 'translate', K.Translate 가 읽음).

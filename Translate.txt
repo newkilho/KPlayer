@@ -338,35 +338,15 @@ fr=Enregistrer la liste
 es=Guardar lista
 ar=حفظ قائمة التشغيل
 
-ko=끝기 때 목록을 KPlayer.lst 에 저장한다
-en=Saves the list to KPlayer.lst on exit
-ja=終了時にリストを KPlayer.lst に保存します
-zh=退出时将列表保存到 KPlayer.lst
-ru=При выходе список сохраняется в KPlayer.lst
-it=Salva la lista in KPlayer.lst all'uscita
-fr=Enregistre la liste dans KPlayer.lst à la fermeture
-es=Guarda la lista en KPlayer.lst al salir
-ar=يحفظ القائمة في KPlayer.lst عند الخروج
-
-ko=저장 폴더
-en=Save folder
-ja=保存フォルダー
-zh=保存文件夹
-ru=Папка сохранения
-it=Cartella di salvataggio
-fr=Dossier d'enregistrement
-es=Carpeta de guardado
-ar=مجلد الحفظ
-
-ko=스크린샷을 저장할 위치
-en=Where screenshots are saved
-ja=スクリーンショットの保存先
-zh=截图的保存位置
-ru=Куда сохранять скриншоты
-it=Dove salvare le schermate
-fr=Emplacement des captures d'écran
-es=Dónde se guardan las capturas
-ar=مكان حفظ لقطات الشاشة
+ko=스크린샷 폴더
+en=Screenshot folder
+ja=スクリーンショットのフォルダー
+zh=截图文件夹
+ru=Папка снимков экрана
+it=Cartella screenshot
+fr=Dossier des captures d'écran
+es=Carpeta de capturas
+ar=مجلد لقطات الشاشة
 
 ko=형식
 en=Format
@@ -428,16 +408,6 @@ fr=Décodage matériel
 es=Decodificación por hardware
 ar=فك الترميز بالعتاد
 
-ko=재시작 후 적용
-en=Applied after restart
-ja=再起動後に適用
-zh=重启后生效
-ru=Применяется после перезапуска
-it=Applicato dopo il riavvio
-fr=Appliqué après redémarrage
-es=Se aplica tras reiniciar
-ar=يُطبَّق بعد إعادة التشغيل
-
 ko=출력 드라이버
 en=Output driver
 ja=出力ドライバー
@@ -447,16 +417,6 @@ it=Driver di output
 fr=Pilote de sortie
 es=Controlador de salida
 ar=مشغّل الإخراج
-
-ko=재시작 후 적용 / gpu-next 는 실험적
-en=Applied after restart / gpu-next is experimental
-ja=再起動後に適用 / gpu-next は実験的
-zh=重启后生效 / gpu-next 为实验性
-ru=Применяется после перезапуска / gpu-next экспериментален
-it=Applicato dopo il riavvio / gpu-next è sperimentale
-fr=Appliqué après redémarrage / gpu-next est expérimental
-es=Se aplica tras reiniciar / gpu-next es experimental
-ar=يُطبَّق بعد إعادة التشغيل / gpu-next تجريبي
 
 ko=그래픽 API
 en=Graphics API
@@ -558,16 +518,6 @@ fr=Volume par défaut
 es=Volumen predeterminado
 ar=مستوى الصوت الافتراضي
 
-ko=현재 볼륨 / 다음 실행에도 유지 (최대 100)
-en=Current volume / kept for the next run (max 100)
-ja=現在の音量 / 次回起動時も維持 (最大 100)
-zh=当前音量 / 下次启动仍保持 (最大 100)
-ru=Текущая громкость / сохраняется до следующего запуска (макс. 100)
-it=Volume attuale / mantenuto al prossimo avvio (max 100)
-fr=Volume actuel / conservé au prochain lancement (max 100)
-es=Volumen actual / se mantiene en el próximo inicio (máx. 100)
-ar=مستوى الصوت الحالي / يُحفظ للتشغيل القادم (بحد أقصى 100)
-
 ko=음량 평준화 사용
 en=Use volume normalization
 ja=音量の平準化を使用
@@ -577,16 +527,6 @@ it=Usa la normalizzazione del volume
 fr=Utiliser la normalisation du volume
 es=Usar normalización de volumen
 ar=استخدام معادلة مستوى الصوت
-
-ko=구간별 음량 차이를 줄인다 (dynaudnorm)
-en=Reduces loudness differences between passages (dynaudnorm)
-ja=区間ごとの音量差を抑えます (dynaudnorm)
-zh=减小段落之间的音量差异 (dynaudnorm)
-ru=Уменьшает разницу громкости между фрагментами (dynaudnorm)
-it=Riduce le differenze di volume tra le parti (dynaudnorm)
-fr=Réduit les écarts de volume entre les passages (dynaudnorm)
-es=Reduce las diferencias de volumen entre pasajes (dynaudnorm)
-ar=يقلّل فروق مستوى الصوت بين المقاطع (dynaudnorm)
 
 ko=평준화 강도
 en=Normalization strength
@@ -638,16 +578,6 @@ fr=Afficher les sous-titres par défaut
 es=Mostrar subtítulos de forma predeterminada
 ar=إظهار الترجمة افتراضيًا
 
-ko=끄면 자막 버튼으로 켜야 보인다
-en=If off, subtitles appear only after the subtitle button is used
-ja=オフの場合は字幕ボタンで有効にすると表示されます
-zh=关闭时需用字幕按钮开启才会显示
-ru=Если выключено, субтитры включаются кнопкой субтитров
-it=Se disattivato, i sottotitoli si attivano con l'apposito pulsante
-fr=Si désactivé, activez les sous-titres avec le bouton dédié
-es=Si está desactivado, actívalos con el botón de subtítulos
-ar=عند الإيقاف تظهر الترجمة فقط بعد تفعيلها من زر الترجمة
-
 ko=자막 크기
 en=Subtitle size
 ja=字幕サイズ
@@ -667,16 +597,6 @@ it=Lingue dei sottotitoli preferite
 fr=Langues de sous-titres préférées
 es=Idiomas de subtítulos preferidos
 ar=لغات الترجمة المفضلة
-
-ko=쉼표로 구분 (예: ko,kor,en,eng)
-en=Comma separated (e.g. ko,kor,en,eng)
-ja=カンマ区切り (例: ko,kor,en,eng)
-zh=用逗号分隔 (例: ko,kor,en,eng)
-ru=Через запятую (например: ko,kor,en,eng)
-it=Separati da virgola (es. ko,kor,en,eng)
-fr=Séparées par des virgules (ex. ko,kor,en,eng)
-es=Separados por comas (ej. ko,kor,en,eng)
-ar=مفصولة بفواصل (مثال: ko,kor,en,eng)
 
 ko=모두 선택
 en=Select all
@@ -1147,3 +1067,673 @@ it=Audio DSD
 fr=Audio DSD
 es=Audio DSD
 ar=صوت DSD
+
+ko=재생 창 크기
+en=Window size on play
+ja=再生時のウィンドウサイズ
+zh=播放时窗口大小
+ru=Размер окна при воспроизведении
+it=Dimensione finestra alla riproduzione
+fr=Taille de la fenêtre à la lecture
+es=Tamaño de ventana al reproducir
+ar=حجم النافذة عند التشغيل
+
+ko=마지막 크기 유지
+en=Keep last size
+ja=前回のサイズを維持
+zh=保持上次大小
+ru=Сохранять последний размер
+it=Mantieni ultima dimensione
+fr=Conserver la dernière taille
+es=Mantener el último tamaño
+ar=الاحتفاظ بآخر حجم
+
+ko=영상 크기에 맞춤
+en=Fit to video size
+ja=動画サイズに合わせる
+zh=适应视频大小
+ru=По размеру видео
+it=Adatta al video
+fr=Ajuster à la vidéo
+es=Ajustar al vídeo
+ar=ملاءمة حجم الفيديو
+
+ko=전체 화면
+en=Full screen
+ja=全画面
+zh=全屏
+ru=Во весь экран
+it=Schermo intero
+fr=Plein écran
+es=Pantalla completa
+ar=ملء الشاشة
+
+ko=화면 크기
+en=Screen size
+ja=画面サイズ
+zh=画面大小
+ru=Размер экрана
+it=Dimensione schermo
+fr=Taille de l'écran
+es=Tamaño de pantalla
+ar=حجم الشاشة
+
+ko=원본 화면
+en=Original size
+ja=元のサイズ
+zh=原始大小
+ru=Исходный размер
+it=Dimensione originale
+fr=Taille d'origine
+es=Tamaño original
+ar=الحجم الأصلي
+
+ko=꽉찬 화면
+en=Full screen (stretched)
+ja=全画面 (引き伸ばし)
+zh=全屏 (拉伸)
+ru=Во весь экран (растянуть)
+it=Schermo intero (allargato)
+fr=Plein écran (étiré)
+es=Pantalla completa (estirada)
+ar=ملء الشاشة (ممتد)
+
+ko=글꼴
+en=Font
+ja=フォント
+zh=字体
+ru=Шрифт
+it=Carattere
+fr=Police
+es=Fuente
+ar=الخط
+
+ko=굵게
+en=Bold
+ja=太字
+zh=粗体
+ru=Жирный
+it=Grassetto
+fr=Gras
+es=Negrita
+ar=عريض
+
+ko=글자색
+en=Text color
+ja=文字色
+zh=文字颜色
+ru=Цвет текста
+it=Colore testo
+fr=Couleur du texte
+es=Color del texto
+ar=لون النص
+
+ko=외곽선 두께
+en=Outline width
+ja=縁取りの太さ
+zh=描边宽度
+ru=Толщина контура
+it=Spessore contorno
+fr=Épaisseur du contour
+es=Grosor del contorno
+ar=سمك الحد
+
+ko=외곽선 색
+en=Outline color
+ja=縁取りの色
+zh=描边颜色
+ru=Цвет контура
+it=Colore contorno
+fr=Couleur du contour
+es=Color del contorno
+ar=لون الحد
+
+ko=그림자
+en=Shadow
+ja=影
+zh=阴影
+ru=Тень
+it=Ombra
+fr=Ombre
+es=Sombra
+ar=الظل
+
+ko=세로 위치
+en=Vertical position
+ja=縦位置
+zh=垂直位置
+ru=Вертикальное положение
+it=Posizione verticale
+fr=Position verticale
+es=Posición vertical
+ar=الموضع الرأسي
+
+ko=정렬
+en=Alignment
+ja=配置
+zh=对齐
+ru=Выравнивание
+it=Allineamento
+fr=Alignement
+es=Alineación
+ar=المحاذاة
+
+ko=왼쪽
+en=Left
+ja=左
+zh=左
+ru=Слева
+it=Sinistra
+fr=Gauche
+es=Izquierda
+ar=يسار
+
+ko=가운데
+en=Center
+ja=中央
+zh=居中
+ru=По центру
+it=Centro
+fr=Centre
+es=Centro
+ar=وسط
+
+ko=오른쪽
+en=Right
+ja=右
+zh=右
+ru=Справа
+it=Destra
+fr=Droite
+es=Derecha
+ar=يمين
+
+ko=변경
+en=Change
+ja=変更
+zh=更改
+ru=Изменить
+it=Cambia
+fr=Modifier
+es=Cambiar
+ar=تغيير
+
+ko=자막 파일 스타일 우선
+en=Prefer subtitle file style
+ja=字幕ファイルのスタイルを優先
+zh=优先使用字幕文件样式
+ru=Стиль из файла субтитров
+it=Preferisci stile del file sottotitoli
+fr=Style du fichier de sous-titres
+es=Estilo del archivo de subtítulos
+ar=تفضيل نمط ملف الترجمة
+
+ko=(기본)
+en=(Default)
+ja=(既定)
+zh=(默认)
+ru=(По умолчанию)
+it=(Predefinito)
+fr=(Par défaut)
+es=(Predeterminado)
+ar=(افتراضي)
+
+ko=단축키
+en=Shortcuts
+ja=ショートカット
+zh=快捷键
+ru=Горячие клавиши
+it=Scorciatoie
+fr=Raccourcis
+es=Atajos
+ar=الاختصارات
+
+ko=동작
+en=Action
+ja=操作
+zh=操作
+ru=Действие
+it=Azione
+fr=Action
+es=Acción
+ar=الإجراء
+
+ko=없음
+en=None
+ja=なし
+zh=无
+ru=Нет
+it=Nessuno
+fr=Aucun
+es=Ninguno
+ar=بدون
+
+ko=지우기
+en=Clear
+ja=クリア
+zh=清除
+ru=Очистить
+it=Cancella
+fr=Effacer
+es=Borrar
+ar=مسح
+
+ko=단축키 기본값
+en=Default shortcuts
+ja=ショートカットを初期化
+zh=默认快捷键
+ru=Клавиши по умолчанию
+it=Scorciatoie predefinite
+fr=Raccourcis par défaut
+es=Atajos predeterminados
+ar=الاختصارات الافتراضية
+
+ko=목록에서 동작을 고른 뒤 아래 칸을 누르고 키를 입력하세요. ESC, TAB 은 바꿀 수 없습니다.
+en=Select an action in the list, click the box below and press a key. ESC and TAB cannot be changed.
+ja=一覧で操作を選び、下の欄をクリックしてキーを押してください。ESC、TAB は変更できません。
+zh=在列表中选择操作，点击下方输入框并按下按键。ESC、TAB 不可更改。
+ru=Выберите действие в списке, щёлкните поле ниже и нажмите клавишу. ESC и TAB изменить нельзя.
+it=Seleziona un'azione nell'elenco, fai clic sulla casella sotto e premi un tasto. ESC e TAB non sono modificabili.
+fr=Choisissez une action dans la liste, cliquez sur la case ci-dessous et appuyez sur une touche. Échap et Tab ne peuvent pas être modifiées.
+es=Elija una acción en la lista, haga clic en el cuadro de abajo y pulse una tecla. ESC y TAB no se pueden cambiar.
+ar=اختر إجراءً من القائمة، ثم انقر المربع أدناه واضغط مفتاحًا. لا يمكن تغيير ESC وTAB.
+
+ko=재생/일시정지
+en=Play/Pause
+ja=再生/一時停止
+zh=播放/暂停
+ru=Воспроизведение/пауза
+it=Riproduci/Pausa
+fr=Lecture/Pause
+es=Reproducir/Pausa
+ar=تشغيل/إيقاف مؤقت
+
+ko=뒤로 5초
+en=Back 5 s
+ja=5秒戻る
+zh=后退 5 秒
+ru=Назад 5 с
+it=Indietro 5 s
+fr=Reculer de 5 s
+es=Retroceder 5 s
+ar=رجوع 5 ث
+
+ko=앞으로 5초
+en=Forward 5 s
+ja=5秒進む
+zh=前进 5 秒
+ru=Вперёд 5 с
+it=Avanti 5 s
+fr=Avancer de 5 s
+es=Avanzar 5 s
+ar=تقدم 5 ث
+
+ko=뒤로 1초 (정확)
+en=Back 1 s (exact)
+ja=1秒戻る (正確)
+zh=后退 1 秒 (精确)
+ru=Назад 1 с (точно)
+it=Indietro 1 s (esatto)
+fr=Reculer de 1 s (exact)
+es=Retroceder 1 s (exacto)
+ar=رجوع 1 ث (دقيق)
+
+ko=앞으로 1초 (정확)
+en=Forward 1 s (exact)
+ja=1秒進む (正確)
+zh=前进 1 秒 (精确)
+ru=Вперёд 1 с (точно)
+it=Avanti 1 s (esatto)
+fr=Avancer de 1 s (exact)
+es=Avanzar 1 s (exacto)
+ar=تقدم 1 ث (دقيق)
+
+ko=이전 챕터
+en=Previous chapter
+ja=前のチャプター
+zh=上一章节
+ru=Предыдущая глава
+it=Capitolo precedente
+fr=Chapitre précédent
+es=Capítulo anterior
+ar=الفصل السابق
+
+ko=다음 챕터
+en=Next chapter
+ja=次のチャプター
+zh=下一章节
+ru=Следующая глава
+it=Capitolo successivo
+fr=Chapitre suivant
+es=Capítulo siguiente
+ar=الفصل التالي
+
+ko=이전 프레임
+en=Previous frame
+ja=前のフレーム
+zh=上一帧
+ru=Предыдущий кадр
+it=Fotogramma precedente
+fr=Image précédente
+es=Fotograma anterior
+ar=الإطار السابق
+
+ko=다음 프레임
+en=Next frame
+ja=次のフレーム
+zh=下一帧
+ru=Следующий кадр
+it=Fotogramma successivo
+fr=Image suivante
+es=Fotograma siguiente
+ar=الإطار التالي
+
+ko=음량 +5
+en=Volume +5
+ja=音量 +5
+zh=音量 +5
+ru=Громкость +5
+it=Volume +5
+fr=Volume +5
+es=Volumen +5
+ar=مستوى الصوت +5
+
+ko=음량 -5
+en=Volume -5
+ja=音量 -5
+zh=音量 -5
+ru=Громкость -5
+it=Volume -5
+fr=Volume -5
+es=Volumen -5
+ar=مستوى الصوت -5
+
+ko=음량 +2
+en=Volume +2
+ja=音量 +2
+zh=音量 +2
+ru=Громкость +2
+it=Volume +2
+fr=Volume +2
+es=Volumen +2
+ar=مستوى الصوت +2
+
+ko=음량 -2
+en=Volume -2
+ja=音量 -2
+zh=音量 -2
+ru=Громкость -2
+it=Volume -2
+fr=Volume -2
+es=Volumen -2
+ar=مستوى الصوت -2
+
+ko=음소거
+en=Mute
+ja=ミュート
+zh=静音
+ru=Без звука
+it=Muto
+fr=Muet
+es=Silencio
+ar=كتم الصوت
+
+ko=배속 -10%
+en=Speed -10%
+ja=速度 -10%
+zh=速度 -10%
+ru=Скорость -10%
+it=Velocità -10%
+fr=Vitesse -10%
+es=Velocidad -10%
+ar=السرعة -10%
+
+ko=배속 +10%
+en=Speed +10%
+ja=速度 +10%
+zh=速度 +10%
+ru=Скорость +10%
+it=Velocità +10%
+fr=Vitesse +10%
+es=Velocidad +10%
+ar=السرعة +10%
+
+ko=배속 -0.1
+en=Speed -0.1
+ja=速度 -0.1
+zh=速度 -0.1
+ru=Скорость -0.1
+it=Velocità -0.1
+fr=Vitesse -0.1
+es=Velocidad -0.1
+ar=السرعة -0.1
+
+ko=배속 +0.1
+en=Speed +0.1
+ja=速度 +0.1
+zh=速度 +0.1
+ru=Скорость +0.1
+it=Velocità +0.1
+fr=Vitesse +0.1
+es=Velocidad +0.1
+ar=السرعة +0.1
+
+ko=배속 1.0x
+en=Speed 1.0x
+ja=速度 1.0x
+zh=速度 1.0x
+ru=Скорость 1.0x
+it=Velocità 1.0x
+fr=Vitesse 1.0x
+es=Velocidad 1.0x
+ar=السرعة 1.0x
+
+ko=자막 표시/숨김
+en=Show/hide subtitles
+ja=字幕の表示/非表示
+zh=显示/隐藏字幕
+ru=Показать/скрыть субтитры
+it=Mostra/nascondi sottotitoli
+fr=Afficher/masquer les sous-titres
+es=Mostrar/ocultar subtítulos
+ar=إظهار/إخفاء الترجمة
+
+ko=다음 자막
+en=Next subtitle track
+ja=次の字幕トラック
+zh=下一字幕轨
+ru=Следующая дорожка субтитров
+it=Traccia sottotitoli successiva
+fr=Piste de sous-titres suivante
+es=Siguiente pista de subtítulos
+ar=مسار الترجمة التالي
+
+ko=이전 자막
+en=Previous subtitle track
+ja=前の字幕トラック
+zh=上一字幕轨
+ru=Предыдущая дорожка субтитров
+it=Traccia sottotitoli precedente
+fr=Piste de sous-titres précédente
+es=Pista de subtítulos anterior
+ar=مسار الترجمة السابق
+
+ko=스크린샷
+en=Screenshot
+ja=スクリーンショット
+zh=截图
+ru=Снимок экрана
+it=Screenshot
+fr=Capture d'écran
+es=Captura de pantalla
+ar=لقطة شاشة
+
+ko=이전 파일
+en=Previous file
+ja=前のファイル
+zh=上一个文件
+ru=Предыдущий файл
+it=File precedente
+fr=Fichier précédent
+es=Archivo anterior
+ar=الملف السابق
+
+ko=다음 파일
+en=Next file
+ja=次のファイル
+zh=下一个文件
+ru=Следующий файл
+it=File successivo
+fr=Fichier suivant
+es=Archivo siguiente
+ar=الملف التالي
+
+ko=마우스
+en=Mouse
+ja=マウス
+zh=鼠标
+ru=Мышь
+it=Mouse
+fr=Souris
+es=Ratón
+ar=الماوس
+
+ko=왼쪽 버튼 한 번 클릭
+en=Left button single click
+ja=左ボタン シングルクリック
+zh=左键单击
+ru=Одиночный щелчок левой кнопкой
+it=Clic singolo tasto sinistro
+fr=Simple clic bouton gauche
+es=Clic simple botón izquierdo
+ar=نقرة واحدة بالزر الأيسر
+
+ko=왼쪽 버튼 두 번 클릭
+en=Left button double click
+ja=左ボタン ダブルクリック
+zh=左键双击
+ru=Двойной щелчок левой кнопкой
+it=Doppio clic tasto sinistro
+fr=Double clic bouton gauche
+es=Doble clic botón izquierdo
+ar=نقرة مزدوجة بالزر الأيسر
+
+ko=가운데 버튼 클릭
+en=Middle button click
+ja=中ボタン クリック
+zh=中键单击
+ru=Щелчок средней кнопкой
+it=Clic tasto centrale
+fr=Clic bouton du milieu
+es=Clic botón central
+ar=نقرة بالزر الأوسط
+
+ko=휠 위로
+en=Wheel up
+ja=ホイール上
+zh=滚轮向上
+ru=Колесо вверх
+it=Rotella su
+fr=Molette vers le haut
+es=Rueda arriba
+ar=العجلة للأعلى
+
+ko=휠 아래로
+en=Wheel down
+ja=ホイール下
+zh=滚轮向下
+ru=Колесо вниз
+it=Rotella giù
+fr=Molette vers le bas
+es=Rueda abajo
+ar=العجلة للأسفل
+
+ko=아무 작동 안함
+en=Do nothing
+ja=何もしない
+zh=不执行任何操作
+ru=Ничего не делать
+it=Nessuna azione
+fr=Ne rien faire
+es=No hacer nada
+ar=لا شيء
+
+ko=전체 화면/원래 화면
+en=Full screen / restore
+ja=全画面/元のサイズ
+zh=全屏/还原
+ru=Полный экран / восстановить
+it=Schermo intero / ripristina
+fr=Plein écran / restaurer
+es=Pantalla completa / restaurar
+ar=ملء الشاشة / استعادة
+
+ko=꽉찬 화면/원래 화면
+en=Stretched full screen / restore
+ja=全画面(引き伸ばし)/元のサイズ
+zh=拉伸全屏/还原
+ru=Растянутый полный экран / восстановить
+it=Schermo intero esteso / ripristina
+fr=Plein écran étiré / restaurer
+es=Pantalla completa estirada / restaurar
+ar=ملء الشاشة ممتد / استعادة
+
+ko=다음 파일 재생
+en=Play next file
+ja=次のファイルを再生
+zh=播放下一个文件
+ru=Воспроизвести следующий файл
+it=Riproduci file successivo
+fr=Lire le fichier suivant
+es=Reproducir siguiente archivo
+ar=تشغيل الملف التالي
+
+ko=이전 파일 재생
+en=Play previous file
+ja=前のファイルを再生
+zh=播放上一个文件
+ru=Воспроизвести предыдущий файл
+it=Riproduci file precedente
+fr=Lire le fichier précédent
+es=Reproducir archivo anterior
+ar=تشغيل الملف السابق
+
+ko=앞으로 이동
+en=Seek forward
+ja=前方へ移動
+zh=快进
+ru=Перемотка вперёд
+it=Avanti
+fr=Avancer
+es=Avanzar
+ar=تقدم للأمام
+
+ko=뒤로 이동
+en=Seek backward
+ja=後方へ移動
+zh=快退
+ru=Перемотка назад
+it=Indietro
+fr=Reculer
+es=Retroceder
+ar=رجوع للخلف
+
+ko=볼륨 크게
+en=Volume up
+ja=音量を上げる
+zh=增大音量
+ru=Громче
+it=Alza volume
+fr=Augmenter le volume
+es=Subir volumen
+ar=رفع الصوت
+
+ko=볼륨 작게
+en=Volume down
+ja=音量を下げる
+zh=减小音量
+ru=Тише
+it=Abbassa volume
+fr=Baisser le volume
+es=Bajar volumen
+ar=خفض الصوت

@@ -19,10 +19,15 @@ type
   TMPVScriptMessageEvent = procedure(cSender: TObject;
     const sCmd: string; sArgs: TStrings) of object;
 
+  // 파일별 첫 영상 크기 확정 (dwidth×dheight — 회전·화면비 반영값). 오디오 전용은 안 옴.
+  TMPVVideoSizeEvent = procedure(cSender: TObject; nWidth, nHeight: Integer) of object;
+
   { TMPVPlayer }
   TMPVPlayer = class(TMPVBasePlayer)
   private
     m_eOnScriptMessage: TMPVScriptMessageEvent;
+    m_eOnVideoSize: TMPVVideoSizeEvent;
+    m_bSized: Boolean;   // 이번 파일에서 OnVideoSize 발행 여부 (reconfig 는 파일당 여러 번)
 
   protected
     // MPV_EVENT_CLIENT_MESSAGE 오버라이드. args[0]=명령, args[1..N]=추가 인자.
@@ -32,11 +37,21 @@ type
     // 없음. KPlayer.lua 의 msg.info 포함.
     procedure Log(const sMsg: string; bError: Boolean); override;
 
+    // dwidth 는 file-loaded 시점엔 아직 없다 (첫 프레임 디코드 뒤 VIDEO_RECONFIG 에서 확정)
+    // → reconfig 에서 파일당 1회만 OnVideoSize. START_FILE 에서 플래그 리셋.
+    function DoEventStartFile(pSF: P_mpv_event_start_file): TMPVErrorCode; override;
+    function DoEventVideoReconfig: TMPVErrorCode; override;
+
   public
     // script-message 수신 이벤트 (UI 스레드에서 호출됨)
     property OnScriptMessage: TMPVScriptMessageEvent
       read  m_eOnScriptMessage
       write m_eOnScriptMessage;
+
+    // 파일별 첫 영상 크기 (UI 스레드에서 호출됨). Main.HandleVideoSize — 재생 창 크기 옵션.
+    property OnVideoSize: TMPVVideoSizeEvent
+      read  m_eOnVideoSize
+      write m_eOnVideoSize;
   end;
 
 implementation
@@ -51,6 +66,38 @@ begin
   OutputDebugString(PChar('[mpv] ' + sMsg));
   {$ENDIF}
 {$ENDIF}
+end;
+
+function TMPVPlayer.DoEventStartFile(pSF: P_mpv_event_start_file): TMPVErrorCode;
+begin
+  m_bSized := False;
+  Result := inherited DoEventStartFile(pSF);
+end;
+
+function TMPVPlayer.DoEventVideoReconfig: TMPVErrorCode;
+var
+  eSize: TMPVVideoSizeEvent;
+  nW, nH: Integer;
+begin
+  Result := inherited DoEventVideoReconfig;   // m_nX/m_nY ← dwidth/dheight
+  if m_bSized or (m_nX <= 0) or (m_nY <= 0) then
+    Exit;
+  m_bSized := True;
+
+  Lock;
+  eSize := m_eOnVideoSize;
+  Unlock;
+
+  if Assigned(eSize) then
+  begin
+    nW := m_nX;
+    nH := m_nY;
+    // Synchronize — Queue 는 종료 중 폼 해제 뒤 실행될 수 있다 (OnScriptMessage 와 동일 이유).
+    TThread.Synchronize(nil, procedure
+    begin
+      eSize(Self, nW, nH);
+    end);
+  end;
 end;
 
 function TMPVPlayer.DoEventClientMsg(pCM: P_mpv_event_client_message): TMPVErrorCode;

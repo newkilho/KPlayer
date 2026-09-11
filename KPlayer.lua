@@ -85,9 +85,10 @@ local state = {
     sub_visible = false,
     has_sub = false,
     cursor_hidden = false,
-    sub_margin = nil,      -- 마지막으로 설정한 sub-margin-y (같은 값 재설정 방지)
     filename = "",
     hover_close = false,
+    hover_topbar_pin = false,
+    topmost = false,       -- 항상 위 (Delphi 가 script-message topmost-state 로 통지)
     hover_topbar_min = false,
     hover_topbar_fs = false,
     hover_list = false,
@@ -142,7 +143,7 @@ local CAP_SLOT_W        = 46    -- 캡션 버튼 슬롯 너비(윈도우 기본)
 local GLYPH_HALF        = 5     -- 글리프 반경 (≈10px 아이콘)
 local GLYPH_LINE_W      = 1     -- 글리프 선 두께 (hairline)
 local TITLE_X           = 14    -- 제목 좌측 여백
-local TITLE_RIGHT_LIMIT = 144   -- 제목 우측 한계 폭 (버튼 3슬롯 회피)
+local TITLE_RIGHT_LIMIT = 190   -- 제목 우측 한계 폭 (캡션 4슬롯 = 184 회피, 압정 추가로 144→190)
 
 -- 스크림 알파 곡선: 바 구간 0.92→0.72 선형, 꼬리 0.72*(1-u)^2 (제곱 감쇠라 끝이 안 뭉툭)
 local SCRIM_A_TOP    = 0.92
@@ -322,6 +323,10 @@ local icons = {
     full_on  = "{\\p1}m 0 0 m 24 24 m 3 3 l 21 3 l 21 21 l 3 21 m 5 5 l 5 19 l 19 19 l 19 5{\\p0}",
     vol_off  = "{\\p1}m 0 0 m 24 24 m 16.5 12 b 16.5 10.23 15.48 8.71 14 7.97 l 14 10.18 l 16.45 12.63 b 16.48 12.43 16.5 12.22 16.5 12 m 19 12 b 19 12.94 18.8 13.82 18.46 14.64 l 19.97 16.15 b 20.63 14.91 21 13.5 21 12 b 21 7.72 18.01 4.14 14 3.23 l 14 5.29 b 16.89 6.15 19 8.83 19 12 m 4.27 3 l 3 4.27 l 7.73 9 l 3 9 l 3 15 l 7 15 l 12 20 l 12 13.27 l 16.25 17.52 b 15.58 18.04 14.83 18.45 14 18.7 l 14 20.76 b 15.38 20.45 16.63 19.81 17.69 18.95 l 19.73 21 l 21 19.73 l 12 10.73 l 4.27 3 m 12 4 l 9.91 6.09 l 12 8.18{\\p0}",
     vol_on   = "{\\p1}m 0 0 m 24 24 m 3 9 l 3 15 l 7 15 l 12 20 l 12 4 l 7 9 m 16.5 12 b 16.5 10.23 15.48 8.71 14 7.97 l 14 16.02 b 15.48 15.29 16.5 13.77 16.5 12 m 14 3.23 l 14 5.29 b 16.89 6.15 19 8.83 19 12 b 19 15.17 16.89 17.85 14 18.71 l 14 20.77 b 18.01 19.86 21 16.28 21 12 b 21 7.72 18.01 4.14 14 3.23{\\p0}",
+    -- 압정(항상 위) — WorldView ui.wgsl cap_pin_glyph 의 24x24 좌표 그대로 (svgrepo pin 아웃라인 단순화).
+    -- 머리(6.5~17.5 × 4~6) + 벌어지는 벽 둘 + 밑판(4~20 × 15~17) + 바늘(11~13 × 17~23). 세로 4~23 → 시각 중심 13.5.
+    -- 도형끼리 겹치지 않게(맞닿기만) — libass 드로잉 채우기 규칙에 안 걸리게.
+    pin      = "{\\p1}m 0 0 m 24 24 m 6.5 4 l 17.5 4 l 17.5 6 l 6.5 6 m 7.9 6 l 9.9 6 l 9.1 15 l 7.1 15 m 14.1 6 l 16.1 6 l 16.9 15 l 14.9 15 m 4 15 l 20 15 l 20 17 l 4 17 m 11 17 l 13 17 l 13 23 l 11 23{\\p0}",
     close    = "{\\p1}m 0 0 m 24 24 m 19 6.41 l 17.59 5 l 12 10.59 l 6.41 5 l 5 6.41 l 10.59 12 l 5 17.59 l 6.41 19 l 12 13.41 l 17.59 19 l 19 17.59 l 13.41 12{\\p0}",
     pause    = "{\\p1}m 0 0 m 24 24 m 6 19 l 10 19 l 10 5 l 6 5 m 14 5 l 14 19 l 18 19 l 18 5{\\p0}",
     -- 재생목록. 원본 viewBox "9.2 9.4 18 18" → (x-9.2)*4/3, (y-9.4)*4/3 로 24x24 변환.
@@ -385,6 +390,7 @@ local function calc_layout()
     -- 캡션 슬롯 3개(최소화/최대화·복원/닫기). 슬롯이 상단바 높이 전체 = 히트 영역이 곧 슬롯 사각형.
     local sw = tb.slot_w
     local cy = tbh / 2
+    layout.cap_pin   = { x = W - 4 * sw, y = 0, w = sw, h = tbh, cx = W - 3.5 * sw, cy = cy }   -- 항상 위 (최소화 왼쪽, WorldView 동일)
     layout.cap_min   = { x = W - 3 * sw, y = 0, w = sw, h = tbh, cx = W - 2.5 * sw, cy = cy }
     layout.cap_max   = { x = W - 2 * sw, y = 0, w = sw, h = tbh, cx = W - 1.5 * sw, cy = cy }
     layout.cap_close = { x = W - sw,     y = 0, w = sw, h = tbh, cx = W - 0.5 * sw, cy = cy }
@@ -522,6 +528,10 @@ local function check_hover()
         ch = set_hover("hover_topbar_min",
             in_rect(mx, my, L.cap_min.x, L.cap_min.y, L.cap_min.w, L.cap_min.h)) or ch
     end
+    if L.cap_pin then
+        ch = set_hover("hover_topbar_pin",
+            in_rect(mx, my, L.cap_pin.x, L.cap_pin.y, L.cap_pin.w, L.cap_pin.h)) or ch
+    end
     ch = set_hover("hover_list",     hover_btn(mx, my, L.list_btn)) or ch
     ch = set_hover("hover_settings", hover_btn(mx, my, L.settings_btn)) or ch
     ch = set_hover("hover_sub",      hover_btn(mx, my, L.sub_btn)) or ch
@@ -534,7 +544,8 @@ local function check_hover()
         state.hover_seekbar or state.hover_play or state.hover_prev or state.hover_next or
         state.hover_mute or state.hover_volume or state.hover_vol_area or
         state.hover_sub or state.hover_settings or state.hover_list or
-        state.hover_close or state.hover_topbar_min or state.hover_topbar_fs)) and true or false)
+        state.hover_close or state.hover_topbar_min or state.hover_topbar_fs or
+        state.hover_topbar_pin)) and true or false)
 
     return ch
 end
@@ -731,6 +742,23 @@ local function draw_icon(a, icon_path, cx, cy, size, col, al)
     a:an(7)
     a:append(get_icon_fmt(size, col, al))
     a:append(icon_path)
+end
+
+-- 항상 위 압정. 배경 없이 글리프만 (캡션 규칙). 켜짐 = 흰색, 꺼짐 = 압정에 `\` 사선 (WorldView 와 같은
+-- 좌상→우하, vol_off 방향). 사선 아래를 스크림색 굵은 선으로 파내야 압정 위에 얹힌 것으로 보인다.
+-- 24 상자를 글리프 반경 2.5 배로: WorldView 는 half/9.5 배율 → 24*half/9.5 ≈ 2.5*half.
+local function draw_caption_pin(a, slot, on, hovered)
+    if not slot then return end
+    local av  = fa("00")
+    local col = (on or hovered) and color.cap_hover or color.cap_idle
+    local size = tb.glyph * 2.5
+    local cy = slot.cy - size / 24 * 1.5   -- 도형 세로 중심(13.5) 을 슬롯 중심에
+    draw_icon(a, icons.pin, slot.cx, cy, size, col, av)
+    if on then return end
+    local e = tb.glyph * 1.02
+    local w = math.max(1.3, tb.glyph * 0.26)
+    draw_seg(a, slot.cx - e, slot.cy - e, slot.cx + e, slot.cy + e, w + 1.8, color.scrim, av)
+    draw_seg(a, slot.cx - e, slot.cy - e, slot.cx + e, slot.cy + e, w, col, av)
 end
 
 -- 하단 컨트롤 칩. 바 배경 없이 버튼마다 반투명 알약, 아이콘 항상 흰색, hover 는 배경만 밝아짐.
@@ -1176,7 +1204,8 @@ local function render()
     a:append(string.format("{\\fn%s\\fs%d\\bord0\\shad0\\1c&H%s&\\1a&H%s&\\clip(0,0,%d,%d)}%s",
         options.topbar_font, tb.font_px, color.title, fa("00"), title_max_x, tb.h, title_str))
 
-    -- 캡션 버튼 (최소화 / 최대화·복원 / 닫기)
+    -- 캡션 버튼 (항상 위 / 최소화 / 최대화·복원 / 닫기)
+    draw_caption_pin(a, L.cap_pin, state.topmost, state.hover_topbar_pin)
     draw_caption_btn(a, L.cap_min, 0, state.hover_topbar_min)
     draw_caption_btn(a, L.cap_max, state.fullscreen and 2 or 1, state.hover_topbar_fs)
     draw_caption_btn(a, L.cap_close, 3, state.hover_close)
@@ -1422,16 +1451,10 @@ local function show_volume_bezel(v)
                string.format("%d%%", math.floor(v + 0.5)))
 end
 
--- 자막이 컨트롤에 안 가리게 아래 여백 조절. 마우스 이동마다 불림 — 값 바뀔 때만 설정 (매번이면 속성 설정·로그 누적).
-local function update_sub_margin()
-    if state.osd_h <= 0 then return end
-
-    local m = state.visible and (options.bar_height + 20) or 40
-    if state.sub_margin == m then return end
-
-    state.sub_margin = m
-    mp.set_property_number("sub-margin-y", m)
-end
+-- 자막 아래 여백 고정 40. 예전엔 컨트롤바 표시 때 bar_height+20 으로 올렸다 내렸는데 마우스만 움직여도
+-- 자막이 들썩여 폐기 (2026-09-11 결정). 바가 잠깐 덮는 쪽이 팟플레이어·mpv OSC 와 같다.
+-- 바 위로 올리고 싶으면 환경설정 '세로 위치'(sub-pos).
+mp.set_property_number("sub-margin-y", 40)
 
 local function start_autohide()
     if state.autohide_timer then state.autohide_timer:kill() end
@@ -1441,14 +1464,12 @@ local function start_autohide()
         state.visible = false
         -- 재표시 때 슬라이더가 펼쳐진 채 뜨지 않게 접음
         state.vol_expanded = false
-        update_sub_margin()
         request_render()   -- 즉시 안 지움. tick 이 페이드아웃
     end)
 end
 
 local function show_controls()
     state.visible = true
-    update_sub_margin()
     start_autohide()
     request_render()
 end
@@ -1499,7 +1520,6 @@ mp.observe_property("mouse-pos", "native", function(_, pos)
         last_mouse_x, last_mouse_y = pos.x, pos.y
         local was_visible = state.visible
         state.visible = true
-        update_sub_margin()
         start_autohide()
         if not was_visible then
             request_render()
@@ -1575,6 +1595,12 @@ mp.add_key_binding("MOUSE_BTN0", "controls-click", function(e)
     -- 최소화
     if state.hover_topbar_min then
         mp.commandv("script-message", "minimize")
+        return
+    end
+
+    -- 항상 위 토글 — 상태는 Delphi 가 정본 (SetTopMost → topmost-state 회신). 여기서 미리 바꾸지 않는다.
+    if state.hover_topbar_pin then
+        mp.commandv("script-message", "topmost", state.topmost and "off" or "on")
         return
     end
 
@@ -1727,6 +1753,16 @@ end)
 
 -- OS UI 기본 폰트 = 로케일별 상이, mpv 에서는 알 수 없음. Delphi 가 Screen.MessageFont.Name
 -- 전달: script-message ui-font "맑은 고딕". 미발견 시 libass 대체 폰트. 숫자 폰트는 유지.
+-- 항상 위 상태 (Delphi SetTopMost 가 바뀔 때마다 + 시작 시 topmost-query 응답으로 전송).
+mp.register_script_message("topmost-state", function(v)
+    local on = (v == "on")
+    if state.topmost == on then return end
+    state.topmost = on
+    request_render()
+end)
+-- load-script 직후 Delphi 가 보내는 메시지는 스크립트 초기화 전이면 유실 → 준비된 뒤 여기서 묻는다.
+mp.commandv("script-message", "topmost-query")
+
 mp.register_script_message("ui-font", function(name)
     if not name or name == "" or options.topbar_font == name then return end
     options.topbar_font = name
@@ -1735,7 +1771,7 @@ mp.register_script_message("ui-font", function(name)
     msg.info("ui font: " .. name)
 end)
 mp.observe_property("osd-width",  "number", function(_, v) if v and v > 0 and state.osd_w ~= v then state.osd_w = v; request_render() end end)
-mp.observe_property("osd-height", "number", function(_, v) if v and v > 0 and state.osd_h ~= v then state.osd_h = v; update_sub_margin(); request_render() end end)
+mp.observe_property("osd-height", "number", function(_, v) if v and v > 0 and state.osd_h ~= v then state.osd_h = v; request_render() end end)
 
 -- 키보드 입력 없음: 포커스가 VCL 폼 → 키가 mpv 로 안 옴. 전부 Main.pas FormKeyDown 처리,
 -- 여기엔 속성 변화만 도달. add_key_binding 은 동작할 것처럼 보여 혼란만 → 두지 않는다.
@@ -1745,9 +1781,8 @@ mp.register_event("file-loaded", function()
     state.visible  = true
     state.position = 0
     state.filename = mp.get_property("filename/no-ext") or ""
-    mp.set_property("sub-ass-override", "force")
+    -- sub-ass-override 는 Delphi 가 설정 ('자막' 카드 sub_ass, ApplySubStyle). 여기서 force 고정하면 옵션 무효.
     mp.set_property_bool("pause", false)
-    update_sub_margin()
     start_autohide()
     request_render()
 end)

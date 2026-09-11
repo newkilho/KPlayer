@@ -6,14 +6,23 @@ uses
   Winapi.Windows, Winapi.Messages, Winapi.ShlObj, System.SysUtils, System.Variants,
   System.Classes, System.Math, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
   Vcl.FileCtrl, Vcl.CategoryButtons, Vcl.WinXPanels, Vcl.ExtCtrls, Vcl.StdCtrls,
-  Vcl.ComCtrls, Vcl.ButtonGroup, Vcl.Buttons, Vcl.ImgList, System.Win.Registry,
+  Vcl.ComCtrls, Vcl.ButtonGroup, Vcl.Buttons, Vcl.ImgList, Vcl.Menus, System.Win.Registry,
   Winapi.ShellAPI, Winapi.ShLwApi, Winapi.CommCtrl,
   VirtualTrees.BaseAncestorVCL, VirtualTrees.BaseTree,
   VirtualTrees.AncestorVCL, VirtualTrees.Types, VirtualTrees,
-  K.Theme, K.Config.INI, K.Translate, Assoc;
+  K.Theme, K.Config.INI, K.Translate, Assoc, MPVPlayer, Hotkey;
 
 // 캡처 기본 폴더 = 바탕화면. exe 폴더 금지 — Program Files 쓰기 권한 없음 + 프로그램 폴더에 캡처 쌓임.
 function DesktopPath: string;
+
+// 기본 자막 언어 = OS 언어(K.Translate.Lang) + 영어 폴백. 2자(외부 자막 파일명 .ko.srt) + 3자(MKV 트랙 ISO 639-2)
+// 둘 다. zh/fr 은 B/T 코드가 둘. INI sub_lang 은 사용자가 직접 고친 값만 담고 '' = 이 함수 (shot_dir 과 같은 이유:
+// 기본값을 써 버리면 OS 언어를 바꿔도 옛 값이 남는다).
+function DefaultSubLang: string;
+
+// 자막 스타일 INI → mpv 속성 (Main.FormCreate 초기 적용 + ApplyLive 즉시 반영 공용).
+// 전부 런타임 set 가능한 속성이라 InitPlayer 뒤 한 번에 보낸다.
+procedure ApplySubStyle(AConfig: TConfig; AMPV: TMPVPlayer);
 
 type
   TFrmSetup = class(TForm)
@@ -23,6 +32,8 @@ type
     BtnAudio: TSpeedButton;
     BtnSub: TSpeedButton;
     BtnAssoc: TSpeedButton;
+    BtnKeys: TSpeedButton;
+    BtnMouse: TSpeedButton;
     BtnAbout: TSpeedButton;
     LineMenu: TShape;
     PnlRight: TPanel;
@@ -37,58 +48,71 @@ type
     LblRandom: TLabel;
     CboRandom: TComboBox;
     LblSaveList: TLabel;
-    LblSaveListDesc: TLabel;
     CboSaveList: TComboBox;
     LblShotDir: TLabel;
-    LblShotDirDesc: TLabel;
     EdtShotDir: TEdit;
     BtnShotDir: TButton;
     LblShotFmt: TLabel;
     CboShotFmt: TComboBox;
     LblTopMost: TLabel;
     CboTopMost: TComboBox;
+    LblWinSize: TLabel;
+    CboWinSize: TComboBox;
     CardVideo: TCard;
     BoxVideo: TScrollBox;
     LblHwdec: TLabel;
-    LblHwdecDesc: TLabel;
     CboHwdec: TComboBox;
     LblVo: TLabel;
-    LblVoDesc: TLabel;
     CboVo: TComboBox;
     LblGpuApi: TLabel;
-    LblGpuApiDesc: TLabel;
     CboGpuApi: TComboBox;
     LblVideoSync: TLabel;
-    LblVideoSyncDesc: TLabel;
     CboVideoSync: TComboBox;
     LblScale: TLabel;
-    LblScaleDesc: TLabel;
     CboScale: TComboBox;
     LblDeint: TLabel;
-    LblDeintDesc: TLabel;
     CboDeint: TComboBox;
     CardAudio: TCard;
     BoxAudio: TScrollBox;
     LblVolume: TLabel;
-    LblVolumeDesc: TLabel;
     LblVolumeValue: TLabel;
     TrkVolume: TTrackBar;
     LblNormalize: TLabel;
-    LblNormalizeDesc: TLabel;
     CboNormalize: TComboBox;
     LblNormLevel: TLabel;
     CboNormLevel: TComboBox;
     CardSub: TCard;
     BoxSub: TScrollBox;
     LblSubVisible: TLabel;
-    LblSubVisibleDesc: TLabel;
     CboSubVisible: TComboBox;
     LblSubSize: TLabel;
     LblSubSizeValue: TLabel;
     TrkSubSize: TTrackBar;
     LblSubLang: TLabel;
-    LblSubLangDesc: TLabel;
     EdtSubLang: TEdit;
+    LblSubFont: TLabel;
+    CboSubFont: TComboBox;
+    LblSubBold: TLabel;
+    CboSubBold: TComboBox;
+    LblSubColor: TLabel;
+    ShpSubColor: TShape;
+    BtnSubColor: TButton;
+    LblSubBorder: TLabel;
+    LblSubBorderValue: TLabel;
+    TrkSubBorder: TTrackBar;
+    LblSubBorderColor: TLabel;
+    ShpSubBorderColor: TShape;
+    BtnSubBorderColor: TButton;
+    LblSubShadow: TLabel;
+    LblSubShadowValue: TLabel;
+    TrkSubShadow: TTrackBar;
+    LblSubPos: TLabel;
+    LblSubPosValue: TLabel;
+    TrkSubPos: TTrackBar;
+    LblSubAlign: TLabel;
+    CboSubAlign: TComboBox;
+    LblSubAss: TLabel;
+    CboSubAss: TComboBox;
     CardAssoc: TCard;
     TreeAssoc: TVirtualStringTree;
     BtnAssocAll: TButton;
@@ -97,6 +121,25 @@ type
     BtnAssocDefaults: TButton;
     MemoAssocLog: TMemo;
     LblAssocHint: TLabel;
+    CardKeys: TCard;
+    LvKeys: TListView;
+    LblKeyHint: TLabel;
+    LblKeyAction: TLabel;
+    EdtKey: TEdit;
+    BtnKeyClear: TButton;
+    BtnKeyDefault: TButton;
+    CardMouse: TCard;
+    BoxMouse: TScrollBox;
+    LblMLClick: TLabel;
+    CboMLClick: TComboBox;
+    LblMDblClick: TLabel;
+    CboMDblClick: TComboBox;
+    LblMMClick: TLabel;
+    CboMMClick: TComboBox;
+    LblMWheelUp: TLabel;
+    CboMWheelUp: TComboBox;
+    LblMWheelDown: TLabel;
+    CboMWheelDown: TComboBox;
     CardAbout: TCard;
     MemAbout: TMemo;
     BtnReset: TButton;
@@ -107,6 +150,12 @@ type
     procedure BtnNavClick(Sender: TObject);
     procedure BtnResetClick(Sender: TObject);
     procedure BtnShotDirClick(Sender: TObject);
+    procedure BtnSubColorClick(Sender: TObject);
+    procedure LvKeysSelectItem(Sender: TObject; Item: TListItem; Selected: Boolean);
+    procedure EdtKeyKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure EdtKeyKeyPress(Sender: TObject; var Key: Char);
+    procedure BtnKeyClearClick(Sender: TObject);
+    procedure BtnKeyDefaultClick(Sender: TObject);
     procedure ControlChange(Sender: TObject);
     procedure TrackChange(Sender: TObject);
     procedure BtnAssocSelectClick(Sender: TObject);
@@ -173,6 +222,8 @@ type
     // 그대로 두면 스크롤이 끈다. 갱신 지점은 FormCreate 한 곳.
     FGroupText: array[TAssocGroup] of string;
     FBadgeText: string;
+    FNoneText: string;   // 단축키 '없음' (목록 행마다 _() 금지 — 위와 같은 이유)
+    FMouseCbo: array[TMouseEvent] of TComboBox;   // 마우스 카드 콤보 (이벤트 순, FillMouse 가 채움)
 
     procedure FillAbout;
 
@@ -197,10 +248,18 @@ type
     procedure SaveValues;
     procedure ApplyLive;
     procedure UpdateTrackLabels;
+    procedure FillFonts;
+    procedure FillKeys;
+    procedure FillMouse;
+    procedure RefreshKeyRows;
+    procedure AssignKey(AKey: TShortCut);
 
     function Config: TConfig;
     function CfgInt(const AKey: string; ADef: Integer): Integer;
     function CfgStr(const AKey, ADef: string): string;
+  protected
+    // 휠 = 카드 스크롤. 기본 VCL 은 포커스 컨트롤이 먼저 받아 콤보/트랙바 값이 바뀌고 스크롤박스는 안 움직였다.
+    procedure MouseWheelHandler(var Message: TMessage); override;
   public
     { Public declarations }
   end;
@@ -210,7 +269,7 @@ var
 
 implementation
 
-uses Main, MPVPlayer;
+uses Main;
 
 const
   // 아이콘 캐시 미조회 표시 (-1 = 셸이 못 줌)
@@ -241,6 +300,53 @@ const
   BadgeTextNormal = '적용안됨';
 
 {$R *.dfm}
+
+function DefaultSubLang: string;
+begin
+  if Lang = 'ko' then Result := 'ko,kor,en,eng'
+  else if Lang = 'ja' then Result := 'ja,jpn,en,eng'
+  else if Lang = 'zh' then Result := 'zh,zho,chi,en,eng'
+  else if Lang = 'ru' then Result := 'ru,rus,en,eng'
+  else if Lang = 'it' then Result := 'it,ita,en,eng'
+  else if Lang = 'fr' then Result := 'fr,fra,fre,en,eng'
+  else if Lang = 'es' then Result := 'es,spa,en,eng'
+  else if Lang = 'ar' then Result := 'ar,ara,en,eng'
+  else Result := 'en,eng';
+end;
+
+// TColor(BGR) → mpv '#RRGGBB'. 시스템색은 ColorToRGB 로 실제값.
+function ColorToMpv(AColor: TColor): string;
+var
+  C: Longint;
+begin
+  C := ColorToRGB(AColor);
+  Result := Format('#%.2x%.2x%.2x', [GetRValue(C), GetGValue(C), GetBValue(C)]);
+end;
+
+// 글꼴 '' = mpv 기본(sans-serif). 사용자 지정 글꼴은 fontconfig 이름 매칭 — 못 찾으면 libass 대체 글꼴 (UI 안내).
+procedure ApplySubStyle(AConfig: TConfig; AMPV: TMPVPlayer);
+const
+  YesNo: array[Boolean] of string = ('no', 'yes');
+var
+  Font: string;
+begin
+  if (AConfig = nil) or (AMPV = nil) then Exit;
+
+  Font := AConfig.ReadString('sub_font', '');
+  if Font = '' then Font := 'sans-serif';
+  AMPV.Command(['set', 'sub-font', Font]);
+  AMPV.Command(['set', 'sub-bold', YesNo[AConfig.ReadInteger('sub_bold', 0) <> 0]]);
+  AMPV.Command(['set', 'sub-color', ColorToMpv(AConfig.ReadInteger('sub_color', clWhite))]);
+  AMPV.Command(['set', 'sub-border-size', IntToStr(AConfig.ReadInteger('sub_border', 3))]);
+  AMPV.Command(['set', 'sub-border-color', ColorToMpv(AConfig.ReadInteger('sub_border_color', clBlack))]);
+  AMPV.Command(['set', 'sub-shadow-offset', IntToStr(AConfig.ReadInteger('sub_shadow', 0))]);
+  AMPV.Command(['set', 'sub-pos', IntToStr(EnsureRange(AConfig.ReadInteger('sub_pos', 100), 0, 100))]);
+  AMPV.Command(['set', 'sub-align-x',
+    SubAlignValues[EnsureRange(AConfig.ReadInteger('sub_align', 1), 0, High(SubAlignValues))]]);
+  // 예전엔 KPlayer.lua file-loaded 가 force 고정 — 옵션화하며 여기로 (전역 속성이라 1회면 됨).
+  AMPV.Command(['set', 'sub-ass-override',
+    SubAssValues[EnsureRange(AConfig.ReadInteger('sub_ass', 0), 0, High(SubAssValues))]]);
+end;
 
 {$I Const.inc}
 
@@ -279,14 +385,18 @@ begin
   LblTitle.Caption := BtnGeneral.Caption;
 
   Translate(Self);
+  FillFonts;
 
   // 트리에 그릴 문구는 미리 캐시 — SetupAssocTree 의 열 폭 계산이 뱃지 번역문을 잰다.
   for LGroup := Low(TAssocGroup) to High(TAssocGroup) do
     FGroupText[LGroup] := _(AssocGroupNames[LGroup]);
 
   FBadgeText := _(BadgeTextNormal);
+  FNoneText := _('없음');
 
   SetupAssocTree;
+  FillKeys;
+  FillMouse;
 
   FApplyTimer := TTimer.Create(Self);
   FApplyTimer.Enabled := False;
@@ -322,6 +432,44 @@ begin
 end;
 
 // 폼은 1회 생성, ShowModal 재사용. 볼륨·반복·연결 상태는 창 밖에서도 바뀜 → 열 때마다 재로드.
+// 마우스 아래가 활성 카드의 스크롤박스면 그것만 스크롤하고 소비 — 포커스 컨트롤엔 안 넘긴다
+// (콤보 위에서 휠 굴리다 설정이 바뀌는 사고 방지). 카드 밖이면 기본 처리.
+procedure TFrmSetup.MouseWheelHandler(var Message: TMessage);
+const
+  Step = 60;   // px / 노치
+var
+  Card: TCard;
+  Box: TScrollBox;
+  I: Integer;
+  P: TPoint;
+  Delta: SmallInt;
+begin
+  // 콤보 목록이 펼쳐진 동안은 그 목록이 휠을 받아야 한다 (안 그러면 목록 대신 카드가 스크롤).
+  if (ActiveControl is TCustomComboBox) and TCustomComboBox(ActiveControl).DroppedDown then
+  begin
+    inherited;
+    Exit;
+  end;
+
+  Card := PnlMain.ActiveCard;
+  if Card <> nil then
+    for I := 0 to Card.ControlCount - 1 do
+      if Card.Controls[I] is TScrollBox then
+      begin
+        Box := TScrollBox(Card.Controls[I]);
+        P := Box.ScreenToClient(SmallPointToPoint(TWMMouseWheel(Message).Pos));
+        if PtInRect(Box.ClientRect, P) then
+        begin
+          Delta := TWMMouseWheel(Message).WheelDelta;
+          // 정밀 터치패드는 한 노치(120) 미만으로 온다 → 비례 계산 (div 면 0 이 되어 안 움직임)
+          Box.VertScrollBar.Position := Box.VertScrollBar.Position - Round(Delta / WHEEL_DELTA * Step);
+          Message.Result := 1;
+          Exit;
+        end;
+      end;
+  inherited;
+end;
+
 procedure TFrmSetup.FormShow(Sender: TObject);
 begin
   if BtnAbout.Visible then
@@ -1316,6 +1464,7 @@ begin
   Config.WriteString('shot_dir', DesktopPath);
   Config.WriteInteger('shot_format', 0);
   Config.WriteInteger('topmost', 0);
+  Config.WriteInteger('win_mode', 0);
 
   Config.WriteInteger('hwdec', 0);
   Config.WriteInteger('vo', 0);
@@ -1330,7 +1479,19 @@ begin
 
   Config.WriteInteger('sub_visible', 0);
   Config.WriteInteger('sub_size', 55);
-  Config.WriteString('sub_lang', 'ko,kor,en,eng');
+  Config.WriteString('sub_lang', '');   // '' = OS 언어 (DefaultSubLang)
+  Config.WriteString('sub_font', '');
+  Config.WriteInteger('sub_bold', 0);
+  Config.WriteInteger('sub_color', clWhite);
+  Config.WriteInteger('sub_border', 3);
+  Config.WriteInteger('sub_border_color', clBlack);
+  Config.WriteInteger('sub_shadow', 0);
+  Config.WriteInteger('sub_pos', 100);
+  Config.WriteInteger('sub_align', 1);
+  Config.WriteInteger('sub_ass', 0);
+
+  ResetKeys(Config);
+  ResetMouse(Config);
 
   // LoadValues 는 FLoading 중 → 컨트롤 이벤트 죽음. SaveValues 직접 호출해
   // Main 메모리의 반복/랜덤/볼륨까지 갱신 (List.pas 가 FrmKPlayer.RepeatMode 를
@@ -1340,22 +1501,32 @@ begin
   ApplyLive;
 end;
 
+// 폴더 선택은 이 창(Handle)을 소유자로 — 소유자 없는 SelectDirectory 는 '항상 위' 상태의
+// 본체/설정 창 뒤로 숨어 안 뜬 것처럼 보였다 (2026-09-11 문의). TFileOpenDialog = Vista 픽커.
 procedure TFrmSetup.BtnShotDirClick(Sender: TObject);
 var
+  Dlg: TFileOpenDialog;
   Dir: string;
 begin
-  Dir := EdtShotDir.Text;
-
-  if SelectDirectory(_('스크린샷을 저장할 폴더를 선택하세요.'), '', Dir) then
-  begin
-    EdtShotDir.Text := Dir;
-
-    // 직접 고른 경우에만 INI 기록 (SaveValues 는 이 키 안 건드림)
-    if Config <> nil then
-      Config.WriteString('shot_dir', Dir);
-
-    ControlChange(Sender);
+  Dlg := TFileOpenDialog.Create(Self);
+  try
+    Dlg.Title := _('스크린샷을 저장할 폴더를 선택하세요.');
+    Dlg.Options := [fdoPickFolders, fdoPathMustExist, fdoForceFileSystem];
+    if DirectoryExists(EdtShotDir.Text) then
+      Dlg.DefaultFolder := EdtShotDir.Text;
+    if not Dlg.Execute(Handle) then Exit;
+    Dir := Dlg.FileName;
+  finally
+    Dlg.Free;
   end;
+
+  EdtShotDir.Text := Dir;
+
+  // 직접 고른 경우에만 INI 기록 (SaveValues 는 이 키 안 건드림)
+  if Config <> nil then
+    Config.WriteString('shot_dir', Dir);
+
+  ControlChange(Sender);
 end;
 
 // 정보 카드 — 버전은 런타임에만 알 수 있어 여기서 채움.
@@ -1389,6 +1560,8 @@ end;
 
 // 값
 procedure TFrmSetup.LoadValues;
+var
+  E: TMouseEvent;
 begin
   if Config = nil then Exit;
 
@@ -1400,6 +1573,7 @@ begin
     EdtShotDir.Text := CfgStr('shot_dir', DesktopPath);
     CboShotFmt.ItemIndex := EnsureRange(CfgInt('shot_format', 0), 0, CboShotFmt.Items.Count - 1);
     SetCboOn(CboTopMost, CfgInt('topmost', 0) <> 0);
+    CboWinSize.ItemIndex := EnsureRange(CfgInt('win_mode', 0), 0, CboWinSize.Items.Count - 1);
 
     CboHwdec.ItemIndex := EnsureRange(CfgInt('hwdec', 0), 0, CboHwdec.Items.Count - 1);
     CboVo.ItemIndex := EnsureRange(CfgInt('vo', 0), 0, CboVo.Items.Count - 1);
@@ -1415,15 +1589,31 @@ begin
 
     SetCboOn(CboSubVisible, CfgInt('sub_visible', 0) <> 0);
     TrkSubSize.Position := EnsureRange(CfgInt('sub_size', 55), TrkSubSize.Min, TrkSubSize.Max);
-    EdtSubLang.Text := CfgStr('sub_lang', 'ko,kor,en,eng');
+    EdtSubLang.Text := CfgStr('sub_lang', '');
+    if EdtSubLang.Text = '' then EdtSubLang.Text := DefaultSubLang;
+
+    CboSubFont.ItemIndex := Max(CboSubFont.Items.IndexOf(CfgStr('sub_font', '')), 0);   // 미발견·'' → 0 (기본)
+    SetCboOn(CboSubBold, CfgInt('sub_bold', 0) <> 0);
+    ShpSubColor.Brush.Color := CfgInt('sub_color', clWhite);
+    TrkSubBorder.Position := EnsureRange(CfgInt('sub_border', 3), TrkSubBorder.Min, TrkSubBorder.Max);
+    ShpSubBorderColor.Brush.Color := CfgInt('sub_border_color', clBlack);
+    TrkSubShadow.Position := EnsureRange(CfgInt('sub_shadow', 0), TrkSubShadow.Min, TrkSubShadow.Max);
+    TrkSubPos.Position := EnsureRange(CfgInt('sub_pos', 100), TrkSubPos.Min, TrkSubPos.Max);
+    CboSubAlign.ItemIndex := EnsureRange(CfgInt('sub_align', 1), 0, CboSubAlign.Items.Count - 1);
+    SetCboOn(CboSubAss, CfgInt('sub_ass', 0) <> 0);
 
     UpdateTrackLabels;
+    RefreshKeyRows;
+    for E := Low(TMouseEvent) to High(TMouseEvent) do
+      FMouseCbo[E].ItemIndex := Ord(MouseMap[E]);
   finally
     FLoading := False;
   end;
 end;
 
 procedure TFrmSetup.SaveValues;
+var
+  E: TMouseEvent;
 begin
   if Config = nil then Exit;
 
@@ -1444,6 +1634,12 @@ begin
   Config.WriteInteger('shot_format', CboShotFmt.ItemIndex);
   Config.WriteInteger('topmost', B2I(CboOn(CboTopMost)));
 
+  Config.WriteInteger('win_mode', CboWinSize.ItemIndex);   // 재생 창 크기 (Main.RestoreWindow / HandleVideoSize)
+
+  for E := Low(TMouseEvent) to High(TMouseEvent) do
+    if FMouseCbo[E].ItemIndex >= 0 then
+      SaveMouse(Config, E, TMouseFunc(FMouseCbo[E].ItemIndex));
+
   Config.WriteInteger('hwdec', CboHwdec.ItemIndex);
   Config.WriteInteger('vo', CboVo.ItemIndex);
   Config.WriteInteger('gpu_api', CboGpuApi.ItemIndex);
@@ -1456,7 +1652,24 @@ begin
 
   Config.WriteInteger('sub_visible', B2I(CboOn(CboSubVisible)));
   Config.WriteInteger('sub_size', TrkSubSize.Position);
-  Config.WriteString('sub_lang', EdtSubLang.Text);
+  // 기본값과 같으면 '' 로 — OS 언어를 따르는 상태 유지 (DefaultSubLang 주석)
+  if Trim(EdtSubLang.Text) = DefaultSubLang then
+    Config.WriteString('sub_lang', '')
+  else
+    Config.WriteString('sub_lang', Trim(EdtSubLang.Text));
+
+  if CboSubFont.ItemIndex <= 0 then
+    Config.WriteString('sub_font', '')   // 0 = (기본)
+  else
+    Config.WriteString('sub_font', CboSubFont.Text);
+  Config.WriteInteger('sub_bold', B2I(CboOn(CboSubBold)));
+  Config.WriteInteger('sub_color', ShpSubColor.Brush.Color);
+  Config.WriteInteger('sub_border', TrkSubBorder.Position);
+  Config.WriteInteger('sub_border_color', ShpSubBorderColor.Brush.Color);
+  Config.WriteInteger('sub_shadow', TrkSubShadow.Position);
+  Config.WriteInteger('sub_pos', TrkSubPos.Position);
+  Config.WriteInteger('sub_align', CboSubAlign.ItemIndex);
+  Config.WriteInteger('sub_ass', B2I(CboOn(CboSubAss)));
 end;
 
 // 재시작 없이 반영되는 항목만 mpv 로. vo / gpu-api / hwdec / scale / deinterlace /
@@ -1464,7 +1677,6 @@ end;
 procedure TFrmSetup.ApplyLive;
 var
   MPV: TMPVPlayer;
-  SubVis: string;
 begin
   if FrmKPlayer = nil then Exit;
 
@@ -1483,11 +1695,15 @@ begin
   else
     MPV.Command(['set', 'af', '']);
 
-  if CboOn(CboSubVisible) then SubVis := 'yes' else SubVis := 'no';
-
-  MPV.Command(['set', 'sub-visibility', SubVis]);
+  // sub-visibility 는 여기서 안 보낸다 — '자막 기본 표시' 는 시작값이고, 재생 중엔 자막 버튼이 상태를
+  // 바꾼다. 글꼴 등 다른 항목을 만질 때마다 덮어쓰면 켜 둔 자막이 꺼진다 (2026-09-11 문의).
+  // 그 콤보 자체를 바꿨을 때만 ControlChange 가 보낸다.
   MPV.Command(['set', 'sub-font-size', IntToStr(TrkSubSize.Position)]);
-  MPV.Command(['set', 'slang', EdtSubLang.Text]);
+  if Trim(EdtSubLang.Text) = '' then
+    MPV.Command(['set', 'slang', DefaultSubLang])
+  else
+    MPV.Command(['set', 'slang', Trim(EdtSubLang.Text)]);
+  ApplySubStyle(Config, MPV);   // SaveValues 직후라 INI 가 최신
 end;
 
 // 이벤트
@@ -1497,6 +1713,19 @@ begin
 
   SaveValues;
   ApplyLive;
+
+  if (Sender = CboSubVisible) and (FrmKPlayer <> nil) and (FrmKPlayer.MPVPlayer <> nil) then
+  begin
+    if CboOn(CboSubVisible) then
+      FrmKPlayer.MPVPlayer.Command(['set', 'sub-visibility', 'yes'])
+    else
+      FrmKPlayer.MPVPlayer.Command(['set', 'sub-visibility', 'no']);
+  end;
+
+  // 재생 창 크기만 즉시 (영상 크기에 맞춤; 전체 화면은 다음 재생부터). ApplyLive 에 두면 다른 설정을
+  // 건드릴 때마다 사용자가 손으로 늘린 창이 되돌아간다.
+  if (FrmKPlayer <> nil) and (Sender = CboWinSize) then
+    FrmKPlayer.ApplyWindowMode;
 end;
 
 procedure TFrmSetup.TrackChange(Sender: TObject);
@@ -1509,9 +1738,181 @@ procedure TFrmSetup.UpdateTrackLabels;
 begin
   LblVolumeValue.Caption := Format('%d%%', [TrkVolume.Position]);
   LblSubSizeValue.Caption := IntToStr(TrkSubSize.Position);
+  LblSubBorderValue.Caption := IntToStr(TrkSubBorder.Position);
+  LblSubShadowValue.Caption := IntToStr(TrkSubShadow.Position);
+  LblSubPosValue.Caption := IntToStr(TrkSubPos.Position);
+end;
+
+// 글꼴 콤보: 0 = (기본), 그 뒤 시스템 글꼴 (세로쓰기 '@' 제외). Translate 뒤에 채운다 — 콤보 항목을 번역기가 훑으므로.
+procedure TFrmSetup.FillFonts;
+var
+  I: Integer;
+begin
+  CboSubFont.Items.BeginUpdate;
+  try
+    CboSubFont.Items.Clear;
+    CboSubFont.Items.Add(_('(기본)'));
+    for I := 0 to Screen.Fonts.Count - 1 do
+      if not Screen.Fonts[I].StartsWith('@') then
+        CboSubFont.Items.Add(Screen.Fonts[I]);
+  finally
+    CboSubFont.Items.EndUpdate;
+  end;
+end;
+
+// 글자색/외곽선 색 [변경] 공용 — Sender 로 분기. 스와치(TShape.Brush.Color)가 값 저장소.
+procedure TFrmSetup.BtnSubColorClick(Sender: TObject);
+var
+  Shape: TShape;
+  Dlg: TColorDialog;
+begin
+  if Sender = BtnSubBorderColor then
+    Shape := ShpSubBorderColor
+  else
+    Shape := ShpSubColor;
+
+  Dlg := TColorDialog.Create(Self);
+  try
+    Dlg.Color := Shape.Brush.Color;
+    Dlg.Options := [cdFullOpen];
+    if not Dlg.Execute(Handle) then Exit;
+    Shape.Brush.Color := Dlg.Color;
+  finally
+    Dlg.Free;
+  end;
+  ControlChange(Sender);
 end;
 
 // 설정
+// 단축키 카드. 행 순서 = Hotkey.TKeyAction (Index 로 대응). 키 입력은 읽기 전용 에디트가 받는다 —
+// 목록 자체에서 받으면 화살표·문자 키가 목록 탐색으로 먹힌다.
+procedure TFrmSetup.FillKeys;
+var
+  A: TKeyAction;
+  Item: TListItem;
+  Img: TImageList;
+begin
+  // 행 두께 — TListView 는 직접 못 정하고 SmallImages 높이를 따른다. 폭 1 짜리 빈 목록으로 26px
+  // (연결 트리 28 과 비슷). OwnerDraw+WM_MEASUREITEM 은 그리기까지 떠안아야 해서 안 씀.
+  Img := TImageList.Create(Self);
+  Img.Width := 1;
+  Img.Height := 26;
+  LvKeys.SmallImages := Img;
+
+  LvKeys.Items.BeginUpdate;
+  try
+    LvKeys.Items.Clear;
+    for A := Low(TKeyAction) to High(TKeyAction) do
+    begin
+      Item := LvKeys.Items.Add;
+      Item.Caption := _(KeyDefs[A].Name);
+      Item.SubItems.Add('');
+    end;
+  finally
+    LvKeys.Items.EndUpdate;
+  end;
+  RefreshKeyRows;
+end;
+
+// 마우스 카드 콤보. 항목은 코드에서 (dfm 에 두면 7개 콤보에 같은 10줄 반복) — Translate 뒤라 _() 직접.
+procedure TFrmSetup.FillMouse;
+var
+  E: TMouseEvent;
+  F: TMouseFunc;
+begin
+  FMouseCbo[meLClick]     := CboMLClick;
+  FMouseCbo[meDblClick]   := CboMDblClick;
+  FMouseCbo[meMClick]     := CboMMClick;
+  FMouseCbo[meWheelUp]    := CboMWheelUp;
+  FMouseCbo[meWheelDown]  := CboMWheelDown;
+
+  for E := Low(TMouseEvent) to High(TMouseEvent) do
+  begin
+    FMouseCbo[E].Items.BeginUpdate;
+    try
+      FMouseCbo[E].Items.Clear;
+      for F := Low(TMouseFunc) to High(TMouseFunc) do
+        FMouseCbo[E].Items.Add(_(MouseFuncNames[F]));
+    finally
+      FMouseCbo[E].Items.EndUpdate;
+    end;
+  end;
+end;
+
+procedure TFrmSetup.RefreshKeyRows;
+var
+  A: TKeyAction;
+  T: string;
+begin
+  for A := Low(TKeyAction) to High(TKeyAction) do
+  begin
+    T := KeyText(KeyMap[A]);
+    if T = '' then T := FNoneText;
+    LvKeys.Items[Ord(A)].SubItems[0] := T;
+  end;
+  if LvKeys.Selected <> nil then
+    EdtKey.Text := LvKeys.Selected.SubItems[0]
+  else
+    EdtKey.Text := '';
+end;
+
+procedure TFrmSetup.LvKeysSelectItem(Sender: TObject; Item: TListItem; Selected: Boolean);
+begin
+  if not Selected then Exit;
+  LblKeyAction.Caption := Item.Caption;
+  EdtKey.Text := Item.SubItems[0];
+end;
+
+// 같은 키를 쓰던 다른 동작은 해제 (한 키 = 한 동작). 0 = 지우기.
+procedure TFrmSetup.AssignKey(AKey: TShortCut);
+var
+  A, B: TKeyAction;
+begin
+  if (LvKeys.Selected = nil) or (Config = nil) then Exit;
+  A := TKeyAction(LvKeys.Selected.Index);
+
+  if AKey <> 0 then
+    for B := Low(TKeyAction) to High(TKeyAction) do
+      if (B <> A) and (KeyMap[B] = AKey) then
+        SaveKey(Config, B, 0);
+
+  SaveKey(Config, A, AKey);
+  RefreshKeyRows;
+end;
+
+procedure TFrmSetup.EdtKeyKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+var
+  K: Word;
+begin
+  K := Key;
+  Key := 0;   // 에디트에 아무것도 안 들어가게 (ReadOnly 여도 커서 이동·비프)
+
+  // 조합키 단독 / 고정 키 (ESC 는 Main.FormKeyDown 고정, TAB 은 AppMessage) / 토글 키 무시
+  if K in [VK_SHIFT, VK_CONTROL, VK_MENU, VK_LWIN, VK_RWIN, VK_APPS,
+           VK_ESCAPE, VK_TAB, VK_CAPITAL, VK_NUMLOCK, VK_SCROLL] then
+    Exit;
+
+  AssignKey(ShortCut(K, Shift));
+end;
+
+procedure TFrmSetup.EdtKeyKeyPress(Sender: TObject; var Key: Char);
+begin
+  Key := #0;
+end;
+
+procedure TFrmSetup.BtnKeyClearClick(Sender: TObject);
+begin
+  AssignKey(0);
+end;
+
+// 단축키만 기본값 (BtnReset 은 전체 — 거기서도 ResetKeys)
+procedure TFrmSetup.BtnKeyDefaultClick(Sender: TObject);
+begin
+  if Config = nil then Exit;
+  ResetKeys(Config);
+  RefreshKeyRows;
+end;
+
 function TFrmSetup.Config: TConfig;
 begin
   if FrmKPlayer <> nil then

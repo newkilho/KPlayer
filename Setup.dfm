@@ -84,10 +84,32 @@ object FrmSetup: TFrmSetup
       Flat = True
       OnClick = BtnNavClick
     end
-    object BtnAbout: TSpeedButton
+    object BtnKeys: TSpeedButton
       Tag = 5
       Left = 8
       Top = 198
+      Width = 99
+      Height = 32
+      GroupIndex = 1
+      Caption = #45800#52629#53412
+      Flat = True
+      OnClick = BtnNavClick
+    end
+    object BtnMouse: TSpeedButton
+      Tag = 6
+      Left = 8
+      Top = 236
+      Width = 99
+      Height = 32
+      GroupIndex = 1
+      Caption = #47560#50864#49828
+      Flat = True
+      OnClick = BtnNavClick
+    end
+    object BtnAbout: TSpeedButton
+      Tag = 7
+      Left = 8
+      Top = 274
       Width = 99
       Height = 32
       GroupIndex = 1
@@ -182,6 +204,7 @@ object FrmSetup: TFrmSetup
           Width = 667
           Height = 504
           HorzScrollBar.Visible = False
+          VertScrollBar.Margin = 24
           VertScrollBar.Tracking = True
           Align = alClient
           BevelInner = bvNone
@@ -215,40 +238,12 @@ object FrmSetup: TFrmSetup
             Caption = #51116#49373#47785#47197' '#51200#51109
             Transparent = True
           end
-          object LblSaveListDesc: TLabel
-            Left = 24
-            Top = 167
-            Width = 187
-            Height = 13
-            Caption = #45149#44592' '#46412' '#47785#47197#51012' KPlayer.lst '#50640' '#51200#51109#54620#45796
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clGray
-            Font.Height = -11
-            Font.Name = 'Segoe UI'
-            Font.Style = []
-            ParentFont = False
-            Transparent = True
-          end
           object LblShotDir: TLabel
             Left = 24
             Top = 213
-            Width = 51
+            Width = 75
             Height = 15
-            Caption = #51200#51109' '#54260#45908
-            Transparent = True
-          end
-          object LblShotDirDesc: TLabel
-            Left = 24
-            Top = 231
-            Width = 116
-            Height = 13
-            Caption = #49828#53356#47536#49399#51012' '#51200#51109#54624' '#50948#52824
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clGray
-            Font.Height = -11
-            Font.Name = 'Segoe UI'
-            Font.Style = []
-            ParentFont = False
+            Caption = #49828#53356#47536#49399' '#54260#45908
             Transparent = True
           end
           object LblShotFmt: TLabel
@@ -265,6 +260,14 @@ object FrmSetup: TFrmSetup
             Width = 39
             Height = 15
             Caption = #54637#49345' '#50948
+            Transparent = True
+          end
+          object LblWinSize: TLabel
+            Left = 24
+            Top = 405
+            Width = 66
+            Height = 15
+            Caption = #51116#49373' '#52285' '#53356#44592
             Transparent = True
           end
           object CboRepeat: TComboBox
@@ -352,6 +355,20 @@ object FrmSetup: TFrmSetup
               #49324#50857#50504#54632
               #49324#50857#54632)
           end
+          object CboWinSize: TComboBox
+            Left = 473
+            Top = 412
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 7
+            OnChange = ControlChange
+            Items.Strings = (
+              #47560#51648#47561' '#53356#44592' '#50976#51648
+              #50689#49345' '#53356#44592#50640' '#47582#52644
+              #51204#52404' '#54868#47732)
+          end
         end
       end
       object CardVideo: TCard
@@ -368,6 +385,7 @@ object FrmSetup: TFrmSetup
           Width = 667
           Height = 504
           HorzScrollBar.Visible = False
+          VertScrollBar.Margin = 24
           VertScrollBar.Tracking = True
           Align = alClient
           BevelInner = bvNone
@@ -385,40 +403,12 @@ object FrmSetup: TFrmSetup
             Caption = #54616#46300#50920#50612' '#46356#53076#46377
             Transparent = True
           end
-          object LblHwdecDesc: TLabel
-            Left = 24
-            Top = 39
-            Width = 72
-            Height = 13
-            Caption = #51116#49884#51089' '#54980' '#51201#50857
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clGray
-            Font.Height = -11
-            Font.Name = 'Segoe UI'
-            Font.Style = []
-            ParentFont = False
-            Transparent = True
-          end
           object LblVo: TLabel
             Left = 24
             Top = 85
             Width = 75
             Height = 15
             Caption = #52636#47141' '#46300#46972#51060#48260
-            Transparent = True
-          end
-          object LblVoDesc: TLabel
-            Left = 24
-            Top = 103
-            Width = 179
-            Height = 13
-            Caption = #51116#49884#51089' '#54980' '#51201#50857' / gpu-next '#45716' '#49892#54744#51201
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clGray
-            Font.Height = -11
-            Font.Name = 'Segoe UI'
-            Font.Style = []
-            ParentFont = False
             Transparent = True
           end
           object LblGpuApi: TLabel
@@ -429,40 +419,12 @@ object FrmSetup: TFrmSetup
             Caption = #44536#47000#54589' API'
             Transparent = True
           end
-          object LblGpuApiDesc: TLabel
-            Left = 24
-            Top = 167
-            Width = 72
-            Height = 13
-            Caption = #51116#49884#51089' '#54980' '#51201#50857
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clGray
-            Font.Height = -11
-            Font.Name = 'Segoe UI'
-            Font.Style = []
-            ParentFont = False
-            Transparent = True
-          end
           object LblVideoSync: TLabel
             Left = 24
             Top = 213
             Width = 63
             Height = 15
             Caption = #54868#47732' '#46041#44592#54868
-            Transparent = True
-          end
-          object LblVideoSyncDesc: TLabel
-            Left = 24
-            Top = 231
-            Width = 72
-            Height = 13
-            Caption = #51116#49884#51089' '#54980' '#51201#50857
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clGray
-            Font.Height = -11
-            Font.Name = 'Segoe UI'
-            Font.Style = []
-            ParentFont = False
             Transparent = True
           end
           object LblScale: TLabel
@@ -473,40 +435,12 @@ object FrmSetup: TFrmSetup
             Caption = #50629#49828#52992#51068#47084
             Transparent = True
           end
-          object LblScaleDesc: TLabel
-            Left = 24
-            Top = 295
-            Width = 72
-            Height = 13
-            Caption = #51116#49884#51089' '#54980' '#51201#50857
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clGray
-            Font.Height = -11
-            Font.Name = 'Segoe UI'
-            Font.Style = []
-            ParentFont = False
-            Transparent = True
-          end
           object LblDeint: TLabel
             Left = 24
             Top = 341
             Width = 87
             Height = 15
             Caption = #51064#53552#47112#51060#49828' '#54644#51228
-            Transparent = True
-          end
-          object LblDeintDesc: TLabel
-            Left = 24
-            Top = 359
-            Width = 72
-            Height = 13
-            Caption = #51116#49884#51089' '#54980' '#51201#50857
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clGray
-            Font.Height = -11
-            Font.Name = 'Segoe UI'
-            Font.Style = []
-            ParentFont = False
             Transparent = True
           end
           object CboHwdec: TComboBox
@@ -609,6 +543,7 @@ object FrmSetup: TFrmSetup
           Width = 667
           Height = 504
           HorzScrollBar.Visible = False
+          VertScrollBar.Margin = 24
           VertScrollBar.Tracking = True
           Align = alClient
           BevelInner = bvNone
@@ -624,20 +559,6 @@ object FrmSetup: TFrmSetup
             Width = 51
             Height = 15
             Caption = #44592#48376' '#48380#47464
-            Transparent = True
-          end
-          object LblVolumeDesc: TLabel
-            Left = 24
-            Top = 39
-            Width = 203
-            Height = 13
-            Caption = #54788#51116' '#48380#47464' / '#45796#51020' '#49892#54665#50640#46020' '#50976#51648' ('#52572#45824' 100)'
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clGray
-            Font.Height = -11
-            Font.Name = 'Segoe UI'
-            Font.Style = []
-            ParentFont = False
             Transparent = True
           end
           object LblVolumeValue: TLabel
@@ -657,20 +578,6 @@ object FrmSetup: TFrmSetup
             Width = 90
             Height = 15
             Caption = #51020#47049' '#54217#51456#54868' '#49324#50857
-            Transparent = True
-          end
-          object LblNormalizeDesc: TLabel
-            Left = 24
-            Top = 103
-            Width = 205
-            Height = 13
-            Caption = #44396#44036#48324' '#51020#47049' '#52264#51060#47484' '#51460#51064#45796' (dynaudnorm)'
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clGray
-            Font.Height = -11
-            Font.Name = 'Segoe UI'
-            Font.Style = []
-            ParentFont = False
             Transparent = True
           end
           object LblNormLevel: TLabel
@@ -738,6 +645,7 @@ object FrmSetup: TFrmSetup
           Width = 667
           Height = 504
           HorzScrollBar.Visible = False
+          VertScrollBar.Margin = 24
           VertScrollBar.Tracking = True
           Align = alClient
           BevelInner = bvNone
@@ -745,7 +653,7 @@ object FrmSetup: TFrmSetup
           BorderStyle = bsNone
           TabOrder = 0
           DesignSize = (
-            667
+            650
             504)
           object LblSubVisible: TLabel
             Left = 24
@@ -753,20 +661,6 @@ object FrmSetup: TFrmSetup
             Width = 78
             Height = 15
             Caption = #51088#47561' '#44592#48376' '#54364#49884
-            Transparent = True
-          end
-          object LblSubVisibleDesc: TLabel
-            Left = 24
-            Top = 39
-            Width = 155
-            Height = 13
-            Caption = #45124#47732' '#51088#47561' '#48260#53948#51004#47196' '#53020#50556' '#48372#51064#45796
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clGray
-            Font.Height = -11
-            Font.Name = 'Segoe UI'
-            Font.Style = []
-            ParentFont = False
             Transparent = True
           end
           object LblSubSize: TLabel
@@ -796,19 +690,126 @@ object FrmSetup: TFrmSetup
             Caption = #44592#48376' '#51088#47561' '#50616#50612
             Transparent = True
           end
-          object LblSubLangDesc: TLabel
+          object LblSubFont: TLabel
             Left = 24
-            Top = 151
-            Width = 156
-            Height = 13
-            Caption = #49788#54364#47196' '#44396#48516' ('#50696': ko,kor,en,eng)'
-            Font.Charset = DEFAULT_CHARSET
-            Font.Color = clGray
-            Font.Height = -11
-            Font.Name = 'Segoe UI'
-            Font.Style = []
-            ParentFont = False
+            Top = 185
+            Width = 24
+            Height = 15
+            Caption = #44544#44852
             Transparent = True
+          end
+          object LblSubBold: TLabel
+            Left = 24
+            Top = 230
+            Width = 24
+            Height = 15
+            Caption = #44405#44172
+            Transparent = True
+          end
+          object LblSubColor: TLabel
+            Left = 24
+            Top = 275
+            Width = 36
+            Height = 15
+            Caption = #44544#51088#49353
+            Transparent = True
+          end
+          object LblSubBorder: TLabel
+            Left = 24
+            Top = 365
+            Width = 63
+            Height = 15
+            Caption = #50808#44285#49440' '#46160#44760
+            Transparent = True
+          end
+          object LblSubBorderValue: TLabel
+            Left = 397
+            Top = 365
+            Width = 48
+            Height = 15
+            Alignment = taRightJustify
+            Anchors = [akTop, akRight]
+            AutoSize = False
+            Caption = '0'
+            Transparent = True
+          end
+          object LblSubBorderColor: TLabel
+            Left = 24
+            Top = 320
+            Width = 51
+            Height = 15
+            Caption = #50808#44285#49440' '#49353
+            Transparent = True
+          end
+          object LblSubShadow: TLabel
+            Left = 24
+            Top = 410
+            Width = 36
+            Height = 15
+            Caption = #44536#47548#51088
+            Transparent = True
+          end
+          object LblSubShadowValue: TLabel
+            Left = 397
+            Top = 410
+            Width = 48
+            Height = 15
+            Alignment = taRightJustify
+            Anchors = [akTop, akRight]
+            AutoSize = False
+            Caption = '0'
+            Transparent = True
+          end
+          object LblSubPos: TLabel
+            Left = 24
+            Top = 455
+            Width = 51
+            Height = 15
+            Caption = #49464#47196' '#50948#52824
+            Transparent = True
+          end
+          object LblSubPosValue: TLabel
+            Left = 397
+            Top = 455
+            Width = 48
+            Height = 15
+            Alignment = taRightJustify
+            Anchors = [akTop, akRight]
+            AutoSize = False
+            Caption = '0'
+            Transparent = True
+          end
+          object LblSubAlign: TLabel
+            Left = 24
+            Top = 500
+            Width = 24
+            Height = 15
+            Caption = #51221#47148
+            Transparent = True
+          end
+          object LblSubAss: TLabel
+            Left = 24
+            Top = 545
+            Width = 117
+            Height = 15
+            Caption = #51088#47561' '#54028#51068' '#49828#53440#51068' '#50864#49440
+            Transparent = True
+          end
+          object ShpSubColor: TShape
+            Left = 513
+            Top = 282
+            Width = 60
+            Height = 21
+            Anchors = [akTop, akRight]
+            Pen.Color = clGray
+          end
+          object ShpSubBorderColor: TShape
+            Left = 513
+            Top = 327
+            Width = 60
+            Height = 21
+            Anchors = [akTop, akRight]
+            Pen.Color = clGray
           end
           object CboSubVisible: TComboBox
             Left = 473
@@ -847,6 +848,116 @@ object FrmSetup: TFrmSetup
             Anchors = [akTop, akRight]
             TabOrder = 2
             OnChange = ControlChange
+          end
+          object CboSubFont: TComboBox
+            Left = 393
+            Top = 192
+            Width = 250
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 3
+            OnChange = ControlChange
+          end
+          object CboSubBold: TComboBox
+            Left = 473
+            Top = 237
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 4
+            OnChange = ControlChange
+            Items.Strings = (
+              #49324#50857#50504#54632
+              #49324#50857#54632)
+          end
+          object BtnSubColor: TButton
+            Left = 583
+            Top = 281
+            Width = 60
+            Height = 23
+            Anchors = [akTop, akRight]
+            Caption = #48320#44221
+            TabOrder = 5
+            OnClick = BtnSubColorClick
+          end
+          object TrkSubBorder: TTrackBar
+            Left = 453
+            Top = 359
+            Width = 190
+            Height = 28
+            Anchors = [akTop, akRight]
+            Max = 5
+            PageSize = 1
+            ShowSelRange = False
+            TabOrder = 6
+            TickStyle = tsNone
+            OnChange = TrackChange
+          end
+          object BtnSubBorderColor: TButton
+            Left = 583
+            Top = 326
+            Width = 60
+            Height = 23
+            Anchors = [akTop, akRight]
+            Caption = #48320#44221
+            TabOrder = 7
+            OnClick = BtnSubColorClick
+          end
+          object TrkSubShadow: TTrackBar
+            Left = 453
+            Top = 404
+            Width = 190
+            Height = 28
+            Anchors = [akTop, akRight]
+            Max = 5
+            PageSize = 1
+            ShowSelRange = False
+            TabOrder = 8
+            TickStyle = tsNone
+            OnChange = TrackChange
+          end
+          object TrkSubPos: TTrackBar
+            Left = 453
+            Top = 449
+            Width = 190
+            Height = 28
+            Anchors = [akTop, akRight]
+            Max = 100
+            PageSize = 5
+            Frequency = 10
+            ShowSelRange = False
+            TabOrder = 9
+            TickStyle = tsNone
+            OnChange = TrackChange
+          end
+          object CboSubAlign: TComboBox
+            Left = 473
+            Top = 507
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 10
+            OnChange = ControlChange
+            Items.Strings = (
+              #50812#51901
+              #44032#50868#45936
+              #50724#47480#51901)
+          end
+          object CboSubAss: TComboBox
+            Left = 473
+            Top = 552
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 11
+            OnChange = ControlChange
+            Items.Strings = (
+              #49324#50857#50504#54632
+              #49324#50857#54632)
           end
         end
       end
@@ -959,7 +1070,7 @@ object FrmSetup: TFrmSetup
           OnClick = BtnAssocDefaultsClick
         end
       end
-      object CardAbout: TCard
+      object CardKeys: TCard
         Left = 0
         Top = 0
         Width = 667
@@ -967,6 +1078,220 @@ object FrmSetup: TFrmSetup
         CardIndex = 5
         ParentColor = True
         TabOrder = 5
+        DesignSize = (
+          667
+          504)
+        object LblKeyHint: TLabel
+          Left = 444
+          Top = 12
+          Width = 200
+          Height = 60
+          Anchors = [akTop, akRight]
+          AutoSize = False
+          Caption = #47785#47197#50640#49436' '#46041#51089#51012' '#44256#47480' '#46244' '#50500#47000' '#52856#51012' '#45572#47476#44256' '#53412#47484' '#51077#47141#54616#49464#50836'. ESC, TAB '#51008' '#48148#44992' '#49688' '#50630#49845#45768#45796'.'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clGray
+          Font.Height = -11
+          Font.Name = 'Segoe UI'
+          Font.Style = []
+          ParentFont = False
+          Transparent = True
+          WordWrap = True
+        end
+        object LblKeyAction: TLabel
+          Left = 444
+          Top = 84
+          Width = 200
+          Height = 15
+          Anchors = [akTop, akRight]
+          AutoSize = False
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -12
+          Font.Name = 'Segoe UI'
+          Font.Style = [fsBold]
+          ParentFont = False
+          Transparent = True
+        end
+        object LvKeys: TListView
+          Left = 24
+          Top = 12
+          Width = 400
+          Height = 480
+          Anchors = [akLeft, akTop, akBottom]
+          Columns = <
+            item
+              Caption = #46041#51089
+              Width = 270
+            end
+            item
+              Caption = #45800#52629#53412
+              Width = 105
+            end>
+          ColumnClick = False
+          HideSelection = False
+          ReadOnly = True
+          RowSelect = True
+          TabOrder = 0
+          ViewStyle = vsReport
+          OnSelectItem = LvKeysSelectItem
+        end
+        object EdtKey: TEdit
+          Left = 444
+          Top = 105
+          Width = 200
+          Height = 23
+          Anchors = [akTop, akRight]
+          ReadOnly = True
+          TabOrder = 1
+          OnKeyDown = EdtKeyKeyDown
+          OnKeyPress = EdtKeyKeyPress
+        end
+        object BtnKeyClear: TButton
+          Left = 444
+          Top = 136
+          Width = 200
+          Height = 30
+          Anchors = [akTop, akRight]
+          Caption = #51648#50864#44592
+          TabOrder = 2
+          OnClick = BtnKeyClearClick
+        end
+        object BtnKeyDefault: TButton
+          Left = 444
+          Top = 462
+          Width = 200
+          Height = 30
+          Anchors = [akRight, akBottom]
+          Caption = #45800#52629#53412' '#44592#48376#44050
+          TabOrder = 3
+          OnClick = BtnKeyDefaultClick
+        end
+      end
+      object CardMouse: TCard
+        Left = 0
+        Top = 0
+        Width = 667
+        Height = 504
+        CardIndex = 6
+        ParentColor = True
+        TabOrder = 6
+        object BoxMouse: TScrollBox
+          Left = 0
+          Top = 0
+          Width = 667
+          Height = 504
+          HorzScrollBar.Visible = False
+          VertScrollBar.Margin = 24
+          VertScrollBar.Tracking = True
+          Align = alClient
+          BevelInner = bvNone
+          BevelOuter = bvNone
+          BorderStyle = bsNone
+          TabOrder = 0
+          DesignSize = (
+            667
+            504)
+          object LblMLClick: TLabel
+            Left = 24
+            Top = 21
+            Width = 108
+            Height = 15
+            Caption = #50812#51901' '#48260#53948' '#54620' '#48264' '#53364#47533
+            Transparent = True
+          end
+          object LblMDblClick: TLabel
+            Left = 24
+            Top = 85
+            Width = 108
+            Height = 15
+            Caption = #50812#51901' '#48260#53948' '#46160' '#48264' '#53364#47533
+            Transparent = True
+          end
+          object LblMMClick: TLabel
+            Left = 24
+            Top = 149
+            Width = 90
+            Height = 15
+            Caption = #44032#50868#45936' '#48260#53948' '#53364#47533
+            Transparent = True
+          end
+          object LblMWheelUp: TLabel
+            Left = 24
+            Top = 213
+            Width = 39
+            Height = 15
+            Caption = #55072' '#50948#47196
+            Transparent = True
+          end
+          object LblMWheelDown: TLabel
+            Left = 24
+            Top = 277
+            Width = 51
+            Height = 15
+            Caption = #55072' '#50500#47000#47196
+            Transparent = True
+          end
+          object CboMLClick: TComboBox
+            Left = 473
+            Top = 28
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 0
+            OnChange = ControlChange
+          end
+          object CboMDblClick: TComboBox
+            Left = 473
+            Top = 92
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 1
+            OnChange = ControlChange
+          end
+          object CboMMClick: TComboBox
+            Left = 473
+            Top = 156
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 2
+            OnChange = ControlChange
+          end
+          object CboMWheelUp: TComboBox
+            Left = 473
+            Top = 220
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 3
+            OnChange = ControlChange
+          end
+          object CboMWheelDown: TComboBox
+            Left = 473
+            Top = 284
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 4
+            OnChange = ControlChange
+          end
+        end
+      end
+      object CardAbout: TCard
+        Left = 0
+        Top = 0
+        Width = 667
+        Height = 504
+        CardIndex = 7
+        ParentColor = True
+        TabOrder = 7
         DesignSize = (
           667
           504)

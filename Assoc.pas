@@ -71,6 +71,8 @@ const
   DeintValues:     array[0..2] of string = ('auto', 'yes', 'no');
   VideoSyncValues: array[0..1] of string = ('display-resample', 'audio');
   ShotFmtValues:   array[0..1] of string = ('jpg', 'png');
+  SubAlignValues:  array[0..2] of string = ('left', 'center', 'right');   // sub-align-x
+  SubAssValues:    array[0..1] of string = ('force', 'yes');              // sub-ass-override: 0=우리 스타일 강제 1=자막 파일 스타일 우선
 
   // 음량 평준화 프리셋 (dynaudnorm) — 0:낮게 1:보통 2:강하게
   NormFilters: array[0..2] of string = (

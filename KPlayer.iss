@@ -15,6 +15,7 @@ Source: "{#MyAppExe}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MySrcDir}\KPlayer.lua"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MySrcDir}\Icon\*.ico"; DestDir: "{app}\Icon"; Flags: ignoreversion
 Source: "{#MySrcDir}\libmpv-2.dll"; DestDir: "{app}"
+Source: "{#MySrcDir}\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Setup]
 AppId={#MyAppName}
