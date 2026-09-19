@@ -80,7 +80,7 @@ Settings are stored in `KPlayer.ini` and the playlist in `KPlayer.lst`, next to 
 
 ## Installation
 
-The installer puts KPlayer in `%LOCALAPPDATA%\KPlayer`. `libmpv-2.dll`, `KPlayer.lua` and the `Icon\` folder must sit next to the executable.  
+The installer puts KPlayer in `%LOCALAPPDATA%\KPlayer`. `libmpv-2.dll` must sit next to the executable.  
 To build from source you need Delphi (VCL, Win64) plus [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi), [Virtual Treeview](https://github.com/JAM-Software/Virtual-TreeView) and [SVGIconImageList](https://github.com/EtheaDev/SVGIconImageList).
 
 ## License

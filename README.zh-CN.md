@@ -80,7 +80,7 @@
 
 ## 安装
 
-安装程序将 KPlayer 放在 `%LOCALAPPDATA%\KPlayer`。可执行文件旁必须有 `libmpv-2.dll`、`KPlayer.lua` 和 `Icon\` 文件夹。  
+安装程序将 KPlayer 放在 `%LOCALAPPDATA%\KPlayer`。可执行文件旁必须有 `libmpv-2.dll`。  
 从源码构建需要 Delphi (VCL, Win64) 以及 [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi)、[Virtual Treeview](https://github.com/JAM-Software/Virtual-TreeView)、[SVGIconImageList](https://github.com/EtheaDev/SVGIconImageList)。
 
 ## 许可证

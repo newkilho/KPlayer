@@ -80,7 +80,7 @@
 
 ## 설치
 
-설치본은 `%LOCALAPPDATA%\KPlayer` 에 들어가며, 실행 파일 옆에 `libmpv-2.dll`, `KPlayer.lua`, `Icon\` 이 있어야 한다.  
+설치본은 `%LOCALAPPDATA%\KPlayer` 에 들어가며, 실행 파일 옆에 `libmpv-2.dll` 이 있어야 한다.  
 직접 빌드하려면 Delphi (VCL, Win64) 와 [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi), [Virtual Treeview](https://github.com/JAM-Software/Virtual-TreeView), [SVGIconImageList](https://github.com/EtheaDev/SVGIconImageList) 가 필요하다.
 
 ## 라이선스

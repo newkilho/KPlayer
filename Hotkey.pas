@@ -19,7 +19,7 @@ type
     kaVolUp, kaVolDown, kaVolUpFine, kaVolDownFine, kaMute,
     kaSpeedDown10, kaSpeedUp10, kaSpeedDown, kaSpeedUp, kaSpeedReset,
     kaSubToggle, kaSubNext, kaSubPrev, kaScreenshot, kaFullScreen,
-    kaListPrev, kaListNext, kaPlayList, kaSettings, kaTopMost);
+    kaListPrev, kaListNext, kaOpenFile, kaPlayList, kaSettings, kaTopMost);
 
   TKeyDef = record
     Id: string;      // INI 키 = 'key_' + Id
@@ -55,6 +55,7 @@ const
     (Id: 'fullscreen';    Name: '전체 화면';       Def: VK_RETURN),   // 2026-09-11 사용자 결정 (F 아님)
     (Id: 'list_prev';     Name: '이전 파일';         Def: VK_PRIOR),
     (Id: 'list_next';     Name: '다음 파일';         Def: VK_NEXT),
+    (Id: 'open_file';     Name: '파일 열기';       Def: Ord('O') or scCtrl),   // 목록 창 [추가] 와 같은 대화상자 (List.OpenFiles)
     (Id: 'playlist';      Name: '재생목록';        Def: 0),
     (Id: 'settings';      Name: '환경설정';        Def: 0),
     (Id: 'topmost';       Name: '항상 위';         Def: 0)

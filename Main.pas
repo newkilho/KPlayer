@@ -13,13 +13,18 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 해야할일:
 =========
-  [+] 설치 후 첫 실행시 파일 연결 등록(레지스터리)
-  [+] DLL 파일을 포함하여 원파일로 가능한지 확인
-  [+] ICO 파일을 EXE 로 포함해서 진행하는 것으로 확인
 
 히스토리:
 ========
-  0.9.9.0
+  1.0.0.0
+  [+] 설치 직후 주요 확장자 자동 연결 - 인스톨러 [Run] 이 /inst 로 실행하면 등록 후 평소처럼 계속 실행 (Assoc.pas: AssocRegisterMain / Main.pas: FormCreate / KPlayer.iss: [Run])
+  [*] 파일 연결 아이콘을 exe 리소스로 - Icon\*.ico 를 Tools\MakeIconRes.py 가 RT_ICON 1000+/RT_GROUP_ICON 40000+ 로 KPlayerIcons.res 생성(MAINICON 과 ID 충돌 회피), DefaultIcon = "exe",-ID, exe 옆 Icon\ 폴더·설치본 항목 제거 (Assoc.pas: ExtIconRef, IconIds.inc / KPlayer.dpr / KPlayer.iss)
+  [*] KPlayer.lua 를 exe 리소스(RCDATA 'script')에 내장 - 실행 시 %TEMP%\KPlayer\ 에 풀어 load-script, exe 옆 파일 불필요, 설치본에서 제외 (Main.pas: ExtractScript, FormCreate / KPlayerResource.rc / KPlayer.iss)
+  [+] 시작 화면 원 로고를 버튼으로 - 클릭 시 목록 있으면 첫 항목 재생, 없으면 파일 열기 대화상자, 마우스 올리면 밝아짐, 창 드래그 억제 (KPlayer.lua: hover_logo, check_hover, alpha.logo_*_hover / Main.pas: OnScriptMessage 'logo')
+  [+] 우클릭 '만든이 오길호' 클릭 시 홈페이지(go.kilho.net/kplayer) 열기 (Main.pas: BtnAboutClick / Const.inc: AppHome)
+  [+] 우클릭 메뉴에 '파일 열기'/'폴더 열기' - 화면 크기 위, 구분선 (Main.pas: MnuOpenFileClick, MnuOpenFolderClick / Main.dfm: MnuOpenFile, MnuOpenFolder / List.pas: OpenFolder)
+  [+] 파일 열기 단축키 Ctrl+O - 환경설정 '단축키' 재생목록 위, 목록 창 [추가] 와 같은 대화상자, 필터는 AssocExts 38종 (미디어/비디오/오디오/모든 파일) (Hotkey.pas: kaOpenFile / List.pas: OpenFiles, BtnAddPopupClick / Main.pas: ExecAction)
+  [*] 두 번째 실행부터 둥근 모서리가 사라지던 문제 - RestoreWindow 의 Position := poDesigned 가 핸들을 재생성해 SetFormCorners 무효, DFM 을 poDesigned 로 고정하고 미저장 시 직접 가운데 배치 (Main.pas: RestoreWindow / Main.dfm: Position)
   [+] 환경설정 '마우스' 카드 - 왼쪽 클릭/더블클릭/가운데 버튼/휠 위아래 마다 기능 선택 (팟플레이어 방식), 왼쪽 클릭은 이동 없이 뗀 뒤 더블클릭 시간만큼 지연 (Hotkey.pas: MouseDefs, MouseMap, LoadMouse / Main.pas: ExecMouse, FormMouseDown, ClickTimerTick, WMMouseWheel / Setup.pas: CardMouse, FMouseCbo)
   [+] 환경설정 '단축키' 카드 - 동작 29종의 키를 지정/해제/기본값, 중복 키는 이전 동작에서 자동 해제, INI key_* (TShortCut 정수) (Hotkey.pas: KeyDefs, KeyMap, LoadKeys, SaveKey, FindKeyAction / Main.pas: FormKeyDown, ExecAction / Setup.pas: CardKeys, FillKeys, EdtKeyKeyDown)
   [*] 기본 자막 언어를 OS 언어에서 계산 (2자+3자 코드 + 영어 폴백), 직접 고친 값만 INI 기록 - ko 고정이라 타 언어 사용자에게 한국어 자막이 먼저 잡히던 것 (Setup.pas: DefaultSubLang, LoadValues, SaveValues, ApplyLive / Main.pas: FormCreate)
@@ -116,8 +121,8 @@ unit Main;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
-  System.Types, System.Math, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Winapi.Windows, Winapi.Messages, Winapi.ShellAPI, System.SysUtils, System.Variants, System.Classes,
+  System.Types, System.Math, System.IOUtils, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Menus, MPVBasePlayer, MPVPlayer,
   K.Theme, K.DragFile, K.Config.INI, K.Update, Hotkey;
 
@@ -131,6 +136,9 @@ type
   TFrmKPlayer = class(TForm)
     Menu: TPopupMenu;
     BtnAbout: TMenuItem;
+    MnuOpenFile: TMenuItem;
+    MnuOpenFolder: TMenuItem;
+    N2: TMenuItem;
     MnuScreen: TMenuItem;
     MnuOrig50: TMenuItem;    // Tag = 배율 % (원본 화면 0.5x/1.0x/1.5x/2.0x, 공용 MnuOriginalClick)
     MnuOrig100: TMenuItem;
@@ -150,6 +158,9 @@ type
     procedure FormMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure MenuPopup(Sender: TObject);
+    procedure MnuOpenFileClick(Sender: TObject);
+    procedure BtnAboutClick(Sender: TObject);
+    procedure MnuOpenFolderClick(Sender: TObject);
     procedure MnuOriginalClick(Sender: TObject);
     procedure MnuFullClick(Sender: TObject);
     procedure MnuStretchClick(Sender: TObject);
@@ -216,6 +227,7 @@ type
     procedure HandleStop;
     procedure HandlePause;
     procedure HandleStartupParams;
+    function ExtractScript: string;
     procedure SetTopMost(AState: Boolean);
     procedure SendTopMost;
     procedure ApplyWindowMode;
@@ -271,8 +283,11 @@ begin
   RepeatMode := FConfig.ReadInteger('repeat', 0);
   RandomMode := FConfig.ReadInteger('random', 0);
 
-  if ReportMemoryLeaksOnShutDown then Theme := 'n:\Release\KPlayer.lua' else // 디버그
-  Theme := ExtractFilePath(ParamStr(0)) + 'KPlayer.lua';
+  // KPlayer.lua 는 exe 리소스(RCDATA 'script') — exe 옆 파일을 읽지 않는다 (1.0.0.0).
+  // 디버그는 n:\Release 의 파일이 있으면 그걸로 (빌드 없이 lua 수정 시험).
+  Theme := '';
+  if ReportMemoryLeaksOnShutDown and FileExists('n:\Release\KPlayer.lua') then
+    Theme := 'n:\Release\KPlayer.lua';
 
   if not MPVLibLoaded(ExtractFilePath(ParamStr(0))) then
   begin
@@ -281,7 +296,9 @@ begin
     Exit;
   end;
 
-  if not FileExists(Theme) then
+  if Theme = '' then
+    Theme := ExtractScript;
+  if Theme = '' then
   begin
     Showmessage(_('필수 파일이 없습니다.'));
     Application.Terminate;
@@ -371,6 +388,11 @@ begin
   FVerifyTimer.Enabled := False;
   FVerifyTimer.Interval := 2000;
   FVerifyTimer.OnTimer := VerifyTimerTick;
+
+  // 설치 직후 (인스톨러 [Run] 이 /inst 로 실행, 칼무리 동일) — 주요 확장자 등록 후 평소처럼 계속 실행.
+  // 포터블은 스위치가 없으니 등록 안 됨. 이후 실행은 아래 SyncFileAssoc 이 소유 목록만 유지.
+  if FindCmdLineSwitch('inst', ['/'], True) then
+    AssocRegisterMain;
 
   // 파일 연결 exe 경로 재기록 — 포터블 폴더 이동 시 옛 경로 방지
   SyncFileAssoc;
@@ -487,6 +509,16 @@ begin
   if SameText(ACommand, 'next') then
   begin
     FrmList.Next;
+    Exit;
+  end;
+
+  // 시작 화면 원 로고 클릭 (KPlayer.lua hover_logo) — 목록 있으면 첫 항목, 없으면 파일 열기
+  if SameText(ACommand, 'logo') then
+  begin
+    if FrmList.ListData.RootNodeCount > 0 then
+      FrmList.Next
+    else
+      FrmList.OpenFiles;
     Exit;
   end;
 
@@ -725,6 +757,23 @@ begin
   MnuOrig200.Enabled := HasVideo;
 end;
 
+// 우클릭 '만든이' → 홈페이지 (Const.inc AppHome)
+procedure TFrmKPlayer.BtnAboutClick(Sender: TObject);
+begin
+  ShellExecute(0, 'open', PChar(AppHome), nil, nil, SW_SHOWNORMAL);
+end;
+
+// 우클릭 '파일 열기'/'폴더 열기' — 목록 창 [추가] 메뉴·Ctrl+O 와 같은 경로
+procedure TFrmKPlayer.MnuOpenFileClick(Sender: TObject);
+begin
+  FrmList.OpenFiles;
+end;
+
+procedure TFrmKPlayer.MnuOpenFolderClick(Sender: TObject);
+begin
+  FrmList.OpenFolder;
+end;
+
 // 원본 화면 = 창을 영상 픽셀 크기 × 배율(Tag %) 로 (화면보다 크면 비율 축소 — ResizeWindow). 전체화면 중이면 먼저 해제.
 procedure TFrmKPlayer.MnuOriginalClick(Sender: TObject);
 var
@@ -841,7 +890,10 @@ begin
   T := FConfig.ReadInteger('win_top', MaxInt);
   if (L = MaxInt) or (T = MaxInt) then
   begin
-    SetBounds(Left, Top, W, H);   // 위치 미저장 → poScreenCenter 가 표시 때 가운데로
+    // 위치 미저장 → 주 모니터 가운데. DFM 은 poDesigned 고정 — Position 을 런타임에 바꾸면
+    // RecreateWnd 로 핸들이 바뀌어 FormCreate 의 SetFormCorners 가 날아간다 (둥근 모서리 사라짐, 2026-09-13).
+    R := Screen.WorkAreaRect;
+    SetBounds(R.Left + (R.Width - W) div 2, R.Top + (R.Height - H) div 2, W, H);
     Exit;
   end;
 
@@ -851,7 +903,6 @@ begin
   H := Min(H, R.Height);
   L := EnsureRange(L, R.Left, R.Right - W);
   T := EnsureRange(T, R.Top, R.Bottom - H);
-  Position := poDesigned;
   SetBounds(L, T, W, H);
 end;
 
@@ -947,6 +998,37 @@ end;
 // (재생목록을 열면 목록엔 들어오는데 재생이 안 걸려 더블클릭해야 시작됐다 — 2026-08-29 문의).
 // → 드롭과 같은 AddFiles 로 넘겨 '목록에 실제로 들어간 첫 항목' 부터 재생.
 // FileExists 로 거르지 않는다 — 폴더 인자가 통째로 무시됐다. 존재 확인은 AddFiles 의 배경 검사.
+// 리소스 'script' 를 %TEMP%\KPlayer\KPlayer.lua 로 풀고 경로 반환 ('' = 실패). mpv load-script 는 파일 경로만
+// 받으므로 문자열 로드 불가. 내용이 같으면 다시 쓰지 않는다 — 다른 인스턴스가 읽는 중 덮어쓰는 경우 회피.
+function TFrmKPlayer.ExtractScript: string;
+var
+  Res: TResourceStream;
+  Data: TBytes;
+  Dir: string;
+begin
+  Result := '';
+  if FindResource(HInstance, 'script', RT_RCDATA) = 0 then Exit;
+
+  Res := TResourceStream.Create(HInstance, 'script', RT_RCDATA);
+  try
+    SetLength(Data, Res.Size);
+    if Res.Size > 0 then
+      Res.ReadBuffer(Data[0], Res.Size);
+  finally
+    Res.Free;
+  end;
+
+  try
+    Dir := TPath.Combine(TPath.GetTempPath, AppName);
+    TDirectory.CreateDirectory(Dir);
+    Result := TPath.Combine(Dir, 'KPlayer.lua');
+    if not (TFile.Exists(Result) and (TFile.ReadAllBytes(Result) = Data)) then
+      TFile.WriteAllBytes(Result, Data);
+  except
+    Result := '';
+  end;
+end;
+
 procedure TFrmKPlayer.HandleStartupParams;
 var
   I: Integer;
@@ -1059,6 +1141,7 @@ begin
     kaFullScreen:    MPVPlayer.Command(['cycle', 'fullscreen']);
     kaListPrev:      FrmList.Prev;
     kaListNext:      FrmList.Next;
+    kaOpenFile:      FrmList.OpenFiles;
     kaPlayList:      HandlePlayList;
     kaSettings:      HandleSettings;
     kaTopMost:       SetTopMost(FConfig.ReadInteger('topmost', 0) = 0);

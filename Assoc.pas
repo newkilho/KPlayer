@@ -135,6 +135,9 @@ procedure AssocRegister(const AIndex: Integer);
 procedure AssocUnregister(const AIndex: Integer);
 procedure EnsureAppRegistered;
 
+// 주요 확장자(Main) 일괄 등록 — 인스톨러가 [Run] 의 /inst 로 호출 (Main.FormCreate). 환경설정 [주요 파일] 과 같은 집합.
+procedure AssocRegisterMain;
+
 // 등록한 연결 전부 복원 (제거 프로그램이 /uninst 로 호출).
 procedure AssocUnregisterAll;
 
@@ -195,32 +198,29 @@ const
   AssocCapKey    = '\Software\KPlayer\Capabilities';
   AssocClassKey  = '\Software\Classes\';
 
-  // 확장자별 아이콘 폴더 (exe 옆). 파일명 = 점 뺀 확장자 + '.ico'.
-  AssocIconDir   = 'Icon\';
+// 확장자별 아이콘 = exe 리소스 (KPlayerIcons.res, Tools\MakeIconRes.py 생성). IconIds 표.
+{$I IconIds.inc}
 
 function ExtProgID(const AExt: string): string;
 begin
   Result := 'KPlayer' + AExt;   // '.mp4' -> 'KPlayer.mp4'
 end;
 
-// DefaultIcon 문자열 — Icon 폴더의 확장자별 .ico, 없으면 exe 첫 아이콘.
-// exe 리소스 금지: 별도 .rc 의 RT_ICON ID 가 Delphi .res 의 MAINICON 하위
-// RT_ICON 과 겹침 (둘 다 1부터) → 링크 깨짐. 회피하려면 앱 아이콘·버전까지
-// 직접 쓴 .rc 로 몰아야 하고, 어차피 libmpv-2.dll·KPlayer.lua 동봉 배포라
-// 단일 파일 불가.
-// 경로 캐시 안 함 (의도) — 포터블이라 폴더가 바뀜, SyncFileAssoc 의
-// AssocRegister 재호출이 이 값을 새로 만듦.
+// DefaultIcon 문자열 — "<exe>",-<RT_GROUP_ICON ID> (음수 = 리소스 ID, ZipMania 동일), 표에 없으면
+// exe 첫 아이콘(",0"). .rc 로 넣으면 RT_ICON 이 1부터 매겨져 KPlayer.res 의 MAINICON(1·2·3) 과 충돌
+// → 링커가 한쪽 폐기. 그래서 Tools\MakeIconRes.py 가 RT_ICON 1000+/그룹 40000+ 로 .res 를 직접 쓴다.
+// 경로 캐시 안 함 (의도) — 포터블이라 폴더가 바뀜, SyncFileAssoc 의 AssocRegister 재호출이 새로 만듦.
 function ExtIconRef(const AExt: string): string;
 var
-  LExe, LIco: string;
+  LExe, LStem: string;
+  I: Integer;
 begin
   LExe := ParamStr(0);
-  LIco := ExtractFilePath(LExe) + AssocIconDir + Copy(AExt, 2, MaxInt) + '.ico';
-
-  if FileExists(LIco) then
-    Result := '"' + LIco + '",0'
-  else
-    Result := '"' + LExe + '",0';
+  LStem := Copy(AExt, 2, MaxInt);   // '.mp4' -> 'mp4'
+  for I := Low(IconIds) to High(IconIds) do
+    if SameText(IconIds[I].Ext, LStem) then
+      Exit('"' + LExe + '",-' + IntToStr(IconIds[I].Id));
+  Result := '"' + LExe + '",0';
 end;
 
 // 레지스트리 문자열 (없으면 ''). 값 이름 '' = 기본값.
@@ -952,7 +952,7 @@ begin
       LReg.CloseKey;
     end;
 
-    // 확장자별 .ico 우선, 없으면 exe 첫 아이콘 (ExtIconRef).
+    // 확장자별 리소스 아이콘, 없으면 exe 첫 아이콘 (ExtIconRef).
     if LReg.OpenKey(AssocClassKey + LPID + '\DefaultIcon', True) then
     try
       LReg.WriteString('', ExtIconRef(LExt));
@@ -1103,6 +1103,17 @@ end;
 // 로 호출 — 설치 폴더 삭제 전이어야 함.
 // 대상은 AssocExts 아닌 소유 목록(AssocOwnedList) — 노출 목록에서 뺀 확장자가
 // 남으면 exe 삭제 후에도 기본 클래스가 우리 ProgID 를 가리킴.
+procedure AssocRegisterMain;
+var
+  I: Integer;
+begin
+  for I := Low(AssocExts) to High(AssocExts) do
+    if AssocExts[I].Main then
+      AssocRegister(I);
+  EnsureAppRegistered;
+  SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nil, nil);
+end;
+
 procedure AssocUnregisterAll;
 var
   LExt: string;

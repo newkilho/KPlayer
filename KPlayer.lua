@@ -57,6 +57,7 @@ local state = {
     seek_target = 0,
     hover_seekbar = false,
     hover_play = false,
+    hover_logo = false,   -- 시작 화면 원 로고 (idle 전용)
     hover_volume = false,
     hover_fullscreen = false,
     hover_mute = false,
@@ -213,6 +214,9 @@ local alpha = {
     -- 받침 원은 워드마크보다 어둡게, 삼각형은 한 단계만 밝게 — 밝기 순서 뒤집히면 글자가 원 앞을 지나는 듯 보임.
     logo_disc       = "E0",
     logo_play       = "AA",
+    -- 원 위에 마우스 = 클릭 가능 표시 (시작 화면 로고는 버튼이다, 2026-09-13)
+    logo_disc_hover = "C0",
+    logo_play_hover = "60",
 }
 
 -- 시작 화면 로고.
@@ -228,6 +232,9 @@ local LOGO_FILL    = 1.60
 local LOGO_MARK_ADV = 3.8
 local LOGO_MARK_H  = 0.45
 local LOGO_MARK_DY = -0.9
+-- 중앙 원 반경 (베젤·시작 로고 공용). bezel_ui 보다 먼저 선언 — check_hover(위) 가 참조하므로
+-- bezel_ui 를 직접 쓰면 스크립트 로드 시 nil 색인으로 죽어 화면이 안 나온다 (2026-09-13 실측).
+local CIRCLE_R = 50
 
 -- ==============================================================
 -- 하단 컨트롤 — 유튜브(2024+) 칩 스타일
@@ -507,6 +514,9 @@ local function check_hover()
     ch = set_hover("hover_seekbar", (state.dragging == "seek")
         or in_rect(mx, my, L.progress.x, L.progress.y, L.progress.w, L.progress.h)) or ch
     ch = set_hover("hover_play", hover_btn(mx, my, L.play_btn)) or ch
+    -- 시작 화면 원 로고 — render 와 같은 중심·반지름 (W/2, H/2, CIRCLE_R)
+    ch = set_hover("hover_logo", state.idle and
+        ((mx - L.W / 2) ^ 2 + (my - L.H / 2) ^ 2 <= CIRCLE_R ^ 2)) or ch
     ch = set_hover("hover_mute", hover_btn(mx, my, L.vol_btn)) or ch
     ch = set_hover("hover_volume", state.vol_expanded and
         in_rect(mx, my, L.vol_slider.x - 4, L.vol_slider.cy - 10, L.vol_slider.w + 8, 20)) or ch
@@ -541,7 +551,7 @@ local function check_hover()
     -- 컨트롤 표시 + 조작 요소 위일 때만 창 이동 차단
     report_hit((state.visible and (
         state.dragging ~= nil or
-        state.hover_seekbar or state.hover_play or state.hover_prev or state.hover_next or
+        state.hover_seekbar or state.hover_play or state.hover_logo or state.hover_prev or state.hover_next or
         state.hover_mute or state.hover_volume or state.hover_vol_area or
         state.hover_sub or state.hover_settings or state.hover_list or
         state.hover_close or state.hover_topbar_min or state.hover_topbar_fs or
@@ -807,7 +817,7 @@ end
 
 -- 중앙 인디케이터(베젤): 반투명 원+아이콘, 볼륨일 때만 위쪽 숫자 알약. 컨트롤 표시와 무관, ~1s.
 local bezel_ui = {
-    circle_r  = 50,     -- 중앙 원 반경 (지름 100)
+    circle_r  = CIRCLE_R,   -- 중앙 원 반경 (지름 100)
     icon      = 46,     -- 원 안 스피커 아이콘 크기
     pill_w    = 96,     -- 숫자 알약
     pill_h    = 36,
@@ -1187,11 +1197,12 @@ local function render()
             LOGO_FONT, fs, LOGO_TILT, math.floor(fs * 0.03 + 0.5),
             color.logo_mark, alpha.logo_mark))
 
-        -- 원도 반투명 — 뒤 글자가 비침 (불투명이면 글자 끊김).
-        draw_circle(a, cx, cy, r, color.white, alpha.logo_disc)
+        -- 원도 반투명 — 뒤 글자가 비침 (불투명이면 글자 끊김). hover 면 한 단계 밝게.
+        local hov = state.hover_logo
+        draw_circle(a, cx, cy, r, color.white, hov and alpha.logo_disc_hover or alpha.logo_disc)
 
         -- 삼각형은 컨트롤바·베젤과 같은 icons.play — draw_icon 이 크기·중심 맞춰줌.
-        draw_icon(a, icons.play, cx, cy, bezel_ui.icon, color.white, alpha.logo_play)
+        draw_icon(a, icons.play, cx, cy, bezel_ui.icon, color.white, hov and alpha.logo_play_hover or alpha.logo_play)
     end
     
     -- 상단바 스크림
@@ -1616,6 +1627,12 @@ mp.add_key_binding("MOUSE_BTN0", "controls-click", function(e)
         state.dragging = "seek"
         drag_seek(false)
         start_autohide()
+        return
+    end
+
+    -- 시작 화면 원 로고 — 호스트가 목록 유무로 분기 (첫 항목 재생 / 파일 열기 대화상자)
+    if state.hover_logo then
+        mp.commandv("script-message", "logo")
         return
     end
 

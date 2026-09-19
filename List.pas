@@ -114,6 +114,8 @@ type
     procedure LoadPlaylist;
     procedure AddFile(AFileName: string; ACheckDisk: Boolean = True);
     procedure AddFiles(const AFiles: TArray<string>; APlay: Boolean);
+    procedure OpenFiles;   // 파일 열기 대화상자 → AddFiles+재생 ([추가] 버튼, Ctrl+O, 본체 우클릭)
+    procedure OpenFolder;  // 폴더 선택 → AddFiles+재생 ([추가]▸폴더, 본체 우클릭)
     procedure ReplaceFiles(const AFiles: TArray<string>);
     procedure DelFile(AMode: TDeleteMode);
     procedure SetRepeat;
@@ -384,13 +386,35 @@ begin
 end;
 
 procedure TFrmList.BtnAddPopupClick(Sender: TObject);
+begin
+  OpenFiles;
+end;
+
+// 필터는 AssocExts 전체 (단일 출처) — 하드코딩 7종이라 .ts/.flac 등이 대화상자에서 안 보이던 것 (2026-09-13).
+procedure TFrmList.OpenFiles;
 var
   Dialog: TOpenDialog;
+  I: Integer;
+  Video, Audio, All: string;
 begin
+  for I := Low(AssocExts) to High(AssocExts) do
+  begin
+    All := All + ';*' + AssocExts[I].Ext;
+    case AssocExts[I].Group of
+      agVideo: Video := Video + ';*' + AssocExts[I].Ext;
+      agAudio: Audio := Audio + ';*' + AssocExts[I].Ext;
+    end;
+  end;
+  Delete(All, 1, 1);   // 선행 ';'
+  Delete(Video, 1, 1);
+  Delete(Audio, 1, 1);
+
   Dialog := TOpenDialog.Create(nil);
   try
     Dialog.Options := Dialog.Options + [ofAllowMultiSelect, ofFileMustExist, ofEnableSizing];
-    Dialog.Filter := 'Media Files|*.mp3;*.mp4;*.avi;*.mkv;*.asf;*.mov;*.wmv|All Files|*.*';
+    // '비디오'/'오디오' 그룹은 연결 카드와 공유 (영문 'Video files'/'Audio files')
+    Dialog.Filter := _('미디어 파일') + '|' + All + '|' + _('비디오') + '|' + Video + '|'
+      + _('오디오') + '|' + Audio + '|' + _('모든 파일') + '|*.*';
 
     if Dialog.Execute then
       AddFiles(Dialog.Files.ToStringArray, True);   // 중복 해시표·배경 존재 확인 공용, 추가 후 재생
@@ -400,6 +424,11 @@ begin
 end;
 
 procedure TFrmList.BtnAddPopupFolderClick(Sender: TObject);
+begin
+  OpenFolder;
+end;
+
+procedure TFrmList.OpenFolder;
 var
   FolderPath: string;
 begin

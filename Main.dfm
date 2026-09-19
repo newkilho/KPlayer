@@ -11,7 +11,7 @@ object FrmKPlayer: TFrmKPlayer
   Font.Name = 'Segoe UI'
   Font.Style = []
   PopupMenu = Menu
-  Position = poScreenCenter
+  Position = poDesigned
   OnCanResize = FormCanResize
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -25,6 +25,17 @@ object FrmKPlayer: TFrmKPlayer
     OnPopup = MenuPopup
     Left = 32
     Top = 16
+    object MnuOpenFile: TMenuItem
+      Caption = #54028#51068' '#50676#44592
+      OnClick = MnuOpenFileClick
+    end
+    object MnuOpenFolder: TMenuItem
+      Caption = #54260#45908' '#50676#44592
+      OnClick = MnuOpenFolderClick
+    end
+    object N2: TMenuItem
+      Caption = '-'
+    end
     object MnuScreen: TMenuItem
       Caption = #54868#47732' '#53356#44592
       object MnuOrig50: TMenuItem
@@ -61,6 +72,7 @@ object FrmKPlayer: TFrmKPlayer
     end
     object BtnAbout: TMenuItem
       Caption = #47564#46304#51060' '#50724#44600#54840
+      OnClick = BtnAboutClick
     end
   end
 end

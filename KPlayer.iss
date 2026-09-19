@@ -12,8 +12,6 @@
 
 [Files]
 Source: "{#MyAppExe}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MySrcDir}\KPlayer.lua"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MySrcDir}\Icon\*.ico"; DestDir: "{app}\Icon"; Flags: ignoreversion
 Source: "{#MySrcDir}\libmpv-2.dll"; DestDir: "{app}"
 Source: "{#MySrcDir}\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
@@ -88,7 +86,7 @@ ko.MyAppName=케이플레이어
 Name: {group}\{cm:MyAppName}; Filename: {app}\KPlayer.exe
 
 [Run]
-Filename: "{app}\KPlayer.exe"; Flags: nowait postinstall skipifsilent runasoriginaluser; Description: "KPlayer"
+Filename: "{app}\KPlayer.exe"; Parameters: "/inst"; Flags: nowait postinstall skipifsilent runasoriginaluser; Description: "KPlayer"
 
 [UninstallDelete]
 Name: "{app}"; Type: filesandordirs
