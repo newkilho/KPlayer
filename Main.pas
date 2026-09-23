@@ -16,6 +16,9 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
+  1.0.1.0
+  [*] 우클릭 '화면 크기' 항목명을 50% / 100% / 150% / 200% 로 - '원본 화면 (n.nx)' 넷은 어색, PotPlayer·GOM 관례, 번역 불필요 (Main.dfm: MnuOrig50~200 / Main.pas: FormCreate / Translate.txt: '원본 화면' 그룹 제거)
+
   1.0.0.0
   [+] 설치 직후 주요 확장자 자동 연결 - 인스톨러 [Run] 이 /inst 로 실행하면 등록 후 평소처럼 계속 실행 (Assoc.pas: AssocRegisterMain / Main.pas: FormCreate / KPlayer.iss: [Run])
   [*] 파일 연결 아이콘을 exe 리소스로 - Icon\*.ico 를 Tools\MakeIconRes.py 가 RT_ICON 1000+/RT_GROUP_ICON 40000+ 로 KPlayerIcons.res 생성(MAINICON 과 ID 충돌 회피), DefaultIcon = "exe",-ID, exe 옆 Icon\ 폴더·설치본 항목 제거 (Assoc.pas: ExtIconRef, IconIds.inc / KPlayer.dpr / KPlayer.iss)
@@ -140,7 +143,7 @@ type
     MnuOpenFolder: TMenuItem;
     N2: TMenuItem;
     MnuScreen: TMenuItem;
-    MnuOrig50: TMenuItem;    // Tag = 배율 % (원본 화면 0.5x/1.0x/1.5x/2.0x, 공용 MnuOriginalClick)
+    MnuOrig50: TMenuItem;    // Tag = 배율 % = 캡션 '50%'~'200%' (숫자라 번역 없음, PotPlayer·GOM 관례. 공용 MnuOriginalClick)
     MnuOrig100: TMenuItem;
     MnuOrig150: TMenuItem;
     MnuOrig200: TMenuItem;
@@ -256,12 +259,6 @@ begin
   //Lang := 'en';
   Translate(Self);
   Application.Title := Caption;
-
-  // 배율 표기는 번역 뒤에 붙인다 — '원본 화면' 한 그룹으로 4개 항목 번역.
-  MnuOrig50.Caption  := MnuOrig50.Caption  + ' (0.5x)';
-  MnuOrig100.Caption := MnuOrig100.Caption + ' (1.0x)';
-  MnuOrig150.Caption := MnuOrig150.Caption + ' (1.5x)';
-  MnuOrig200.Caption := MnuOrig200.Caption + ' (2.0x)';
 
   BorderStyle := bsNone;
   SetFormCorners(Handle, True);
@@ -774,7 +771,7 @@ begin
   FrmList.OpenFolder;
 end;
 
-// 원본 화면 = 창을 영상 픽셀 크기 × 배율(Tag %) 로 (화면보다 크면 비율 축소 — ResizeWindow). 전체화면 중이면 먼저 해제.
+// 화면 크기 n% = 창을 영상 픽셀 크기 × 배율(Tag %) 로 (화면보다 크면 비율 축소 — ResizeWindow). 전체화면 중이면 먼저 해제.
 procedure TFrmKPlayer.MnuOriginalClick(Sender: TObject);
 var
   Pct: Integer;

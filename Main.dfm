@@ -40,22 +40,22 @@ object FrmKPlayer: TFrmKPlayer
       Caption = #54868#47732' '#53356#44592
       object MnuOrig50: TMenuItem
         Tag = 50
-        Caption = #50896#48376' '#54868#47732
+        Caption = '50%'
         OnClick = MnuOriginalClick
       end
       object MnuOrig100: TMenuItem
         Tag = 100
-        Caption = #50896#48376' '#54868#47732
+        Caption = '100%'
         OnClick = MnuOriginalClick
       end
       object MnuOrig150: TMenuItem
         Tag = 150
-        Caption = #50896#48376' '#54868#47732
+        Caption = '150%'
         OnClick = MnuOriginalClick
       end
       object MnuOrig200: TMenuItem
         Tag = 200
-        Caption = #50896#48376' '#54868#47732
+        Caption = '200%'
         OnClick = MnuOriginalClick
       end
       object MnuFull: TMenuItem

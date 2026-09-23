@@ -1118,16 +1118,6 @@ fr=Taille de l'écran
 es=Tamaño de pantalla
 ar=حجم الشاشة
 
-ko=원본 화면
-en=Original size
-ja=元のサイズ
-zh=原始大小
-ru=Исходный размер
-it=Dimensione originale
-fr=Taille d'origine
-es=Tamaño original
-ar=الحجم الأصلي
-
 ko=꽉찬 화면
 en=Full screen (stretched)
 ja=全画面 (引き伸ばし)
