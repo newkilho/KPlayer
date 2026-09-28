@@ -1,15 +1,13 @@
-﻿unit List;
+unit List;
+
+{$mode delphi}{$H+}
 
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, Winapi.Dwmapi, Winapi.UxTheme, System.SysUtils,
-  System.Variants, System.Classes, System.IOUtils, System.StrUtils, System.Types,
-  System.Generics.Collections,
-  System.ImageList, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls,
-  Vcl.FileCtrl, Vcl.Menus, Vcl.ImgList, VirtualTrees.BaseAncestorVCL, VirtualTrees.BaseTree,
-  VirtualTrees.AncestorVCL, VirtualTrees.Types,VirtualTrees, SVGIconImage, SVGIconImageListBase,
-  SVGIconImageList, VTScrollbar, K.DragFile, K.Translate;
+  Classes, SysUtils, Types, StrUtils, Math, Generics.Collections,
+  Graphics, Controls, Forms, Dialogs, StdCtrls, ExtCtrls, Menus, LCLType, LCLIntf,
+  laz.VirtualTrees, VTScrollbar, IconButton, KTranslate, Media;
 
 type
   TDeleteMode = (
@@ -26,14 +24,10 @@ type
   end;
   PItemData = ^TItemData;
 
+  { TFrmList }
+
   TFrmList = class(TForm)
-    ListData: TVirtualStringTree;
     Panel1: TPanel;
-    BtnRepeat: TSVGIconImage;
-    ListIcon: TSVGIconImageList;
-    BtnRandom: TSVGIconImage;
-    BtnAdd: TSVGIconImage;
-    BtnDel: TSVGIconImage;
     PopAdd: TPopupMenu;
     PopDel: TPopupMenu;
     BtnAddPopup: TMenuItem;
@@ -47,12 +41,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
-    procedure BtnRepeatMouseEnter(Sender: TObject);
-    procedure BtnRepeatMouseLeave(Sender: TObject);
-    procedure BtnRepeatMouseDown(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
-    procedure BtnRepeatMouseUp(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
+    procedure FormDropFiles(Sender: TObject; const FileNames: array of string);
     procedure BtnDelPopupClick(Sender: TObject);
     procedure BtnDelPopupUnselectedClick(Sender: TObject);
     procedure BtnDelPopupAllClick(Sender: TObject);
@@ -76,24 +65,37 @@ type
     procedure ListDataMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
   private
+    // 하단 아이콘 버튼 — 코드로 만든다 (IconButton 머리말). Tag 1=반복 2=랜덤 3=추가 4=삭제
+    BtnRepeat: TIconButton;
+    BtnRandom: TIconButton;
+    BtnAdd: TIconButton;
+    BtnDel: TIconButton;
+
     FDarkSB: TVTDarkScrollbar;
     FDragNode: PVirtualNode;
-    FDragFile: TDragFile;
     FPlaylistDepth: Integer;   // 재생목록 상호 참조 무한 재귀 방지
     FSkipDepth: Integer;       // 없는 파일 연속 건너뛰기 안전장치
     FDragStart: TPoint;
-    FSavedSelection: TArray<PVirtualNode>;
+    FSavedSelection: array of PVirtualNode;
     FAddSeen: TDictionary<string, Boolean>;   // 일괄 추가 중에만 사는 중복 검사표 (nil = 노드 선형 검사)
     FAddFirst: string;                        // 일괄 추가 중 처음 만난 미디어 경로 (전부 중복일 때의 재생 기준)
 
     // 랜덤 상태 (사이클 내 중복 없음)
-    FShuffleHistory: TArray<string>;  // 실제 재생 순서 (Prev 가 되짚음)
+    FShuffleHistory: TStringArray;    // 실제 재생 순서 (Prev 가 되짚음)
     FShufflePos: Integer;             // 현재 곡 이력 인덱스 (-1=없음)
     FCyclePlayed: TStringList;        // 이번 사이클 재생 완료 파일
 
+    function MakeButton(ATag, AImage, ALeft: Integer): TIconButton;
+    procedure BtnMouseEnter(Sender: TObject);
+    procedure BtnMouseLeave(Sender: TObject);
+    procedure BtnMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure BtnMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+
     function FindActiveNode: PVirtualNode;
-    procedure UpdateButtonColor(Btn: TSVGIconImage; Hover: Boolean);
-    procedure WMScrollFocusedNode(var Msg: TMessage); message WM_APP + 1;
+    procedure UpdateButtonColor(Btn: TIconButton; Hover: Boolean);
+    procedure ScrollFocusedAsync(Data: PtrInt);
 
     function CurrentActiveFileName: string;
     function PlaylistContains(const AFileName: string): Boolean;
@@ -108,15 +110,18 @@ type
     procedure EndPlayback;
     procedure PlayFirst;
   public
+    // 트리는 코드로 만든다 (LFM 에 두면 IDE 디자이너가 laz.virtualtreeview 등록에 매인다 — OpenSide 선례)
+    ListData: TLazVirtualStringTree;
+
     procedure StartVerify(AMissingOnly: Boolean = False);   // 외부 사건(드라이브 재연결·목록 창 표시) 뒤 재검사
     procedure UpdateModeIcons;
     procedure SavePlaylist;
     procedure LoadPlaylist;
     procedure AddFile(AFileName: string; ACheckDisk: Boolean = True);
-    procedure AddFiles(const AFiles: TArray<string>; APlay: Boolean);
+    procedure AddFiles(const AFiles: TStringArray; APlay: Boolean);
     procedure OpenFiles;   // 파일 열기 대화상자 → AddFiles+재생 ([추가] 버튼, Ctrl+O, 본체 우클릭)
     procedure OpenFolder;  // 폴더 선택 → AddFiles+재생 ([추가]▸폴더, 본체 우클릭)
-    procedure ReplaceFiles(const AFiles: TArray<string>);
+    procedure ReplaceFiles(const AFiles: TStringArray);
     procedure DelFile(AMode: TDeleteMode);
     procedure SetRepeat;
     procedure SetRandom;
@@ -125,12 +130,10 @@ type
     procedure Next;
     procedure Rand;
     procedure TrackFinished;
-    procedure ApplyMissing(const AChecked, AMissing: TArray<string>);
+    procedure ApplyMissing(const AChecked, AMissing: TStringArray);
   end;
 
 const
-  WM_SCROLL_FOCUSED_NODE = WM_APP + 1;
-
   COLOR_BG_MAIN          = $00202020;
   COLOR_TEXT_NORMAL      = $00E0E0E0;
   COLOR_TEXT_ACTIVE      = $0000FFFF;
@@ -142,14 +145,16 @@ const
   COLOR_ICON_PRESSED     = $002C6FA6;
   COLOR_ICON_ACTIVE      = $0040A6FA;
 
+  ListRowHeight = 24;   // 96dpi 기준 (Scale96ToForm)
+
 var
   FrmList: TFrmList;
 
 implementation
 
-{$R *.dfm}
+{$R *.lfm}
 
-uses Main, Setup, Assoc;
+uses Main, Config, OSUtil;
 
 {$I Const.inc}
 
@@ -158,18 +163,36 @@ uses Main, Setup, Assoc;
 type
   TFileCheckThread = class(TThread)
   private
-    FFiles: TArray<string>;
+    FFiles: TStringArray;
     FGen: Integer;
   protected
     procedure Execute; override;
   public
-    constructor Create(const AFiles: TArray<string>; AGen: Integer);
+    constructor Create(const AFiles: TStringArray; AGen: Integer);
+  end;
+
+  // 검사 결과 운반체. TThread.Queue(nil, ...) 로 넘긴다 — 스레드 자신(Self)으로 Queue 하면
+  // FreeOnTerminate 해제 때 TThread.Destroy 가 큐 항목을 지워 결과가 사라진다. 적용 후 스스로 해제.
+  TVerifyResult = class
+    Files, Missing: TStringArray;
+    Gen: Integer;
+    procedure Apply;
   end;
 
 var
   GVerifyGen: Integer = 0;
 
-constructor TFileCheckThread.Create(const AFiles: TArray<string>; AGen: Integer);
+procedure TVerifyResult.Apply;
+begin
+  try
+    if (GVerifyGen = Gen) and (FrmList <> nil) then
+      FrmList.ApplyMissing(Files, Missing);
+  finally
+    Free;
+  end;
+end;
+
+constructor TFileCheckThread.Create(const AFiles: TStringArray; AGen: Integer);
 begin
   FFiles := AFiles;
   FGen := AGen;
@@ -182,16 +205,17 @@ function PathRoot(const APath: string): string;
 begin
   Result := ExtractFileDrive(APath);
   if Result <> '' then
-    Result := Result + '\';
+    Result := IncludeTrailingPathDelimiter(Result);
 end;
 
 procedure TFileCheckThread.Execute;
 var
-  LFiles, LMissing: TArray<string>;
+  LFiles, LMissing: TStringArray;
   LRoots: TDictionary<string, Boolean>;
   LRoot: string;
   LCount, I, LGen: Integer;
   LRootUp: Boolean;
+  LResult: TVerifyResult;
 begin
   LGen := FGen;
   LFiles := FFiles;
@@ -225,21 +249,24 @@ begin
   end;
   SetLength(LMissing, LCount);
 
-  // FreeOnTerminate 라 Self 캡처 금지 — 큐 실행 시점엔 이미 해제됐을 수 있다. 지역 변수만 캡처.
-  TThread.Queue(nil,
-    procedure
-    begin
-      if (GVerifyGen = LGen) and (FrmList <> nil) then
-        FrmList.ApplyMissing(LFiles, LMissing);
-    end);
+  LResult := TVerifyResult.Create;
+  LResult.Files := LFiles;
+  LResult.Missing := LMissing;
+  LResult.Gen := LGen;
+  TThread.Queue(nil, LResult.Apply);
 end;
 
-procedure SetDarkTitleBar(AHandle: HWND);
-var
-  UseDarkMode: BOOL;
+function TFrmList.MakeButton(ATag, AImage, ALeft: Integer): TIconButton;
 begin
-  UseDarkMode := True;
-  DwmSetWindowAttribute(AHandle, 20, @UseDarkMode, SizeOf(UseDarkMode));
+  Result := TIconButton.Create(Self);
+  Result.Parent := Panel1;
+  Result.Tag := ATag;
+  Result.ImageIndex := AImage;
+  Result.SetBounds(Scale96ToForm(ALeft), Scale96ToForm(12), Scale96ToForm(16), Scale96ToForm(16));
+  Result.OnMouseDown := BtnMouseDown;
+  Result.OnMouseUp := BtnMouseUp;
+  Result.OnMouseEnter := BtnMouseEnter;
+  Result.OnMouseLeave := BtnMouseLeave;
 end;
 
 procedure TFrmList.FormCreate(Sender: TObject);
@@ -252,30 +279,46 @@ begin
   FCyclePlayed.CaseSensitive := False;
   FShufflePos := -1;
 
-  BorderIcons := [biSystemMenu];
+  // BorderIcons 는 LFM 에서 (OnCreate 에서 바꾸면 핸들 재생성 — GUI.md 0장 #2)
   SetDarkTitleBar(Handle);
 
   Color := COLOR_BG_MAIN;
+  Panel1.Color := COLOR_BG_MAIN;
+
+  BtnRepeat := MakeButton(1, 0, 10);
+  BtnRandom := MakeButton(2, 2, 32);
+  BtnAdd := MakeButton(3, 3, 148);
+  BtnDel := MakeButton(4, 4, 170);
 
   UpdateButtonColor(BtnRepeat, False);
   UpdateButtonColor(BtnRandom, False);
   UpdateButtonColor(BtnAdd, False);
   UpdateButtonColor(BtnDel, False);
 
+  ListData := TLazVirtualStringTree.Create(Self);
+  ListData.Parent := Self;
+  ListData.Align := alClient;
+  ListData.PopupMenu := PopMenu;
+  ListData.ScrollBarOptions.ScrollBars := ssNone;
+  ListData.OnFreeNode := ListDataFreeNode;
+  ListData.OnGetText := ListDataGetText;
+  ListData.OnPaintText := ListDataPaintText;
+  ListData.OnKeyDown := ListDataKeyDown;
+  ListData.OnMouseDown := ListDataMouseDown;
+  ListData.OnMouseMove := ListDataMouseMove;
+  ListData.OnMouseUp := ListDataMouseUp;
+  ListData.OnNodeDblClick := ListDataNodeDblClick;
   ListData.NodeDataSize := SizeOf(TItemData);
 
-  ListData.BevelInner := bvNone;
-  ListData.BevelOuter := bvNone;
   ListData.BorderStyle := bsNone;
 
   ListData.Header.Columns.Add.Text := '';
   ListData.Header.Options := ListData.Header.Options + [hoAutoResize];
   ListData.TreeOptions.AutoOptions := ListData.TreeOptions.AutoOptions + [toAutoScroll];
-  ListData.TreeOptions.PaintOptions := ListData.TreeOptions.PaintOptions + [toHideFocusRect] - [toShowRoot, toShowTreeLines]; // , toUseExplorerTheme
+  ListData.TreeOptions.PaintOptions := ListData.TreeOptions.PaintOptions + [toHideFocusRect] - [toShowRoot, toShowTreeLines];
   ListData.TreeOptions.SelectionOptions := ListData.TreeOptions.SelectionOptions + [toFullRowSelect, toMultiSelect, toExtendedFocus];
   ListData.TreeOptions.MiscOptions := ListData.TreeOptions.MiscOptions + [toReportMode, toWheelPanning] - [toAcceptOLEDrop, toVariableNodeHeight];
-  ListData.DefaultNodeHeight := 24;
-
+  ListData.DefaultNodeHeight := Scale96ToForm(ListRowHeight);
 
   ListData.Color := COLOR_BG_MAIN;
   ListData.Font.Color := COLOR_TEXT_NORMAL;
@@ -287,20 +330,18 @@ begin
 
   Translate(Self);
 
-  // Translate 는 Caption 계열만 훑는다 — Hint 는 직접. 지금 문구를 키로 쓰므로
-  // 언어를 바꿔 다시 불러도 된다 (반복/랜덤 힌트는 UpdateButtonColor 가 만듦).
-  BtnAdd.Hint := _(BtnAdd.Hint);
-  BtnDel.Hint := _(BtnDel.Hint);
+  // Translate 는 Caption 계열만 훑는다 — Hint 는 직접 (반복/랜덤 힌트는 UpdateButtonColor 가 만듦).
+  BtnAdd.Hint := _('추가 — 파일 / 폴더');
+  BtnDel.Hint := _('삭제 — 선택 / 선택 외 / 전체 / 없는 파일 (Del 키: 선택 항목)');
 
-  FDarkSB := TVTDarkScrollbar.Create(ListData);
+  // 오버레이 스크롤바 (Windows). 그 밖의 OS 는 기본 스크롤바.
+  if DarkScrollbarSupported then
+    FDarkSB := TVTDarkScrollbar.Create(ListData)
+  else
+    ListData.ScrollBarOptions.ScrollBars := ssVertical;
 
-  FDragFile := TDragFile.Create(ListData,
-  procedure(const Files: TArray<string>)
-  begin
-    // 목록 창 드롭도 추가한 첫 항목부터 재생 (본체 창 드롭과 달리 기존 목록은 유지).
-    // 불러왔는데 재생이 안 걸려 더블클릭해야 했다는 문의 (2026-08-29) → 자동 재생으로 통일.
-    AddFiles(Files, True);
-  end);
+  // 파일 드롭 = LFM 의 AllowDropFiles + OnDropFiles (FormDropFiles). 관리자 실행이어도 탐색기 드롭 허용.
+  AllowDropFromLowerIntegrity(Handle);
 
   // 저장 목록 먼저, 명령줄 파일 뒤에. 재생은 명령줄 파일이 가져감
   // (HandleStartupParams 가 그것만 Play) — 연결 파일 더블클릭 시 지난 목록 첫 곡 시작 방지.
@@ -313,49 +354,65 @@ procedure TFrmList.FormDestroy(Sender: TObject);
 begin
   Inc(GVerifyGen);   // 돌고 있는 검사 스레드 결과 폐기 (폼이 사라진다)
 
-  // 이 폼이 FrmKPlayer 보다 먼저 파괴(dpr 생성 역순) — 여기서 저장해야 Config 생존.
+  // 이 폼이 FrmKPlayer 보다 먼저 파괴(lpr 생성 역순) — 여기서 저장해야 Config 생존.
   SavePlaylist;
 
-  FDragFile.Free;
   FDarkSB.Free;
   FCyclePlayed.Free;
 end;
 
+// 목록 창 드롭도 추가한 첫 항목부터 재생 (본체 창 드롭과 달리 기존 목록은 유지).
+// 불러왔는데 재생이 안 걸려 더블클릭해야 했다는 문의 (2026-08-29) → 자동 재생으로 통일.
+procedure TFrmList.FormDropFiles(Sender: TObject; const FileNames: array of string);
+var
+  LFiles: TStringArray;
+  I: Integer;
+begin
+  SetLength(LFiles, Length(FileNames));
+  for I := 0 to High(FileNames) do
+    LFiles[I] := FileNames[I];
+  AddFiles(LFiles, True);
+end;
+
 procedure TFrmList.FormResize(Sender: TObject);
 begin
-  BtnAdd.Left := ClientWidth - ScaleValue(46);
-  BtnDel.Left := ClientWidth - ScaleValue(26);
+  if (BtnAdd = nil) or (BtnDel = nil) then Exit;   // FormCreate 전 Resize
+  BtnAdd.Left := ClientWidth - Scale96ToForm(46);
+  BtnDel.Left := ClientWidth - Scale96ToForm(26);
 end;
 
-procedure TFrmList.BtnRepeatMouseEnter(Sender: TObject);
+procedure TFrmList.BtnMouseEnter(Sender: TObject);
 begin
-  UpdateButtonColor(TSVGIconImage(Sender), True);
+  UpdateButtonColor(TIconButton(Sender), True);
 end;
 
-procedure TFrmList.BtnRepeatMouseLeave(Sender: TObject);
+procedure TFrmList.BtnMouseLeave(Sender: TObject);
 begin
-  UpdateButtonColor(TSVGIconImage(Sender), False);
+  UpdateButtonColor(TIconButton(Sender), False);
 end;
 
-procedure TFrmList.BtnRepeatMouseDown(Sender: TObject; Button: TMouseButton;
+procedure TFrmList.BtnMouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
   if Button = mbLeft then
-    TSVGIconImage(Sender).FixedColor := COLOR_ICON_PRESSED;
+    TIconButton(Sender).FixedColor := COLOR_ICON_PRESSED;
 end;
 
-procedure TFrmList.BtnRepeatMouseUp(Sender: TObject; Button: TMouseButton;
+procedure TFrmList.BtnMouseUp(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
+var
+  P: TPoint;
 begin
   if Button = mbLeft then
   begin
-    UpdateButtonColor(TSVGIconImage(Sender), False);
+    UpdateButtonColor(TIconButton(Sender), False);
 
-    case TSVGIconImage(Sender).Tag of
+    P := Mouse.CursorPos;
+    case TIconButton(Sender).Tag of
       1: SetRepeat;
       2: SetRandom;
-      3: PopAdd.Popup(Mouse.CursorPos.X, Mouse.CursorPos.Y);
-      4: PopDel.Popup(Mouse.CursorPos.X, Mouse.CursorPos.Y);
+      3: PopAdd.PopUp(P.X, P.Y);
+      4: PopDel.PopUp(P.X, P.Y);
     end;
   end;
 end;
@@ -396,7 +453,11 @@ var
   Dialog: TOpenDialog;
   I: Integer;
   Video, Audio, All: string;
+  LFiles: TStringArray;
 begin
+  Video := '';
+  Audio := '';
+  All := '';
   for I := Low(AssocExts) to High(AssocExts) do
   begin
     All := All + ';*' + AssocExts[I].Ext;
@@ -417,7 +478,12 @@ begin
       + _('오디오') + '|' + Audio + '|' + _('모든 파일') + '|*.*';
 
     if Dialog.Execute then
-      AddFiles(Dialog.Files.ToStringArray, True);   // 중복 해시표·배경 존재 확인 공용, 추가 후 재생
+    begin
+      SetLength(LFiles, Dialog.Files.Count);
+      for I := 0 to Dialog.Files.Count - 1 do
+        LFiles[I] := Dialog.Files[I];
+      AddFiles(LFiles, True);   // 중복 해시표·배경 존재 확인 공용, 추가 후 재생
+    end;
   finally
     Dialog.Free;
   end;
@@ -431,10 +497,15 @@ end;
 procedure TFrmList.OpenFolder;
 var
   FolderPath: string;
+  LFiles: TStringArray;
 begin
   FolderPath := '';
   if SelectDirectory(_('폴더 선택'), '', FolderPath) then
-    AddFiles([FolderPath], True);   // 폴더 추가도 첫 항목부터 재생
+  begin
+    SetLength(LFiles, 1);
+    LFiles[0] := FolderPath;
+    AddFiles(LFiles, True);   // 폴더 추가도 첫 항목부터 재생
+  end;
 end;
 
 procedure TFrmList.ListDataFreeNode(Sender: TBaseVirtualTree;
@@ -459,7 +530,7 @@ begin
   if Item^.Missing then
     Text := Item^.FileName
   else
-    Text := TPath.GetFileNameWithoutExtension(Item^.FileName);
+    Text := ChangeFileExt(ExtractFileName(Item^.FileName), '');
 
   case Column of
     0: CellText := Text;
@@ -512,7 +583,7 @@ begin
   SetLength(FSavedSelection, 0);
   if Button <> mbLeft then Exit;
 
-  FDragStart := Point(X, Y);
+  FDragStart := Types.Point(X, Y);
   FDragNode := nil;
 
   HitNode := ListData.GetNodeAt(X, Y);
@@ -534,7 +605,7 @@ procedure TFrmList.ListDataMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
 var
   TargetNode, Node, Neighbor: PVirtualNode;
-  M: Integer;
+  M, I: Integer;
   SelData, NewData: PItemData;
   TempData: TItemData;
 begin
@@ -548,8 +619,8 @@ begin
 
     if Length(FSavedSelection) > 0 then
     begin
-      for var N in FSavedSelection do
-        ListData.Selected[N] := True;
+      for I := 0 to High(FSavedSelection) do
+        ListData.Selected[FSavedSelection[I]] := True;
       SetLength(FSavedSelection, 0);
     end;
 
@@ -560,7 +631,7 @@ begin
   TargetNode := ListData.GetNodeAt(X, Y);
   if not Assigned(TargetNode) then Exit;
 
-  M := Integer(TargetNode.Index) - Integer(FDragNode.Index);
+  M := Integer(TargetNode^.Index) - Integer(FDragNode^.Index);
   if M = 0 then Exit;
   if M > 0 then M := 1 else M := -1;
 
@@ -669,7 +740,7 @@ begin
     Result := _('랜덤 꺼짐 — 목록 순서대로 재생합니다');
 end;
 
-procedure TFrmList.UpdateButtonColor(Btn: TSVGIconImage; Hover: Boolean);
+procedure TFrmList.UpdateButtonColor(Btn: TIconButton; Hover: Boolean);
 begin
   case Btn.Tag of
     1: // 반복
@@ -726,42 +797,20 @@ begin
   end;
 end;
 
-procedure TFrmList.WMScrollFocusedNode(var Msg: TMessage);
+// 재생 항목으로 스크롤 — Play 의 BeginUpdate/EndUpdate 뒤에 (Delphi 판 PostMessage WM_APP+1 대신)
+procedure TFrmList.ScrollFocusedAsync(Data: PtrInt);
 begin
   if Assigned(ListData.FocusedNode) then
     ListData.ScrollIntoView(ListData.FocusedNode, False);
-end;
-
-// .m3u8=UTF-8 규격, .m3u 는 ANSI(CP949) 흔함. BOM 우선; 없으면
-// UTF-8 왕복 인코딩 바이트 수 불일치(=깨진 바이트) 시 ANSI.
-function ReadPlaylistText(const AFileName: string): string;
-var
-  LBytes: TBytes;
-  LEncoding: TEncoding;
-  LPreamble: Integer;
-begin
-  Result := '';
-
-  LBytes := TFile.ReadAllBytes(AFileName);
-  if Length(LBytes) = 0 then
-    Exit;
-
-  LEncoding := nil;
-  LPreamble := TEncoding.GetBufferEncoding(LBytes, LEncoding, TEncoding.UTF8);
-
-  if (LPreamble = 0) and
-     (Length(TEncoding.UTF8.GetBytes(TEncoding.UTF8.GetString(LBytes))) <> Length(LBytes)) then
-    LEncoding := TEncoding.ANSI;
-
-  Result := LEncoding.GetString(LBytes, LPreamble, Length(LBytes) - LPreamble);
 end;
 
 // TPath.Combine 은 잘못된 문자에 예외 — 재생목록엔 URL/이상한 줄 섞임 → 미사용.
 function IsAbsolutePath(const APath: string): Boolean;
 begin
   Result := ((Length(APath) >= 3) and (APath[2] = ':') and
-             CharInSet(APath[3], ['\', '/'])) or
-            ((Length(APath) >= 2) and (APath[1] = '\') and (APath[2] = '\'));
+             (APath[3] in ['\', '/'])) or
+            ((Length(APath) >= 2) and (APath[1] = '\') and (APath[2] = '\')) or
+            ((Length(APath) >= 1) and (APath[1] = '/'));   // 유닉스 절대경로 (macOS 대비)
 end;
 
 procedure TFrmList.AddPlaylist(const AFileName: string);
@@ -783,7 +832,12 @@ begin
 
     Lines := TStringList.Create;
     try
-      Lines.Text := ReadPlaylistText(AFileName);
+      try
+        // .m3u8=UTF-8 규격, .m3u 는 ANSI(CP949) 흔함 — BOM/UTF-8 유효성으로 판별 (Config.DecodeText)
+        Lines.Text := ReadTextFile(AFileName);
+      except
+        Exit;
+      end;
 
       for I := 0 to Lines.Count - 1 do
       begin
@@ -803,14 +857,14 @@ begin
 
           Line := Trim(Copy(Line, Eq + 1, MaxInt));
         end
-        else if Line.StartsWith('#') then
+        else if Line[1] = '#' then
           Continue;   // #EXTM3U/#EXTINF 등 주석/지시자
 
         if Line = '' then
           Continue;
 
         // 스트리밍 URL 스킵 — 목록 창은 파일 경로 기준 (없는 파일 취급, 어차피 진입 불가).
-        if Line.Contains('://') then
+        if Pos('://', Line) > 0 then
           Continue;
 
         if IsAbsolutePath(Line) then
@@ -829,12 +883,12 @@ begin
 end;
 
 // 목록 저장/복원 (환경설정 '일반 → 재생목록 저장').
-// 파일 = exe 폴더 KPlayer.lst — 설정 ini 와 같은 자리, 포터블 이동 추종.
+// 파일 = 설정 ini 와 같은 자리(Config.AppDataDir) KPlayer.lst — Windows 는 exe 폴더, 포터블 이동 추종.
 // 형식 = 경로 한 줄씩 평문(UTF-8 BOM). .lst 확장자 = 탐색기의 재생목록 오인 방지.
-// 읽기는 ReadPlaylistText → 메모장 ANSI 저장도 읽힘.
+// 읽기는 ReadTextFile → 메모장 ANSI 저장도 읽힘.
 function PlaylistFile: string;
 begin
-  Result := ExtractFilePath(ParamStr(0)) + AppName + '.lst';
+  Result := AppDataDir + AppName + '.lst';
 end;
 
 function SavePlaylistEnabled: Boolean;
@@ -845,16 +899,20 @@ end;
 
 procedure DeletePlaylistFile;
 begin
-  if TFile.Exists(PlaylistFile) then
-    TFile.Delete(PlaylistFile);
+  if FileExists(PlaylistFile) then
+    DeleteFile(PlaylistFile);
 end;
 
 // 종료 시 호출(FormDestroy). 예외 나가면 종료 중 오류 창 → 통째 차단 (읽기 전용 폴더 실행 사례 있음).
 procedure TFrmList.SavePlaylist;
+const
+  BOM: array[0..2] of Byte = ($EF, $BB, $BF);
 var
   LLines: TStringList;
   LNode: PVirtualNode;
   LItem: PItemData;
+  LStream: TFileStream;
+  LText: string;
 begin
   try
     // 방금 껐어도 옛 파일 남으면 다음 실행에서 부활. 빈 목록 상태도 보존 필요 → 둘 다 파일 삭제.
@@ -866,6 +924,7 @@ begin
 
     LLines := TStringList.Create;
     try
+      LLines.LineBreak := #13#10;
       LNode := ListData.GetFirst;
       while Assigned(LNode) do
       begin
@@ -878,7 +937,17 @@ begin
       if LLines.Count = 0 then
         DeletePlaylistFile
       else
-        LLines.SaveToFile(PlaylistFile, TEncoding.UTF8);
+      begin
+        LText := LLines.Text;
+        LStream := TFileStream.Create(PlaylistFile, fmCreate);
+        try
+          LStream.WriteBuffer(BOM, SizeOf(BOM));
+          if LText <> '' then
+            LStream.WriteBuffer(LText[1], Length(LText));
+        finally
+          LStream.Free;
+        end;
+      end;
     finally
       LLines.Free;
     end;
@@ -892,13 +961,14 @@ end;
 procedure TFrmList.LoadPlaylist;
 var
   LLines, LSeen: TStringList;
-  LLine, LPath: string;
+  LPath: string;
+  I: Integer;
 begin
   if not SavePlaylistEnabled then
     Exit;
 
   try
-    if not TFile.Exists(PlaylistFile) then
+    if not FileExists(PlaylistFile) then
       Exit;
 
     LLines := TStringList.Create;
@@ -908,14 +978,14 @@ begin
       LSeen.Sorted := True;
       LSeen.CaseSensitive := False;
 
-      LLines.Text := ReadPlaylistText(PlaylistFile);
+      LLines.Text := ReadTextFile(PlaylistFile);
 
       ListData.BeginUpdate;
       try
-        for LLine in LLines do
+        for I := 0 to LLines.Count - 1 do
         begin
-          LPath := Trim(LLine);
-          if (LPath = '') or LPath.StartsWith('#') then
+          LPath := Trim(LLines[I]);
+          if (LPath = '') or (LPath[1] = '#') then
             Continue;
 
           if LSeen.IndexOf(LPath) >= 0 then
@@ -949,24 +1019,25 @@ var
   Node: PVirtualNode;
   Item: PItemData;
   SearchRec: TSearchRec;
-  LKey: string;
+  LKey, LDir: string;
 begin
-  // 지원 확장자 = Assoc.pas AssocExts 단일 출처 (파일 연결 카드 공용).
+  // 지원 확장자 = Media.pas AssocExts 단일 출처 (파일 연결 카드 공용).
   if not IsMediaFile(AFileName) then
   begin
     if not ACheckDisk then
       Exit;
 
     // 확장자로 안 걸린 것만 폴더인지 물어본다.
-    if not TDirectory.Exists(AFileName) then
+    if not DirectoryExists(AFileName) then
       Exit;
 
-    if FindFirst(TPath.Combine(AFileName, '*'), faAnyFile, SearchRec) = 0 then
+    LDir := IncludeTrailingPathDelimiter(AFileName);
+    if FindFirst(LDir + '*', faAnyFile, SearchRec) = 0 then
     try
       repeat
         if (SearchRec.Name = '.') or (SearchRec.Name = '..') then
           Continue;
-        AddFile(TPath.Combine(AFileName, SearchRec.Name));
+        AddFile(LDir + SearchRec.Name);
       until FindNext(SearchRec) <> 0;
     finally
       FindClose(SearchRec);
@@ -1015,7 +1086,7 @@ begin
 
   Node := ListData.AddChild(nil);
   Item := ListData.GetNodeData(Node);
-  ListData.NodeHeight[Node] := 24;
+  ListData.NodeHeight[Node] := Scale96ToForm(ListRowHeight);
   Item^.FileName := AFileName;
   Item^.IsActive := False;
   Item^.Missing := False;   // 확인 전엔 있다고 본다 (StartVerify 가 정정)
@@ -1028,7 +1099,7 @@ end;
 // (있던 파일이 사라짐) 은 재생 시점 SkipMissing 이 잡는다.
 procedure TFrmList.StartVerify(AMissingOnly: Boolean);
 var
-  LFiles: TArray<string>;
+  LFiles: TStringArray;
   LCount: Integer;
   Node: PVirtualNode;
   Item: PItemData;
@@ -1061,22 +1132,23 @@ end;
 // 스레드 결과 반영 (메인 스레드). 그 사이 노드가 바뀔 수 있어 포인터가 아닌 경로로 대조한다.
 // AChecked = 이 스레드가 실제로 확인한 범위. 그 밖의 노드는 건드리지 않는다 —
 // 부분 검사(StartVerify(True)) 결과로 검사하지 않은 항목까지 '있음' 으로 되돌리면 안 된다.
-procedure TFrmList.ApplyMissing(const AChecked, AMissing: TArray<string>);
+procedure TFrmList.ApplyMissing(const AChecked, AMissing: TStringArray);
 var
   LSet, LScope: TDictionary<string, Boolean>;
   Node: PVirtualNode;
   Item: PItemData;
-  LName, LKey: string;
+  LKey: string;
   LMiss, LDirty: Boolean;
+  I: Integer;
 begin
   LDirty := False;
   LSet := TDictionary<string, Boolean>.Create;
   LScope := TDictionary<string, Boolean>.Create;
   try
-    for LName in AMissing do
-      LSet.AddOrSetValue(LowerCase(LName), True);
-    for LName in AChecked do
-      LScope.AddOrSetValue(LowerCase(LName), True);
+    for I := 0 to High(AMissing) do
+      LSet.AddOrSetValue(LowerCase(AMissing[I]), True);
+    for I := 0 to High(AChecked) do
+      LScope.AddOrSetValue(LowerCase(AChecked[I]), True);
 
     Node := ListData.GetFirst;
     while Assigned(Node) do
@@ -1111,10 +1183,11 @@ end;
 // 셋 다 '목록에 없는 경로' 라 Play 가 SkipMissing/mpv 오류로 빠졌다 (폴더 드롭 시
 // "파일을 찾을 수 없습니다 — <폴더명>" + 재생 안 됨).
 // 그래서 추가 전 마지막 노드를 표시해 두고 그 다음(= 이번에 새로 들어간 첫) 노드부터 재생.
-procedure TFrmList.AddFiles(const AFiles: TArray<string>; APlay: Boolean);
+procedure TFrmList.AddFiles(const AFiles: TStringArray; APlay: Boolean);
 var
   Mark, Node: PVirtualNode;
   Item: PItemData;
+  I: Integer;
 begin
   if Length(AFiles) = 0 then
     Exit;
@@ -1135,8 +1208,8 @@ begin
 
     ListData.BeginUpdate;
     try
-      for var S in AFiles do
-        AddFile(S);
+      for I := 0 to High(AFiles) do
+        AddFile(AFiles[I]);
     finally
       ListData.EndUpdate;
     end;
@@ -1173,7 +1246,7 @@ end;
 
 // 본체 창 드롭 전용 — 기존 목록을 버리고 떨군 것만 남긴다 (목록 창 드롭은 AddFiles = 덧붙임).
 // 재생 시작은 양쪽 같다.
-procedure TFrmList.ReplaceFiles(const AFiles: TArray<string>);
+procedure TFrmList.ReplaceFiles(const AFiles: TStringArray);
 begin
   if Length(AFiles) = 0 then
     Exit;
@@ -1187,8 +1260,8 @@ var
   Node: PVirtualNode;
   NextNode: PVirtualNode;
   Item: PItemData;
-  ToDelete: TArray<PVirtualNode>;
-  DeleteCount: Integer;
+  ToDelete: array of PVirtualNode;
+  DeleteCount, I: Integer;
   ActiveNode: PVirtualNode;
   ActiveDeleted: Boolean;
   FirstNode: PVirtualNode;
@@ -1239,8 +1312,8 @@ begin
 
   ListData.BeginUpdate;
   try
-    for Node in ToDelete do
-      ListData.DeleteNode(Node);
+    for I := 0 to High(ToDelete) do
+      ListData.DeleteNode(ToDelete[I]);
   finally
     ListData.EndUpdate;
   end;
@@ -1291,7 +1364,7 @@ end;
 
 procedure TFrmList.UpdateModeIcons;
 begin
-  // 폼 생성 중(DFM 스트리밍 전) 호출 가능
+  // 폼 생성 중(버튼 생성 전) 호출 가능
   if (BtnRepeat = nil) or (BtnRandom = nil) then
     Exit;
 
@@ -1459,7 +1532,7 @@ begin
   end;
 
   if Assigned(ListData.FocusedNode) then
-    PostMessage(Handle, WM_SCROLL_FOCUSED_NODE, 0, 0);
+    Application.QueueAsyncCall(ScrollFocusedAsync, 0);
   FrmKPlayer.HandlePlay(AFileName);
 end;
 
@@ -1564,7 +1637,7 @@ var
   Node: PVirtualNode;
   Item: PItemData;
   Cur: string;
-  Candidates: TArray<string>;
+  Candidates: TStringArray;
   N: Integer;
 begin
   Result := '';
@@ -1618,7 +1691,7 @@ end;
 procedure TFrmList.PruneShuffleMissing;
 var
   I, W, RemovedBeforePos: Integer;
-  NewHist: TArray<string>;
+  NewHist: TStringArray;
 begin
   W := 0;
   RemovedBeforePos := 0;

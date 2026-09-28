@@ -68,7 +68,8 @@ def main():
     lines += ['    (Ext: %-8s Id: %d)%s' % ("'%s';" % ext, gid, ',' if i < len(table) - 1 else '')
               for i, (ext, gid) in enumerate(table)]
     lines.append('  );')
-    with open(INC_OUT, 'w', encoding='utf-8-sig', newline='\r\n') as f:
+    # BOM 금지 — FPC 는 BOM 있는 .inc 를 BOM 없는 유닛에 못 넣는다 (Fatal 2089, 2026-09-29)
+    with open(INC_OUT, 'w', encoding='utf-8', newline='\n') as f:
         f.write('\n'.join(lines) + '\n')
 
     print('%d icons, %d images -> %s, %s' % (len(table), image_id - FIRST_IMAGE_ID, RES_OUT, INC_OUT))

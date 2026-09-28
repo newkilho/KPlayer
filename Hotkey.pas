@@ -1,16 +1,18 @@
-﻿unit Hotkey;
+unit Hotkey;
 
 // 키보드 단축키 표 — 동작 목록·기본 키·INI 저장의 단일 출처 (AssocExts 와 같은 역할).
 // Main.FormKeyDown 은 여기서 (Key, Shift) → 동작을 찾아 ExecAction 만 부른다. 환경설정 '단축키' 카드가
-// KeyMap 을 고치고 INI 에 쓴다. 고정 키(표 밖): ESC(전체화면 해제) · TAB(정보 패널,
-// AppMessage — FormKeyDown 에 안 옴, CLAUDE.md).
-// INI 는 TShortCut 정수 그대로 (ShortCutToText 문자열은 키보드 배치·VCL 리소스에 묶여 왕복이 깨질 수 있다).
+// KeyMap 을 고치고 INI 에 쓴다. 고정 키(표 밖): ESC(전체화면 해제) · TAB(정보 패널, Main.KeyDownBefore).
+// INI 는 TShortCut 정수 그대로 (ShortCutToText 문자열은 키보드 배치·리소스에 묶여 왕복이 깨질 수 있다).
+// scShift/scCtrl/scAlt 값($2000/$4000/$8000)은 Delphi 와 LCL 이 같다 — Delphi 판 INI 가 그대로 산다.
 // 키 없음(0) = 값이 있어도 미할당, INI 에 키 자체가 없으면 기본값 → 새 동작을 추가해도 옛 INI 가 그대로 산다.
+
+{$mode delphi}{$H+}
 
 interface
 
 uses
-  Winapi.Windows, System.Classes, System.SysUtils, Vcl.Menus, K.Config.INI;
+  Classes, SysUtils, LCLType, Menus, LCLProc, Config;
 
 type
   TKeyAction = (

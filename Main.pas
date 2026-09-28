@@ -1,9 +1,10 @@
-﻿{===============================================================================
+{===============================================================================
 
 Project : KPlayer
 Author  : Kilho, Oh
 Engine  : libmpv (GPL-2.0-or-later)
 Tree    : Virtual Treeview (MPL 1.1)
+IDE     : Lazarus (FPC) — 2026-09-29 Delphi 에서 변환 (마지막 Delphi 판 = git 태그 delphi-final)
 
 This program links against libmpv (GPL-2.0-or-later).
 When distributed in binary form, the complete corresponding
@@ -16,7 +17,11 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
-  1.0.1.0
+  1.1.0.0
+  [*] Delphi → Lazarus 변환 - 명령줄 빌드(lazbuild), klib(KTheme/KTranslate/KUpdate/KExcept) 로 교체, madExcept 제거,
+      SVG 아이콘은 PNG 마스크 착색(IconButton / Tools\MakeListIcons.py), OS 의존 코드 분리(OSUtil, Assoc 비-Windows 빈 구현, Config.AppDataDir)
+  [*] 재생목록 스크롤바 떨림 수정 - 바를 트리 DC 에 직접 그리던 것을 형제 창(HTTRANSPARENT)으로, 트리 WS_CLIPSIBLINGS. laz VT 가 ScrollWindowEx 로 바까지 밀어 다음 WM_PAINT 까지 튀던 것 (VTScrollbar.pas)
+  [*] 음량 평준화를 끄면 실제로 꺼지게 - 'set af ""' 의 빈 인자가 Command 에서 버려져 명령이 실패하던 것 (Setup.pas: ApplyLive)
   [*] 우클릭 '화면 크기' 항목명을 50% / 100% / 150% / 200% 로 - '원본 화면 (n.nx)' 넷은 어색, PotPlayer·GOM 관례, 번역 불필요 (Main.dfm: MnuOrig50~200 / Main.pas: FormCreate / Translate.txt: '원본 화면' 그룹 제거)
 
   1.0.0.0
@@ -121,13 +126,14 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 unit Main;
 
+{$mode delphi}{$H+}
+
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, Winapi.ShellAPI, System.SysUtils, System.Variants, System.Classes,
-  System.Types, System.Math, System.IOUtils, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
-  Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Menus, MPVBasePlayer, MPVPlayer,
-  K.Theme, K.DragFile, K.Config.INI, K.Update, Hotkey;
+  Classes, SysUtils, Types, Math, Graphics, Controls, Forms, Dialogs,
+  StdCtrls, ExtCtrls, Menus, LCLType, LCLIntf,
+  MPVBasePlayer, MPVPlayer, Config, Hotkey;
 
 const
   // Lua 중앙 알림 색 (RGB hex, KPlayer.lua 가 ASS BGR 로 반전). 기본 파라미터에 쓰여 클래스 선언보다 앞 필수.
@@ -136,8 +142,11 @@ const
   ALERT_ERROR = 'FF5555';
 
 type
+
+  { TFrmKPlayer }
+
   TFrmKPlayer = class(TForm)
-    Menu: TPopupMenu;
+    PopMenu: TPopupMenu;     // Delphi 판 이름 'Menu' — LCL TForm.Menu(TMainMenu) 속성과 겹쳐 개명
     BtnAbout: TMenuItem;
     MnuOpenFile: TMenuItem;
     MnuOpenFolder: TMenuItem;
@@ -152,14 +161,15 @@ type
     N1: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
-      var Resize: Boolean);
+    procedure FormDropFiles(Sender: TObject; const FileNames: array of string);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure FormMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure FormMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure FormMouseWheel(Sender: TObject; Shift: TShiftState;
+      WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
     procedure MenuPopup(Sender: TObject);
     procedure MnuOpenFileClick(Sender: TObject);
     procedure BtnAboutClick(Sender: TObject);
@@ -169,7 +179,7 @@ type
     procedure MnuStretchClick(Sender: TObject);
   private
     FConfig: TConfig;
-    FDragFile: TDragFile;
+    FHook: TObject;         // Win32 서브클래스 (WM_NCHITTEST 가장자리 리사이즈, WM_DEVICECHANGE) — OSUtil
     FVolume: Double;
     FRepeatMode: Integer;
     FRandomMode: Integer;
@@ -177,14 +187,15 @@ type
     FLastMouseX: Integer;
     FLastMouseY: Integer;
     FLeftDown: Boolean;
-    FVerifyTimer: TTimer;   // 드라이브 변경 통지 뭉침 방지 (WMDeviceChange)
+    FVerifyTimer: TTimer;   // 드라이브 변경 통지 뭉침 방지 (WndHook WM_DEVICECHANGE)
     FFullOnce: Boolean;     // 재생 창 크기 '전체 화면' 은 세션당 1회 (ESC 로 풀면 다음 곡에 다시 안 감)
     FStretch: Boolean;      // 꽉찬 화면 (keepaspect=no) 중 — 전체화면 해제 시 keepaspect 복원 판단
     FClickTimer: TTimer;    // 왼쪽 클릭 기능 지연 — 더블클릭이면 취소 (FormMouseDown / ClickTimerTick)
 
     procedure SendLeftButton(ADown: Boolean);
-    procedure AppMessage(var Msg: TMsg; var Handled: Boolean);
+    procedure KeyDownBefore(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure OnScriptMessage(ASender: TObject; const ACommand: string; AParams: TStrings);
+    function WndHook(AMsg: Cardinal; AW: PtrUInt; AL: PtrInt; var AHandled: Boolean): PtrInt;
 
     procedure ExecAction(AAction: TKeyAction);
     procedure ExecMouse(AEvent: TMouseEvent);
@@ -202,11 +213,12 @@ type
     procedure SaveWindow;
     procedure ResizeWindow(AWidth, AHeight: Integer);
 
-    procedure WMDeviceChange(var Msg: TMessage); message WM_DEVICECHANGE;
+    procedure DeviceChanged;
     procedure VerifyTimerTick(Sender: TObject);
 
-    procedure WMNCHitTest(var Msg: TWMNCHitTest); message WM_NCHITTEST;
-    procedure WMMouseWheel(var Msg: TWMMouseWheel); message WM_MOUSEWHEEL;
+    procedure StartUpdateCheck;
+    procedure UpdateResult(Quit: Boolean; const Data: string);
+
     procedure SetVolume(const Value: Double);
     procedure SetRandomMode(const Value: Integer);
     procedure SetRepeatMode(const Value: Integer);
@@ -246,9 +258,11 @@ var
 
 implementation
 
-{$R *.dfm}
+{$R *.lfm}
 
-uses List, Setup, Assoc, K.Translate;
+uses
+  {$IFDEF WINDOWS}Windows,{$ENDIF}
+  List, Setup, Assoc, Media, KTranslate, KTheme, KUpdate, OSUtil;
 
 {$I Const.inc}
 
@@ -260,7 +274,7 @@ begin
   Translate(Self);
   Application.Title := Caption;
 
-  BorderStyle := bsNone;
+  // BorderStyle = bsNone 은 LFM 에서 — 여기서 바꾸면 핸들 재생성 (mpv wid 무효·SetFormCorners 소실)
   SetFormCorners(Handle, True);
 
   FLastMouseX := -1;
@@ -283,8 +297,10 @@ begin
   // KPlayer.lua 는 exe 리소스(RCDATA 'script') — exe 옆 파일을 읽지 않는다 (1.0.0.0).
   // 디버그는 n:\Release 의 파일이 있으면 그걸로 (빌드 없이 lua 수정 시험).
   Theme := '';
-  if ReportMemoryLeaksOnShutDown and FileExists('n:\Release\KPlayer.lua') then
+  {$IFDEF DEBUG}
+  if FileExists('n:\Release\KPlayer.lua') then
     Theme := 'n:\Release\KPlayer.lua';
+  {$ENDIF}
 
   if not MPVLibLoaded(ExtractFilePath(ParamStr(0))) then
   begin
@@ -297,7 +313,7 @@ begin
     Theme := ExtractScript;
   if Theme = '' then
   begin
-    Showmessage(_('필수 파일이 없습니다.'));
+    ShowMessage(_('필수 파일이 없습니다.'));
     Application.Terminate;
     Exit;
   end;
@@ -361,22 +377,18 @@ begin
 
   MPVPlayer.Command(['load-script', Theme]);
 
-  // OSD 폰트 = 윈도우 UI 기본 폰트
-  MPVPlayer.Command(['script-message', 'ui-font', Screen.MessageFont.Name]);
+  // OSD 폰트 = OS UI 기본 폰트 (LCL Screen 엔 VCL 의 MessageFont 가 없어 OSUtil 이 직접 읽음)
+  MPVPlayer.Command(['script-message', 'ui-font', UIFontName]);
 
-  // TAB 은 FormKeyDown 까지 오지 않는다 — VCL 이 포커스 이동(다이얼로그 키)으로 먼저 먹는다.
-  // 실측 2026-08-28: 폼이 받은 키를 로그로 찍어보니 Shift(16)·Space(32)·'\'(220) 은 오는데
-  // TAB(9) 은 안 왔다. 그래서 VCL 배분 전 단계인 Application.OnMessage 에서 가로챈다.
-  Application.OnMessage := AppMessage;
+  // TAB 은 FormKeyDown 에 안 올 수 있다 — 포커스 이동 키라 위젯셋/LCL 이 먼저 먹는다
+  // (VCL 실측 2026-08-28: Shift·Space·'\' 는 오는데 TAB 은 안 옴). 그래서 LCL 키 처리 맨 앞 단계에서 가로챈다.
+  Application.AddOnKeyDownBeforeHandler(KeyDownBefore);
 
-  FDragFile := TDragFile.Create(Self,
-  procedure(const Files: TArray<string>)
-  begin
-    // HandlePlay 직접 호출 시 mpv 만 재생, 목록 '재생 중' 표시 누락 → FrmList 경유.
-    // 재생 시작점은 드롭 경로가 아니라 목록에 실제로 들어간 첫 항목 (AddFiles 주석).
-    // 본체 창 드롭 = 목록 교체 + 재생. 덧붙이려면 목록 창에 떨군다 (TFrmList.FormCreate).
-    FrmList.ReplaceFiles(Files);
-  end);
+  // 파일 드롭 = LFM 의 AllowDropFiles + OnDropFiles (FormDropFiles). 관리자 실행이어도 탐색기 드롭 허용.
+  AllowDropFromLowerIntegrity(Handle);
+
+  // 가장자리 리사이즈(WM_NCHITTEST)·드라이브 변경(WM_DEVICECHANGE) — LCL 이 폼으로 안 넘기는 메시지라 서브클래스로
+  FHook := HookWindowMessages(Handle, WndHook);
 
   SetTopMost(FConfig.ReadInteger('topmost', 0) <> 0);
 
@@ -394,30 +406,52 @@ begin
   // 파일 연결 exe 경로 재기록 — 포터블 폴더 이동 시 옛 경로 방지
   SyncFileAssoc;
 
-  CheckUpdate(procedure(Quit: Boolean; Data: string)
-  begin
-    if Quit then
-    begin
-      Close;
-      Exit;
-    end;
-  end);
+  StartUpdateCheck;
 end;
 
 procedure TFrmKPlayer.FormDestroy(Sender: TObject);
 begin
-  Application.OnMessage := nil;   // 폼보다 오래 사는 Application 이 죽은 메서드를 부르지 않게
+  Application.RemoveOnKeyDownBeforeHandler(KeyDownBefore);
+  FreeAndNil(FHook);
 
   SaveWindow;
   FreeAndNil(MPVPlayer);
-  FreeAndNil(FDragFile);
   FreeAndNil(FConfig);
 end;
 
-procedure TFrmKPlayer.FormCanResize(Sender: TObject; var NewWidth,
-  NewHeight: Integer; var Resize: Boolean);
+// 업데이트 확인 (klib KUpdate). 비동기 — 호출은 바로 돌아온다.
+procedure TFrmKPlayer.StartUpdateCheck;
+var
+  O: TKUpdateOptions;
 begin
-  Resize := (NewWidth >= 384) and (NewHeight >= 216);
+  {$IF AppInit = ''}
+  Exit;   // 엔드포인트를 안 적은 빌드(견본 그대로) - 확인하지 않는다
+  {$ELSE}
+  O := DefaultUpdateOptions(AppInit);
+  O.Host := Self;
+  O.Debug := IsDebugBuild;   // 앱의 DEBUG (라이브러리 빌드와 무관)
+  CheckUpdate(O, UpdateResult);
+  {$ENDIF}
+end;
+
+// 최대 수십 초 뒤에 메인 스레드에서 불린다. QueueAsyncCall 문맥이라 Close 도 안전하다.
+procedure TFrmKPlayer.UpdateResult(Quit: Boolean; const Data: string);
+begin
+  if Quit then Close;   // 사용자가 받기로 했다 - 브라우저가 열렸고 우리는 끝낸다
+end;
+
+// 본체 창 드롭 = 목록 교체 + 재생. 덧붙이려면 목록 창에 떨군다 (TFrmList.FormDropFiles).
+// HandlePlay 직접 호출 시 mpv 만 재생, 목록 '재생 중' 표시 누락 → FrmList 경유.
+// 재생 시작점은 드롭 경로가 아니라 목록에 실제로 들어간 첫 항목 (AddFiles 주석).
+procedure TFrmKPlayer.FormDropFiles(Sender: TObject; const FileNames: array of string);
+var
+  LFiles: TStringArray;
+  I: Integer;
+begin
+  SetLength(LFiles, Length(FileNames));
+  for I := 0 to High(FileNames) do
+    LFiles[I] := FileNames[I];
+  FrmList.ReplaceFiles(LFiles);
 end;
 
 procedure TFrmKPlayer.OnScriptMessage(ASender: TObject; const ACommand: string; AParams: TStrings);
@@ -604,24 +638,66 @@ begin
   SetSpeed(Round((LCur + Delta) * 10) / 10);
 end;
 
-// USB·네트워크 드라이브가 붙거나 빠지면 목록의 '없는 파일' 판정이 통째로 뒤집힌다.
-// 검사 자체는 배경 스레드(TFileCheckThread) 라 여기선 타이머만 다시 건다.
-// DBT_DEVNODES_CHANGED 까지 받는 이유 — 매핑 드라이브 복구가 볼륨 통지 없이 오는 경우가 있다.
-procedure TFrmKPlayer.WMDeviceChange(var Msg: TMessage);
+// 창 프로시저 가로채기 (OSUtil.HookWindowMessages).
+//   WM_NCHITTEST   가장자리 8px = 리사이즈 (테두리 없는 창). 전체화면(최대화) 중엔 안 함.
+//   WM_DEVICECHANGE USB·네트워크 드라이브가 붙거나 빠지면 목록의 '없는 파일' 판정이 통째로 뒤집힌다.
+function TFrmKPlayer.WndHook(AMsg: Cardinal; AW: PtrUInt; AL: PtrInt;
+  var AHandled: Boolean): PtrInt;
+{$IFDEF WINDOWS}
 const
+  ResizeBorder = 8;
   DBT_DEVICEARRIVAL        = $8000;
   DBT_DEVICEREMOVECOMPLETE = $8004;
   DBT_DEVNODES_CHANGED     = $0007;
+var
+  P: TPoint;
+  IsLeft, IsRight, IsTop, IsBottom: Boolean;
+{$ENDIF}
 begin
-  inherited;
+  Result := 0;
+  {$IFDEF WINDOWS}
+  case AMsg of
+    WM_NCHITTEST:
+      begin
+        if WindowState = wsMaximized then Exit;
 
-  if (Msg.WParam = DBT_DEVICEARRIVAL) or (Msg.WParam = DBT_DEVICEREMOVECOMPLETE) or
-     (Msg.WParam = DBT_DEVNODES_CHANGED) then
-    if FVerifyTimer <> nil then
-    begin
-      FVerifyTimer.Enabled := False;   // 통지 뭉침 → 마지막 것 기준으로 재시작
-      FVerifyTimer.Enabled := True;
-    end;
+        P := ScreenToClient(Types.Point(SmallInt(LoWord(DWORD(AL))), SmallInt(HiWord(DWORD(AL)))));
+
+        IsLeft   := P.X <= ResizeBorder;
+        IsRight  := P.X >= Width  - ResizeBorder;
+        IsTop    := P.Y <= ResizeBorder;
+        IsBottom := P.Y >= Height - ResizeBorder;
+
+        if      IsLeft  and IsTop    then Result := HTTOPLEFT
+        else if IsRight and IsTop    then Result := HTTOPRIGHT
+        else if IsLeft  and IsBottom then Result := HTBOTTOMLEFT
+        else if IsRight and IsBottom then Result := HTBOTTOMRIGHT
+        else if IsLeft               then Result := HTLEFT
+        else if IsRight              then Result := HTRIGHT
+        else if IsTop                then Result := HTTOP
+        else if IsBottom             then Result := HTBOTTOM
+        else Exit;   // 가장자리 아님 → 기본 처리
+
+        AHandled := True;
+      end;
+
+    // DBT_DEVNODES_CHANGED 까지 받는 이유 — 매핑 드라이브 복구가 볼륨 통지 없이 오는 경우가 있다.
+    WM_DEVICECHANGE:
+      if (AW = DBT_DEVICEARRIVAL) or (AW = DBT_DEVICEREMOVECOMPLETE) or
+         (AW = DBT_DEVNODES_CHANGED) then
+        DeviceChanged;
+  end;
+  {$ENDIF}
+end;
+
+// 검사 자체는 배경 스레드(TFileCheckThread) 라 여기선 타이머만 다시 건다.
+procedure TFrmKPlayer.DeviceChanged;
+begin
+  if FVerifyTimer <> nil then
+  begin
+    FVerifyTimer.Enabled := False;   // 통지 뭉침 → 마지막 것 기준으로 재시작
+    FVerifyTimer.Enabled := True;
+  end;
 end;
 
 procedure TFrmKPlayer.VerifyTimerTick(Sender: TObject);
@@ -630,38 +706,6 @@ begin
 
   if FrmList <> nil then
     FrmList.StartVerify(True);   // 재연결로 바뀌는 건 '없음 → 있음' 뿐
-end;
-
-procedure TFrmKPlayer.WMNCHitTest(var Msg: TWMNCHitTest);
-const
-  ResizeBorder = 8;
-var
-  P: TPoint;
-  IsLeft, IsRight, IsTop, IsBottom: Boolean;
-begin
-  inherited;
-
-  if WindowState = wsMaximized then
-  begin
-    Msg.Result := HTCLIENT;
-    Exit;
-  end;
-
-  P := ScreenToClient(Point(Msg.XPos, Msg.YPos));
-
-  IsLeft   := P.X <= ResizeBorder;
-  IsRight  := P.X >= Width  - ResizeBorder;
-  IsTop    := P.Y <= ResizeBorder;
-  IsBottom := P.Y >= Height - ResizeBorder;
-
-  if      IsLeft  and IsTop    then Msg.Result := HTTOPLEFT
-  else if IsRight and IsTop    then Msg.Result := HTTOPRIGHT
-  else if IsLeft  and IsBottom then Msg.Result := HTBOTTOMLEFT
-  else if IsRight and IsBottom then Msg.Result := HTBOTTOMRIGHT
-  else if IsLeft               then Msg.Result := HTLEFT
-  else if IsRight              then Msg.Result := HTRIGHT
-  else if IsTop                then Msg.Result := HTTOP
-  else if IsBottom             then Msg.Result := HTBOTTOM;
 end;
 
 procedure TFrmKPlayer.HandleClose;
@@ -675,24 +719,15 @@ begin
   WindowState := wsMinimized;
 end;
 
-// 항상 위 ('일반' 카드 + 캡션 압정). fsStayOnTop 금지 — VCL 핸들 재생성 시 mpv wid 무효 → 영상 사라짐.
+// 항상 위 ('일반' 카드 + 캡션 압정). fsStayOnTop 금지 — 핸들 재생성 시 mpv wid 무효 → 영상 사라짐.
 // 재생목록 창도 같이 올림 (본체만 올리면 목록이 뒤로 숨음).
 // 두 곳에서 조작하므로 여기서 INI 까지 기록 — 설정 창은 LoadValues 가 INI 를 다시 읽어 콤보가 맞는다.
 procedure TFrmKPlayer.SetTopMost(AState: Boolean);
-const
-  SWP_FLAGS = SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE;
-var
-  LAfter: HWND;
 begin
-  if AState then
-    LAfter := HWND_TOPMOST
-  else
-    LAfter := HWND_NOTOPMOST;
+  SetWindowTopMost(Self, AState);
 
-  SetWindowPos(Handle, LAfter, 0, 0, 0, 0, SWP_FLAGS);
-
-  if (FrmList <> nil) and FrmList.HandleAllocated then
-    SetWindowPos(FrmList.Handle, LAfter, 0, 0, 0, 0, SWP_FLAGS);
+  if FrmList <> nil then
+    SetWindowTopMost(FrmList, AState);
 
   if FConfig <> nil then
     FConfig.WriteInteger('topmost', Ord(AState));
@@ -714,12 +749,10 @@ begin
   if AState then
   begin
     SetFormCorners(Handle, False);
-    //FormStyle   := fsStayOnTop;
     WindowState := wsMaximized;
   end
   else
   begin
-    //FormStyle   := fsNormal;
     WindowState := wsNormal;
     SetFormCorners(Handle, True);
     Screen.Cursor := crDefault;   // 창모드는 항상 커서 표시 (안전장치)
@@ -757,7 +790,7 @@ end;
 // 우클릭 '만든이' → 홈페이지 (Const.inc AppHome)
 procedure TFrmKPlayer.BtnAboutClick(Sender: TObject);
 begin
-  ShellExecute(0, 'open', PChar(AppHome), nil, nil, SW_SHOWNORMAL);
+  OpenURL(AppHome);
 end;
 
 // 우클릭 '파일 열기'/'폴더 열기' — 목록 창 [추가] 메뉴·Ctrl+O 와 같은 경로
@@ -824,6 +857,7 @@ begin
   Result := False;
   if MPVPlayer = nil then Exit;
 
+  LName := '';
   MPVPlayer.GetPropertyString('filename', LName);
   Result := LName <> '';
 end;
@@ -836,6 +870,7 @@ begin
   Result := False;
   if MPVPlayer = nil then Exit;
 
+  LEOF := '';
   MPVPlayer.GetPropertyString('eof-reached', LEOF);
   Result := SameText(LEOF, 'yes');
 end;
@@ -863,6 +898,8 @@ var
 begin
   if MPVPlayer = nil then Exit(False);
 
+  Pause := '';
+  FileName := '';
   MPVPlayer.GetPropertyString('pause', Pause);
   MPVPlayer.GetPropertyString('filename', FileName);
 
@@ -871,7 +908,7 @@ end;
 
 // 재생 창 크기 ('일반' 카드 win_mode): 0=마지막 크기 유지 / 1=영상 크기에 맞춤 / 2=전체 화면.
 // ('지정 크기' 는 넣었다 뺐다 — 2026-09-11 사용자 결정. 우클릭 '화면 크기' 배율로 충분.)
-// mpv autofit/geometry 는 wid 임베드라 무효 (창 주인이 Delphi) → 여기서 직접.
+// mpv autofit/geometry 는 wid 임베드라 무효 (창 주인이 우리) → 여기서 직접.
 // 시작 시 크기·위치는 항상 마지막 값. 문의 (2026-09-11): 640×400 고정이라 매번 늘려야 했다.
 procedure TFrmKPlayer.RestoreWindow;
 var
@@ -880,24 +917,24 @@ var
 begin
   W := FConfig.ReadInteger('win_width', 640);
   H := FConfig.ReadInteger('win_height', 400);
-  W := Max(W, 384);   // FormCanResize 하한
-  H := Max(H, 216);
+  W := Max(W, Constraints.MinWidth);
+  H := Max(H, Constraints.MinHeight);
 
   L := FConfig.ReadInteger('win_left', MaxInt);
   T := FConfig.ReadInteger('win_top', MaxInt);
   if (L = MaxInt) or (T = MaxInt) then
   begin
-    // 위치 미저장 → 주 모니터 가운데. DFM 은 poDesigned 고정 — Position 을 런타임에 바꾸면
-    // RecreateWnd 로 핸들이 바뀌어 FormCreate 의 SetFormCorners 가 날아간다 (둥근 모서리 사라짐, 2026-09-13).
+    // 위치 미저장 → 주 모니터 가운데. LFM 은 poDesigned 고정 — Position 을 런타임에 바꾸면
+    // 핸들이 바뀌어 FormCreate 의 SetFormCorners·mpv wid 가 날아간다 (둥근 모서리 사라짐, 2026-09-13 VCL).
     R := Screen.WorkAreaRect;
-    SetBounds(R.Left + (R.Width - W) div 2, R.Top + (R.Height - H) div 2, W, H);
+    SetBounds(R.Left + (R.Right - R.Left - W) div 2, R.Top + (R.Bottom - R.Top - H) div 2, W, H);
     Exit;
   end;
 
   // 저장된 모니터가 빠졌거나 해상도가 줄었을 수 있다 → 그 자리의 작업 영역 안으로 당김.
-  R := Screen.MonitorFromPoint(Point(L + W div 2, T + H div 2)).WorkareaRect;
-  W := Min(W, R.Width);
-  H := Min(H, R.Height);
+  R := Screen.MonitorFromPoint(Types.Point(L + W div 2, T + H div 2)).WorkareaRect;
+  W := Min(W, R.Right - R.Left);
+  H := Min(H, R.Bottom - R.Top);
   L := EnsureRange(L, R.Left, R.Right - W);
   T := EnsureRange(T, R.Top, R.Bottom - H);
   SetBounds(L, T, W, H);
@@ -913,22 +950,24 @@ begin
   FConfig.WriteInteger('win_height', Height);
 end;
 
-// 창 중심 고정 리사이즈. 작업 영역 초과분은 비율 유지해 축소, 하한 384×216, 화면 밖이면 안으로.
+// 창 중심 고정 리사이즈. 작업 영역 초과분은 비율 유지해 축소, 하한 = Constraints, 화면 밖이면 안으로.
 procedure TFrmKPlayer.ResizeWindow(AWidth, AHeight: Integer);
 var
   R: TRect;
   S: Double;
-  L, T: Integer;
+  L, T, RW, RH: Integer;
 begin
   R := Monitor.WorkareaRect;
-  if (AWidth > R.Width) or (AHeight > R.Height) then
+  RW := R.Right - R.Left;
+  RH := R.Bottom - R.Top;
+  if (AWidth > RW) or (AHeight > RH) then
   begin
-    S := Min(R.Width / AWidth, R.Height / AHeight);
+    S := Math.Min(RW / AWidth, RH / AHeight);   // Windows 유닛의 정수 Min 과 구분
     AWidth := Round(AWidth * S);
     AHeight := Round(AHeight * S);
   end;
-  AWidth := Max(AWidth, 384);
-  AHeight := Max(AHeight, 216);
+  AWidth := Max(AWidth, Constraints.MinWidth);
+  AHeight := Max(AHeight, Constraints.MinHeight);
 
   L := EnsureRange(Left + (Width - AWidth) div 2, R.Left, R.Right - AWidth);
   T := EnsureRange(Top + (Height - AHeight) div 2, R.Top, R.Bottom - AHeight);
@@ -988,25 +1027,21 @@ begin
   end;
 end;
 
-// 탐색기 더블클릭 / '연결 프로그램' / 명령줄로 들어온 경로.
-// 인자를 그대로 Play 하면 안 된다 (AddFiles 주석과 같은 이유) — 재생목록(.m3u/.pls)은
-// 항목이 아니라 내부 경로로 펼쳐지고, 폴더는 내용물만 항목이 되며, 비지원 확장자는
-// 걸러진다. 셋 다 '목록에 없는 경로' 라 Play 가 그대로 mpv 에 넘겨 무반응이었다
-// (재생목록을 열면 목록엔 들어오는데 재생이 안 걸려 더블클릭해야 시작됐다 — 2026-08-29 문의).
-// → 드롭과 같은 AddFiles 로 넘겨 '목록에 실제로 들어간 첫 항목' 부터 재생.
-// FileExists 로 거르지 않는다 — 폴더 인자가 통째로 무시됐다. 존재 확인은 AddFiles 의 배경 검사.
 // 리소스 'script' 를 %TEMP%\KPlayer\KPlayer.lua 로 풀고 경로 반환 ('' = 실패). mpv load-script 는 파일 경로만
 // 받으므로 문자열 로드 불가. 내용이 같으면 다시 쓰지 않는다 — 다른 인스턴스가 읽는 중 덮어쓰는 경우 회피.
 function TFrmKPlayer.ExtractScript: string;
 var
   Res: TResourceStream;
-  Data: TBytes;
+  Data, Old: TBytes;
   Dir: string;
+  F: TFileStream;
 begin
   Result := '';
-  if FindResource(HInstance, 'script', RT_RCDATA) = 0 then Exit;
-
-  Res := TResourceStream.Create(HInstance, 'script', RT_RCDATA);
+  try
+    Res := TResourceStream.Create(HInstance, 'script', RT_RCDATA);
+  except
+    Exit;   // 리소스 없음
+  end;
   try
     SetLength(Data, Res.Size);
     if Res.Size > 0 then
@@ -1016,34 +1051,75 @@ begin
   end;
 
   try
-    Dir := TPath.Combine(TPath.GetTempPath, AppName);
-    TDirectory.CreateDirectory(Dir);
-    Result := TPath.Combine(Dir, 'KPlayer.lua');
-    if not (TFile.Exists(Result) and (TFile.ReadAllBytes(Result) = Data)) then
-      TFile.WriteAllBytes(Result, Data);
+    Dir := IncludeTrailingPathDelimiter(GetTempDir(False)) + AppName;
+    ForceDirectories(Dir);
+    Result := IncludeTrailingPathDelimiter(Dir) + 'KPlayer.lua';
+
+    Old := nil;
+    if FileExists(Result) then
+    begin
+      F := TFileStream.Create(Result, fmOpenRead or fmShareDenyNone);
+      try
+        SetLength(Old, F.Size);
+        if Length(Old) > 0 then
+          F.ReadBuffer(Old[0], Length(Old));
+      finally
+        F.Free;
+      end;
+    end;
+
+    if (Length(Old) <> Length(Data)) or
+       ((Length(Data) > 0) and not CompareMem(@Old[0], @Data[0], Length(Data))) then
+    begin
+      F := TFileStream.Create(Result, fmCreate);
+      try
+        if Length(Data) > 0 then
+          F.WriteBuffer(Data[0], Length(Data));
+      finally
+        F.Free;
+      end;
+    end;
   except
     Result := '';
   end;
 end;
 
+// 탐색기 더블클릭 / '연결 프로그램' / 명령줄로 들어온 경로.
+// 인자를 그대로 Play 하면 안 된다 (AddFiles 주석과 같은 이유) — 재생목록(.m3u/.pls)은
+// 항목이 아니라 내부 경로로 펼쳐지고, 폴더는 내용물만 항목이 되며, 비지원 확장자는
+// 걸러진다. 셋 다 '목록에 없는 경로' 라 Play 가 그대로 mpv 에 넘겨 무반응이었다
+// (재생목록을 열면 목록엔 들어오는데 재생이 안 걸려 더블클릭해야 시작됐다 — 2026-08-29 문의).
+// → 드롭과 같은 AddFiles 로 넘겨 '목록에 실제로 들어간 첫 항목' 부터 재생.
+// FileExists 로 거르지 않는다 — 폴더 인자가 통째로 무시됐다. 존재 확인은 AddFiles 의 배경 검사.
 procedure TFrmKPlayer.HandleStartupParams;
 var
-  I: Integer;
+  I, N: Integer;
   FileName: string;
-  Files: TArray<string>;
+  Files: TStringArray;
 begin
+  SetLength(Files, ParamCount);
+  N := 0;
   for I := 1 to ParamCount do
   begin
     FileName := ParamStr(I);
 
-    // 스위치(/uninst 등)는 KPlayer.dpr 이 처리 — 여기선 경로만.
-    if (FileName = '') or CharInSet(FileName[1], ['/', '-']) then
+    // 스위치(/uninst, /inst 등)는 여기서 거른다 — 경로만. '/' 는 Windows 스위치 표기라 Windows 에서만
+    // (유닉스 절대경로가 '/' 로 시작).
+    if FileName = '' then
       Continue;
+    if FileName[1] = '-' then
+      Continue;
+    {$IFDEF WINDOWS}
+    if FileName[1] = '/' then
+      Continue;
+    {$ENDIF}
 
-    Files := Files + [FileName];
+    Files[N] := FileName;
+    Inc(N);
   end;
+  SetLength(Files, N);
 
-  if Length(Files) = 0 then
+  if N = 0 then
     Exit;
 
   FrmList.AddFiles(Files, not IsPlay);
@@ -1145,16 +1221,17 @@ begin
   end;
 end;
 
-procedure TFrmKPlayer.WMMouseWheel(var Msg: TWMMouseWheel);
+procedure TFrmKPlayer.FormMouseWheel(Sender: TObject; Shift: TShiftState;
+  WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
 begin
   if MPVPlayer = nil then Exit;
 
-  if Msg.WheelDelta > 0 then
+  if WheelDelta > 0 then
     ExecMouse(meWheelUp)
   else
     ExecMouse(meWheelDown);
 
-  Msg.Result := 1;
+  Handled := True;
 end;
 
 // 마우스 이벤트 → 기능 (Hotkey.MouseMap, 환경설정 '마우스' 카드)
@@ -1186,18 +1263,17 @@ begin
 end;
 
 // TAB = 재생/파일 정보 패널 토글 (KPlayer.lua 의 script-message 'info').
-// FormKeyDown 이 아닌 여기서 받는다 — TAB 은 VCL 이 다이얼로그 키로 먼저 먹어 거기까지 안 온다.
+// FormKeyDown 이 아닌 여기서 받는다 — TAB 은 포커스 이동 키라 거기까지 안 올 수 있다 (FormCreate 주석).
 // 본체 창이 활성일 때만 (환경설정·목록 창의 탭 이동은 그대로 둔다). Ctrl+Tab 은 창 전환이라 제외.
-procedure TFrmKPlayer.AppMessage(var Msg: TMsg; var Handled: Boolean);
+procedure TFrmKPlayer.KeyDownBefore(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
-  if Msg.message <> WM_KEYDOWN then Exit;
-  if Msg.wParam <> VK_TAB then Exit;
+  if Key <> VK_TAB then Exit;
   if MPVPlayer = nil then Exit;
   if Screen.ActiveCustomForm <> Self then Exit;
-  if GetKeyState(VK_CONTROL) < 0 then Exit;
+  if ssCtrl in Shift then Exit;
 
   MPVPlayer.Command(['script-message', 'info']);
-  Handled := True;
+  Key := 0;
 end;
 
 // 왼쪽 버튼 상태 → KPlayer.lua
@@ -1214,7 +1290,7 @@ begin
 end;
 
 // 왼쪽 버튼 (영상 영역 = FOverControl 아님):
-//   창모드 누름 → WM_NCLBUTTONDOWN 이동 루프 (뗄 때까지 안 돌아옴). 돌아왔을 때 창이 안 움직였으면 '클릭'.
+//   창모드 누름 → Windows 이동 루프 (뗄 때까지 안 돌아옴, OSUtil.StartWindowDrag). 돌아왔을 때 창이 안 움직였으면 '클릭'.
 //   클릭 기능은 더블클릭 시간만큼 미뤄 실행 (FClickTimer) — 두 번째 누름(ssDouble)이 오면 취소하고 더블클릭 기능.
 //   Windows 는 첫 DOWN 시각 기준으로 두 번째 DOWN 을 DBLCLK 으로 만들고, 타이머는 UP 에서 시작하므로 겹치지 않는다.
 //   컨트롤바 위는 lua 가 처리 — 더블클릭도 두 번째 클릭으로 그대로 넘긴다 (다음 버튼 연타 등).
@@ -1237,14 +1313,16 @@ begin
     if WindowState <> wsMaximized then
     begin
       R := BoundsRect;
-      ReleaseCapture;
-      Perform(WM_NCLBUTTONDOWN, HTCAPTION, 0);
-      if (MouseMap[meLClick] <> mfNone) and EqualRect(R, BoundsRect) then
-        FClickTimer.Enabled := True;
-      Exit;
+      if StartWindowDrag(Self) then
+      begin
+        if (MouseMap[meLClick] <> mfNone) and
+           (R.Left = Left) and (R.Top = Top) and (R.Right = Left + Width) and (R.Bottom = Top + Height) then
+          FClickTimer.Enabled := True;
+        Exit;
+      end;
     end;
 
-    // 전체화면: 이동 없음 → 바로 클릭 후보
+    // 전체화면(또는 끌기 미지원 OS): 이동 없음 → 바로 클릭 후보
     if MouseMap[meLClick] <> mfNone then
       FClickTimer.Enabled := True;
   end;

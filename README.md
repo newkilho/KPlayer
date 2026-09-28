@@ -81,7 +81,7 @@
 ## 설치
 
 설치본은 `%LOCALAPPDATA%\KPlayer` 에 들어가며, 실행 파일 옆에 `libmpv-2.dll` 이 있어야 한다.  
-직접 빌드하려면 Delphi (VCL, Win64) 와 [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi), [Virtual Treeview](https://github.com/JAM-Software/Virtual-TreeView), [SVGIconImageList](https://github.com/EtheaDev/SVGIconImageList) 가 필요하다.
+직접 빌드하려면 [Lazarus](https://www.lazarus-ide.org/) 4.x (FPC 3.2.2, Win64) 와 [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi) 가 필요하다. Virtual Treeview 는 Lazarus 에 들어 있는 `laz.virtualtreeview_package` 를 쓴다.
 
 ## 라이선스
 

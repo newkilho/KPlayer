@@ -1,22 +1,23 @@
 object FrmSetup: TFrmSetup
   Left = 0
+  Height = 560
   Top = 0
-  BorderStyle = bsDialog
-  Caption = #54872#44221#49444#51221
+  Width = 780
+  BorderIcons = [biSystemMenu]
+  BorderStyle = bsSizeable
+  Caption = '환경설정'
   ClientHeight = 560
   ClientWidth = 780
   Color = clWhite
-  Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
-  Position = poScreenCenter
+  Position = poMainFormCenter
   OnActivate = FormActivate
   OnCreate = FormCreate
   OnHide = FormHide
   OnShow = FormShow
-  TextHeight = 15
   object PnlMenu: TPanel
     Left = 0
     Top = 0
@@ -26,94 +27,91 @@ object FrmSetup: TFrmSetup
     BevelOuter = bvNone
     ParentColor = True
     TabOrder = 0
-    DesignSize = (
-      113
-      560)
-    object BtnGeneral: TSpeedButton
+    object BtnGeneral: TKMenuButton
       Left = 8
       Top = 8
       Width = 99
       Height = 32
       GroupIndex = 1
       Down = True
-      Caption = #51068#48152
+      Caption = '일반'
       Flat = True
       OnClick = BtnNavClick
     end
-    object BtnVideo: TSpeedButton
+    object BtnVideo: TKMenuButton
       Tag = 1
       Left = 8
       Top = 46
       Width = 99
       Height = 32
       GroupIndex = 1
-      Caption = #50689#49345
+      Caption = '영상'
       Flat = True
       OnClick = BtnNavClick
     end
-    object BtnAudio: TSpeedButton
+    object BtnAudio: TKMenuButton
       Tag = 2
       Left = 8
       Top = 84
       Width = 99
       Height = 32
       GroupIndex = 1
-      Caption = #51020#49457
+      Caption = '음성'
       Flat = True
       OnClick = BtnNavClick
     end
-    object BtnSub: TSpeedButton
+    object BtnSub: TKMenuButton
       Tag = 3
       Left = 8
       Top = 122
       Width = 99
       Height = 32
       GroupIndex = 1
-      Caption = #51088#47561
+      Caption = '자막'
       Flat = True
       OnClick = BtnNavClick
     end
-    object BtnAssoc: TSpeedButton
+    object BtnAssoc: TKMenuButton
       Tag = 4
       Left = 8
       Top = 160
       Width = 99
       Height = 32
       GroupIndex = 1
-      Caption = #50672#44208
+      Caption = '연결'
       Flat = True
       OnClick = BtnNavClick
     end
-    object BtnKeys: TSpeedButton
+    object BtnKeys: TKMenuButton
       Tag = 5
       Left = 8
       Top = 198
       Width = 99
       Height = 32
       GroupIndex = 1
-      Caption = #45800#52629#53412
+      Caption = '단축키'
       Flat = True
       OnClick = BtnNavClick
     end
-    object BtnMouse: TSpeedButton
+    object BtnMouse: TKMenuButton
       Tag = 6
       Left = 8
       Top = 236
       Width = 99
       Height = 32
       GroupIndex = 1
-      Caption = #47560#50864#49828
+      Caption = '마우스'
       Flat = True
       OnClick = BtnNavClick
     end
-    object BtnAbout: TSpeedButton
+    object BtnAbout: TKMenuButton
       Tag = 7
       Left = 8
       Top = 274
       Width = 99
       Height = 32
       GroupIndex = 1
-      Caption = #51221#48372
+      Caption = '정보'
       Flat = True
       OnClick = BtnNavClick
     end
@@ -132,7 +130,7 @@ object FrmSetup: TFrmSetup
       Width = 99
       Height = 30
       Anchors = [akLeft, akBottom]
-      Caption = #44592#48376#44050' '#48373#50896
+      Caption = '기본값 복원'
       TabOrder = 0
       OnClick = BtnResetClick
     end
@@ -161,8 +159,7 @@ object FrmSetup: TFrmSetup
         Width = 120
         Height = 25
         AutoSize = False
-        Caption = #51068#48152
-        Font.Charset = DEFAULT_CHARSET
+        Caption = '일반'
         Font.Color = clWindowText
         Font.Height = -19
         Font.Name = 'Segoe UI'
@@ -180,46 +177,37 @@ object FrmSetup: TFrmSetup
         Pen.Color = 15395562
       end
     end
-    object PnlMain: TCardPanel
+    object PnlMain: TNotebook
+      Color = clWhite
       Left = 0
       Top = 56
       Width = 667
       Height = 504
       Align = alClient
-      ActiveCard = CardGeneral
-      BevelOuter = bvNone
-      ParentColor = True
-      TabOrder = 1
-      object CardGeneral: TCard
+      PageIndex = 0
+      object CardGeneral: TPage
+        Color = clWhite
         Left = 0
         Top = 0
         Width = 667
         Height = 504
-        CardIndex = 0
-        ParentColor = True
-        TabOrder = 0
         object BoxGeneral: TScrollBox
+          Color = clWhite
           Left = 0
           Top = 0
           Width = 667
           Height = 504
           HorzScrollBar.Visible = False
-          VertScrollBar.Margin = 24
           VertScrollBar.Tracking = True
           Align = alClient
-          BevelInner = bvNone
-          BevelOuter = bvNone
           BorderStyle = bsNone
           TabOrder = 0
-          DesignSize = (
-            667
-            504)
           object LblRepeat: TLabel
             Left = 24
             Top = 21
             Width = 51
             Height = 15
-            Caption = #48152#48373' '#47784#46300
+            Caption = '반복 모드'
             Transparent = True
           end
           object LblRandom: TLabel
@@ -227,7 +215,7 @@ object FrmSetup: TFrmSetup
             Top = 85
             Width = 51
             Height = 15
-            Caption = #47004#45924' '#51116#49373
+            Caption = '랜덤 재생'
             Transparent = True
           end
           object LblSaveList: TLabel
@@ -235,7 +223,7 @@ object FrmSetup: TFrmSetup
             Top = 149
             Width = 75
             Height = 15
-            Caption = #51116#49373#47785#47197' '#51200#51109
+            Caption = '재생목록 저장'
             Transparent = True
           end
           object LblShotDir: TLabel
@@ -243,7 +231,7 @@ object FrmSetup: TFrmSetup
             Top = 213
             Width = 75
             Height = 15
-            Caption = #49828#53356#47536#49399' '#54260#45908
+            Caption = '스크린샷 폴더'
             Transparent = True
           end
           object LblShotFmt: TLabel
@@ -251,7 +239,7 @@ object FrmSetup: TFrmSetup
             Top = 277
             Width = 24
             Height = 15
-            Caption = #54805#49885
+            Caption = '형식'
             Transparent = True
           end
           object LblTopMost: TLabel
@@ -259,7 +247,7 @@ object FrmSetup: TFrmSetup
             Top = 341
             Width = 39
             Height = 15
-            Caption = #54637#49345' '#50948
+            Caption = '항상 위'
             Transparent = True
           end
           object LblWinSize: TLabel
@@ -267,7 +255,7 @@ object FrmSetup: TFrmSetup
             Top = 405
             Width = 66
             Height = 15
-            Caption = #51116#49373' '#52285' '#53356#44592
+            Caption = '재생 창 크기'
             Transparent = True
           end
           object CboRepeat: TComboBox
@@ -280,9 +268,9 @@ object FrmSetup: TFrmSetup
             TabOrder = 0
             OnChange = ControlChange
             Items.Strings = (
-              #48152#48373' '#50630#51020
-              #51204#52404' '#48152#48373
-              #54620' '#44257' '#48152#48373)
+              '반복 없음'
+              '전체 반복'
+              '한 곡 반복')
           end
           object CboRandom: TComboBox
             Left = 473
@@ -294,8 +282,8 @@ object FrmSetup: TFrmSetup
             TabOrder = 1
             OnChange = ControlChange
             Items.Strings = (
-              #49324#50857#50504#54632
-              #49324#50857#54632)
+              '사용안함'
+              '사용함')
           end
           object CboSaveList: TComboBox
             Left = 473
@@ -307,8 +295,8 @@ object FrmSetup: TFrmSetup
             TabOrder = 2
             OnChange = ControlChange
             Items.Strings = (
-              #49324#50857#50504#54632
-              #49324#50857#54632)
+              '사용안함'
+              '사용함')
           end
           object EdtShotDir: TEdit
             Left = 325
@@ -325,7 +313,7 @@ object FrmSetup: TFrmSetup
             Width = 60
             Height = 26
             Anchors = [akTop, akRight]
-            Caption = #52286#44592
+            Caption = '찾기'
             TabOrder = 4
             OnClick = BtnShotDirClick
           end
@@ -352,8 +340,8 @@ object FrmSetup: TFrmSetup
             TabOrder = 6
             OnChange = ControlChange
             Items.Strings = (
-              #49324#50857#50504#54632
-              #49324#50857#54632)
+              '사용안함'
+              '사용함')
           end
           object CboWinSize: TComboBox
             Left = 473
@@ -365,42 +353,35 @@ object FrmSetup: TFrmSetup
             TabOrder = 7
             OnChange = ControlChange
             Items.Strings = (
-              #47560#51648#47561' '#53356#44592' '#50976#51648
-              #50689#49345' '#53356#44592#50640' '#47582#52644
-              #51204#52404' '#54868#47732)
+              '마지막 크기 유지'
+              '영상 크기에 맞춤'
+              '전체 화면')
           end
         end
       end
-      object CardVideo: TCard
+      object CardVideo: TPage
+        Color = clWhite
         Left = 0
         Top = 0
         Width = 667
         Height = 504
-        CardIndex = 1
-        ParentColor = True
-        TabOrder = 1
         object BoxVideo: TScrollBox
+          Color = clWhite
           Left = 0
           Top = 0
           Width = 667
           Height = 504
           HorzScrollBar.Visible = False
-          VertScrollBar.Margin = 24
           VertScrollBar.Tracking = True
           Align = alClient
-          BevelInner = bvNone
-          BevelOuter = bvNone
           BorderStyle = bsNone
           TabOrder = 0
-          DesignSize = (
-            667
-            504)
           object LblHwdec: TLabel
             Left = 24
             Top = 21
             Width = 87
             Height = 15
-            Caption = #54616#46300#50920#50612' '#46356#53076#46377
+            Caption = '하드웨어 디코딩'
             Transparent = True
           end
           object LblVo: TLabel
@@ -408,7 +389,7 @@ object FrmSetup: TFrmSetup
             Top = 85
             Width = 75
             Height = 15
-            Caption = #52636#47141' '#46300#46972#51060#48260
+            Caption = '출력 드라이버'
             Transparent = True
           end
           object LblGpuApi: TLabel
@@ -416,7 +397,7 @@ object FrmSetup: TFrmSetup
             Top = 149
             Width = 57
             Height = 15
-            Caption = #44536#47000#54589' API'
+            Caption = '그래픽 API'
             Transparent = True
           end
           object LblVideoSync: TLabel
@@ -424,7 +405,7 @@ object FrmSetup: TFrmSetup
             Top = 213
             Width = 63
             Height = 15
-            Caption = #54868#47732' '#46041#44592#54868
+            Caption = '화면 동기화'
             Transparent = True
           end
           object LblScale: TLabel
@@ -432,7 +413,7 @@ object FrmSetup: TFrmSetup
             Top = 277
             Width = 60
             Height = 15
-            Caption = #50629#49828#52992#51068#47084
+            Caption = '업스케일러'
             Transparent = True
           end
           object LblDeint: TLabel
@@ -440,7 +421,7 @@ object FrmSetup: TFrmSetup
             Top = 341
             Width = 87
             Height = 15
-            Caption = #51064#53552#47112#51060#49828' '#54644#51228
+            Caption = '인터레이스 해제'
             Transparent = True
           end
           object CboHwdec: TComboBox
@@ -453,9 +434,9 @@ object FrmSetup: TFrmSetup
             TabOrder = 0
             OnChange = ControlChange
             Items.Strings = (
-              #51088#46041'('#50504#51204')'
-              #51088#46041
-              #49324#50857' '#50504' '#54632)
+              '자동(안전)'
+              '자동'
+              '사용 안 함')
           end
           object CboVo: TComboBox
             Left = 473
@@ -480,7 +461,7 @@ object FrmSetup: TFrmSetup
             TabOrder = 2
             OnChange = ControlChange
             Items.Strings = (
-              #51088#46041
+              '자동'
               'Direct3D 11'
               'OpenGL'
               'Vulkan')
@@ -495,8 +476,8 @@ object FrmSetup: TFrmSetup
             TabOrder = 3
             OnChange = ControlChange
             Items.Strings = (
-              #46356#49828#54540#47112#51060' '#47532#49368#54540
-              #50724#46356#50724' '#44592#51456)
+              '디스플레이 리샘플'
+              '오디오 기준')
           end
           object CboScale: TComboBox
             Left = 473
@@ -523,42 +504,35 @@ object FrmSetup: TFrmSetup
             TabOrder = 5
             OnChange = ControlChange
             Items.Strings = (
-              #51088#46041
-              #54637#49345' '#49324#50857
-              #49324#50857' '#50504' '#54632)
+              '자동'
+              '항상 사용'
+              '사용 안 함')
           end
         end
       end
-      object CardAudio: TCard
+      object CardAudio: TPage
+        Color = clWhite
         Left = 0
         Top = 0
         Width = 667
         Height = 504
-        CardIndex = 2
-        ParentColor = True
-        TabOrder = 2
         object BoxAudio: TScrollBox
+          Color = clWhite
           Left = 0
           Top = 0
           Width = 667
           Height = 504
           HorzScrollBar.Visible = False
-          VertScrollBar.Margin = 24
           VertScrollBar.Tracking = True
           Align = alClient
-          BevelInner = bvNone
-          BevelOuter = bvNone
           BorderStyle = bsNone
           TabOrder = 0
-          DesignSize = (
-            667
-            504)
           object LblVolume: TLabel
             Left = 24
             Top = 21
             Width = 51
             Height = 15
-            Caption = #44592#48376' '#48380#47464
+            Caption = '기본 볼륨'
             Transparent = True
           end
           object LblVolumeValue: TLabel
@@ -577,7 +551,7 @@ object FrmSetup: TFrmSetup
             Top = 85
             Width = 90
             Height = 15
-            Caption = #51020#47049' '#54217#51456#54868' '#49324#50857
+            Caption = '음량 평준화 사용'
             Transparent = True
           end
           object LblNormLevel: TLabel
@@ -585,7 +559,7 @@ object FrmSetup: TFrmSetup
             Top = 152
             Width = 63
             Height = 15
-            Caption = #54217#51456#54868' '#44053#46020
+            Caption = '평준화 강도'
             Transparent = True
           end
           object TrkVolume: TTrackBar
@@ -612,8 +586,8 @@ object FrmSetup: TFrmSetup
             TabOrder = 1
             OnChange = ControlChange
             Items.Strings = (
-              #49324#50857#50504#54632
-              #49324#50857#54632)
+              '사용안함'
+              '사용함')
           end
           object CboNormLevel: TComboBox
             Left = 473
@@ -625,42 +599,35 @@ object FrmSetup: TFrmSetup
             TabOrder = 2
             OnChange = ControlChange
             Items.Strings = (
-              #45230#44172
-              #48372#53685
-              #44053#54616#44172)
+              '낮게'
+              '보통'
+              '강하게')
           end
         end
       end
-      object CardSub: TCard
+      object CardSub: TPage
+        Color = clWhite
         Left = 0
         Top = 0
         Width = 667
         Height = 504
-        CardIndex = 3
-        ParentColor = True
-        TabOrder = 3
         object BoxSub: TScrollBox
+          Color = clWhite
           Left = 0
           Top = 0
           Width = 667
           Height = 504
           HorzScrollBar.Visible = False
-          VertScrollBar.Margin = 24
           VertScrollBar.Tracking = True
           Align = alClient
-          BevelInner = bvNone
-          BevelOuter = bvNone
           BorderStyle = bsNone
           TabOrder = 0
-          DesignSize = (
-            650
-            504)
           object LblSubVisible: TLabel
             Left = 24
             Top = 21
             Width = 78
             Height = 15
-            Caption = #51088#47561' '#44592#48376' '#54364#49884
+            Caption = '자막 기본 표시'
             Transparent = True
           end
           object LblSubSize: TLabel
@@ -668,7 +635,7 @@ object FrmSetup: TFrmSetup
             Top = 88
             Width = 51
             Height = 15
-            Caption = #51088#47561' '#53356#44592
+            Caption = '자막 크기'
             Transparent = True
           end
           object LblSubSizeValue: TLabel
@@ -687,7 +654,7 @@ object FrmSetup: TFrmSetup
             Top = 133
             Width = 78
             Height = 15
-            Caption = #44592#48376' '#51088#47561' '#50616#50612
+            Caption = '기본 자막 언어'
             Transparent = True
           end
           object LblSubFont: TLabel
@@ -695,7 +662,7 @@ object FrmSetup: TFrmSetup
             Top = 185
             Width = 24
             Height = 15
-            Caption = #44544#44852
+            Caption = '글꼴'
             Transparent = True
           end
           object LblSubBold: TLabel
@@ -703,7 +670,7 @@ object FrmSetup: TFrmSetup
             Top = 230
             Width = 24
             Height = 15
-            Caption = #44405#44172
+            Caption = '굵게'
             Transparent = True
           end
           object LblSubColor: TLabel
@@ -711,7 +678,7 @@ object FrmSetup: TFrmSetup
             Top = 275
             Width = 36
             Height = 15
-            Caption = #44544#51088#49353
+            Caption = '글자색'
             Transparent = True
           end
           object LblSubBorder: TLabel
@@ -719,7 +686,7 @@ object FrmSetup: TFrmSetup
             Top = 365
             Width = 63
             Height = 15
-            Caption = #50808#44285#49440' '#46160#44760
+            Caption = '외곽선 두께'
             Transparent = True
           end
           object LblSubBorderValue: TLabel
@@ -738,7 +705,7 @@ object FrmSetup: TFrmSetup
             Top = 320
             Width = 51
             Height = 15
-            Caption = #50808#44285#49440' '#49353
+            Caption = '외곽선 색'
             Transparent = True
           end
           object LblSubShadow: TLabel
@@ -746,7 +713,7 @@ object FrmSetup: TFrmSetup
             Top = 410
             Width = 36
             Height = 15
-            Caption = #44536#47548#51088
+            Caption = '그림자'
             Transparent = True
           end
           object LblSubShadowValue: TLabel
@@ -765,7 +732,7 @@ object FrmSetup: TFrmSetup
             Top = 455
             Width = 51
             Height = 15
-            Caption = #49464#47196' '#50948#52824
+            Caption = '세로 위치'
             Transparent = True
           end
           object LblSubPosValue: TLabel
@@ -784,7 +751,7 @@ object FrmSetup: TFrmSetup
             Top = 500
             Width = 24
             Height = 15
-            Caption = #51221#47148
+            Caption = '정렬'
             Transparent = True
           end
           object LblSubAss: TLabel
@@ -792,7 +759,7 @@ object FrmSetup: TFrmSetup
             Top = 545
             Width = 117
             Height = 15
-            Caption = #51088#47561' '#54028#51068' '#49828#53440#51068' '#50864#49440
+            Caption = '자막 파일 스타일 우선'
             Transparent = True
           end
           object ShpSubColor: TShape
@@ -821,8 +788,8 @@ object FrmSetup: TFrmSetup
             TabOrder = 0
             OnChange = ControlChange
             Items.Strings = (
-              #49324#50857#50504#54632
-              #49324#50857#54632)
+              '사용안함'
+              '사용함')
           end
           object TrkSubSize: TTrackBar
             Left = 453
@@ -869,8 +836,8 @@ object FrmSetup: TFrmSetup
             TabOrder = 4
             OnChange = ControlChange
             Items.Strings = (
-              #49324#50857#50504#54632
-              #49324#50857#54632)
+              '사용안함'
+              '사용함')
           end
           object BtnSubColor: TButton
             Left = 583
@@ -878,7 +845,7 @@ object FrmSetup: TFrmSetup
             Width = 60
             Height = 23
             Anchors = [akTop, akRight]
-            Caption = #48320#44221
+            Caption = '변경'
             TabOrder = 5
             OnClick = BtnSubColorClick
           end
@@ -901,7 +868,7 @@ object FrmSetup: TFrmSetup
             Width = 60
             Height = 23
             Anchors = [akTop, akRight]
-            Caption = #48320#44221
+            Caption = '변경'
             TabOrder = 7
             OnClick = BtnSubColorClick
           end
@@ -942,9 +909,9 @@ object FrmSetup: TFrmSetup
             TabOrder = 10
             OnChange = ControlChange
             Items.Strings = (
-              #50812#51901
-              #44032#50868#45936
-              #50724#47480#51901)
+              '왼쪽'
+              '가운데'
+              '오른쪽')
           end
           object CboSubAss: TComboBox
             Left = 473
@@ -956,22 +923,17 @@ object FrmSetup: TFrmSetup
             TabOrder = 11
             OnChange = ControlChange
             Items.Strings = (
-              #49324#50857#50504#54632
-              #49324#50857#54632)
+              '사용안함'
+              '사용함')
           end
         end
       end
-      object CardAssoc: TCard
+      object CardAssoc: TPage
+        Color = clWhite
         Left = 0
         Top = 0
         Width = 667
         Height = 504
-        CardIndex = 4
-        ParentColor = True
-        TabOrder = 4
-        DesignSize = (
-          667
-          504)
         object LblAssocHint: TLabel
           Left = 344
           Top = 100
@@ -979,7 +941,6 @@ object FrmSetup: TFrmSetup
           Height = 90
           Anchors = [akTop, akRight]
           AutoSize = False
-          Font.Charset = DEFAULT_CHARSET
           Font.Color = clGray
           Font.Height = -11
           Font.Name = 'Segoe UI'
@@ -988,28 +949,6 @@ object FrmSetup: TFrmSetup
           Transparent = True
           WordWrap = True
         end
-        object TreeAssoc: TVirtualStringTree
-          Left = 24
-          Top = 12
-          Width = 300
-          Height = 480
-          DefaultNodeHeight = 28
-          Header.AutoSizeIndex = 0
-          Header.Height = 15
-          Header.MainColumn = -1
-          Header.Options = []
-          Indent = 20
-          ScrollBarOptions.ScrollBars = ssVertical
-          TabOrder = 0
-          OnChecked = TreeAssocChecked
-          OnFreeNode = TreeAssocFreeNode
-          OnGetText = TreeAssocGetText
-          OnPaintText = TreeAssocPaintText
-          OnGetImageIndex = TreeAssocGetImageIndex
-          Touch.InteractiveGestures = [igPan, igPressAndTap]
-          Touch.InteractiveGestureOptions = [igoPanSingleFingerHorizontal, igoPanSingleFingerVertical, igoPanInertia, igoPanGutter, igoParentPassthrough]
-          Columns = <>
-        end
         object BtnAssocAll: TButton
           Tag = 1
           Left = 344
@@ -1017,7 +956,7 @@ object FrmSetup: TFrmSetup
           Width = 145
           Height = 30
           Anchors = [akTop, akRight]
-          Caption = #47784#46160' '#49440#53469
+          Caption = '모두 선택'
           TabOrder = 1
           OnClick = BtnAssocSelectClick
         end
@@ -1028,7 +967,7 @@ object FrmSetup: TFrmSetup
           Width = 145
           Height = 30
           Anchors = [akTop, akRight]
-          Caption = #47784#46160' '#54644#51228
+          Caption = '모두 해제'
           TabOrder = 2
           OnClick = BtnAssocSelectClick
         end
@@ -1038,7 +977,7 @@ object FrmSetup: TFrmSetup
           Width = 145
           Height = 30
           Anchors = [akTop, akRight]
-          Caption = #51452#50836' '#54028#51068
+          Caption = '주요 파일'
           TabOrder = 3
           OnClick = BtnAssocSelectClick
         end
@@ -1048,7 +987,6 @@ object FrmSetup: TFrmSetup
           Width = 300
           Height = 252
           Anchors = [akTop, akRight, akBottom]
-          Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -11
           Font.Name = 'Consolas'
@@ -1065,22 +1003,17 @@ object FrmSetup: TFrmSetup
           Width = 300
           Height = 30
           Anchors = [akRight, akBottom]
-          Caption = 'Windows '#44592#48376' '#50545' '#49444#51221' '#50676#44592
+          Caption = 'Windows 기본 앱 설정 열기'
           TabOrder = 4
           OnClick = BtnAssocDefaultsClick
         end
       end
-      object CardKeys: TCard
+      object CardKeys: TPage
+        Color = clWhite
         Left = 0
         Top = 0
         Width = 667
         Height = 504
-        CardIndex = 5
-        ParentColor = True
-        TabOrder = 5
-        DesignSize = (
-          667
-          504)
         object LblKeyHint: TLabel
           Left = 444
           Top = 12
@@ -1088,8 +1021,7 @@ object FrmSetup: TFrmSetup
           Height = 60
           Anchors = [akTop, akRight]
           AutoSize = False
-          Caption = #47785#47197#50640#49436' '#46041#51089#51012' '#44256#47480' '#46244' '#50500#47000' '#52856#51012' '#45572#47476#44256' '#53412#47484' '#51077#47141#54616#49464#50836'.'
-          Font.Charset = DEFAULT_CHARSET
+          Caption = '목록에서 동작을 고른 뒤 아래 칸을 누르고 키를 입력하세요.'
           Font.Color = clGray
           Font.Height = -11
           Font.Name = 'Segoe UI'
@@ -1105,7 +1037,6 @@ object FrmSetup: TFrmSetup
           Height = 15
           Anchors = [akTop, akRight]
           AutoSize = False
-          Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -12
           Font.Name = 'Segoe UI'
@@ -1121,11 +1052,11 @@ object FrmSetup: TFrmSetup
           Anchors = [akLeft, akTop, akBottom]
           Columns = <
             item
-              Caption = #46041#51089
+              Caption = '동작'
               Width = 270
             end
             item
-              Caption = #45800#52629#53412
+              Caption = '단축키'
               Width = 105
             end>
           ColumnClick = False
@@ -1153,7 +1084,7 @@ object FrmSetup: TFrmSetup
           Width = 200
           Height = 30
           Anchors = [akTop, akRight]
-          Caption = #51648#50864#44592
+          Caption = '지우기'
           TabOrder = 2
           OnClick = BtnKeyClearClick
         end
@@ -1163,41 +1094,34 @@ object FrmSetup: TFrmSetup
           Width = 200
           Height = 30
           Anchors = [akRight, akBottom]
-          Caption = #45800#52629#53412' '#44592#48376#44050
+          Caption = '단축키 기본값'
           TabOrder = 3
           OnClick = BtnKeyDefaultClick
         end
       end
-      object CardMouse: TCard
+      object CardMouse: TPage
+        Color = clWhite
         Left = 0
         Top = 0
         Width = 667
         Height = 504
-        CardIndex = 6
-        ParentColor = True
-        TabOrder = 6
         object BoxMouse: TScrollBox
+          Color = clWhite
           Left = 0
           Top = 0
           Width = 667
           Height = 504
           HorzScrollBar.Visible = False
-          VertScrollBar.Margin = 24
           VertScrollBar.Tracking = True
           Align = alClient
-          BevelInner = bvNone
-          BevelOuter = bvNone
           BorderStyle = bsNone
           TabOrder = 0
-          DesignSize = (
-            667
-            504)
           object LblMLClick: TLabel
             Left = 24
             Top = 21
             Width = 108
             Height = 15
-            Caption = #50812#51901' '#48260#53948' '#54620' '#48264' '#53364#47533
+            Caption = '왼쪽 버튼 한 번 클릭'
             Transparent = True
           end
           object LblMDblClick: TLabel
@@ -1205,7 +1129,7 @@ object FrmSetup: TFrmSetup
             Top = 85
             Width = 108
             Height = 15
-            Caption = #50812#51901' '#48260#53948' '#46160' '#48264' '#53364#47533
+            Caption = '왼쪽 버튼 두 번 클릭'
             Transparent = True
           end
           object LblMMClick: TLabel
@@ -1213,7 +1137,7 @@ object FrmSetup: TFrmSetup
             Top = 149
             Width = 90
             Height = 15
-            Caption = #44032#50868#45936' '#48260#53948' '#53364#47533
+            Caption = '가운데 버튼 클릭'
             Transparent = True
           end
           object LblMWheelUp: TLabel
@@ -1221,7 +1145,7 @@ object FrmSetup: TFrmSetup
             Top = 213
             Width = 39
             Height = 15
-            Caption = #55072' '#50948#47196
+            Caption = '휠 위로'
             Transparent = True
           end
           object LblMWheelDown: TLabel
@@ -1229,7 +1153,7 @@ object FrmSetup: TFrmSetup
             Top = 277
             Width = 51
             Height = 15
-            Caption = #55072' '#50500#47000#47196
+            Caption = '휠 아래로'
             Transparent = True
           end
           object CboMLClick: TComboBox
@@ -1284,17 +1208,12 @@ object FrmSetup: TFrmSetup
           end
         end
       end
-      object CardAbout: TCard
+      object CardAbout: TPage
+        Color = clWhite
         Left = 0
         Top = 0
         Width = 667
         Height = 504
-        CardIndex = 7
-        ParentColor = True
-        TabOrder = 7
-        DesignSize = (
-          667
-          504)
         object MemAbout: TMemo
           Left = 24
           Top = 16

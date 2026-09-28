@@ -81,7 +81,7 @@
 ## 安装
 
 安装程序将 KPlayer 放在 `%LOCALAPPDATA%\KPlayer`。可执行文件旁必须有 `libmpv-2.dll`。  
-从源码构建需要 Delphi (VCL, Win64) 以及 [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi)、[Virtual Treeview](https://github.com/JAM-Software/Virtual-TreeView)、[SVGIconImageList](https://github.com/EtheaDev/SVGIconImageList)。
+从源码构建需要 [Lazarus](https://www.lazarus-ide.org/) 4.x (FPC 3.2.2, Win64) 以及 [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi)。Virtual Treeview 使用 Lazarus 自带的 `laz.virtualtreeview_package`。
 
 ## 许可证
 

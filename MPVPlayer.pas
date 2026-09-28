@@ -1,17 +1,22 @@
-﻿unit MPVPlayer;
+unit MPVPlayer;
 
 // MPV Player - KPlayer.lua 통신
 //
 // [Lua] mp.commandv("script-message", "<cmd>", [인자...])
-//   → MPV_EVENT_CLIENT_MESSAGE → [Delphi] DoEventClientMsg → OnScriptMessage
+//   → MPV_EVENT_CLIENT_MESSAGE → DoEventClientMsg → OnScriptMessage (UI 스레드)
+//
+// 이벤트 스레드 → UI 스레드는 Synchronize(메서드). FPC 3.2 는 익명 메서드가 없어 넘길 값을
+// 필드(FPend*)에 두고 부른다 — Synchronize 는 블로킹이고 이벤트 스레드는 하나라 필드 경합 없음.
+
+{$mode delphi}{$H+}
 
 interface
 
 uses
-  {$IFDEF MSWINDOWS}
-  Winapi.Windows,
+  {$IFDEF WINDOWS}
+  Windows,
   {$ENDIF}
-  System.SysUtils, System.Classes, System.SyncObjs, Vcl.Dialogs,
+  SysUtils, Classes, SyncObjs,
   MPVBasePlayer, MPVClient;
 
 type
@@ -29,12 +34,21 @@ type
     m_eOnVideoSize: TMPVVideoSizeEvent;
     m_bSized: Boolean;   // 이번 파일에서 OnVideoSize 발행 여부 (reconfig 는 파일당 여러 번)
 
+    // Synchronize 로 넘길 값 (이벤트 스레드가 채우고 UI 스레드가 읽음)
+    FPendCmd: string;
+    FPendArgs: TStrings;
+    FPendMsg: TMPVScriptMessageEvent;
+    FPendSize: TMPVVideoSizeEvent;
+    FPendW, FPendH: Integer;
+
+    procedure SyncScriptMessage;
+    procedure SyncVideoSize;
+
   protected
     // MPV_EVENT_CLIENT_MESSAGE 오버라이드. args[0]=명령, args[1..N]=추가 인자.
     function DoEventClientMsg(pCM: P_mpv_event_client_message): TMPVErrorCode; override;
 
-    // mpv 로그 → IDE. 기반 Log() 는 빈 메서드라 버려졌었음. 임베드라 터미널
-    // 없음. KPlayer.lua 의 msg.info 포함.
+    // mpv 로그 → 디버거. 기반 Log() 는 빈 메서드. 임베드라 터미널 없음. KPlayer.lua 의 msg.info 포함.
     procedure Log(const sMsg: string; bError: Boolean); override;
 
     // dwidth 는 file-loaded 시점엔 아직 없다 (첫 프레임 디코드 뒤 VIDEO_RECONFIG 에서 확정)
@@ -58,12 +72,12 @@ implementation
 
 { TMPVPlayer }
 
-// Debug 빌드 전용 — IDE Event Log·DebugView 로 확인. Release 는 호출 자체가 없다.
+// Debug 빌드 전용 — DebugView 로 확인. Release 는 호출 자체가 없다.
 procedure TMPVPlayer.Log(const sMsg: string; bError: Boolean);
 begin
 {$IFDEF DEBUG}
-  {$IFDEF MSWINDOWS}
-  OutputDebugString(PChar('[mpv] ' + sMsg));
+  {$IFDEF WINDOWS}
+  OutputDebugStringW(PWideChar(UTF8Decode('[mpv] ' + sMsg)));
   {$ENDIF}
 {$ENDIF}
 end;
@@ -74,10 +88,12 @@ begin
   Result := inherited DoEventStartFile(pSF);
 end;
 
+procedure TMPVPlayer.SyncVideoSize;
+begin
+  FPendSize(Self, FPendW, FPendH);
+end;
+
 function TMPVPlayer.DoEventVideoReconfig: TMPVErrorCode;
-var
-  eSize: TMPVVideoSizeEvent;
-  nW, nH: Integer;
 begin
   Result := inherited DoEventVideoReconfig;   // m_nX/m_nY ← dwidth/dheight
   if m_bSized or (m_nX <= 0) or (m_nY <= 0) then
@@ -85,28 +101,28 @@ begin
   m_bSized := True;
 
   Lock;
-  eSize := m_eOnVideoSize;
+  FPendSize := m_eOnVideoSize;
   Unlock;
 
-  if Assigned(eSize) then
+  if Assigned(FPendSize) then
   begin
-    nW := m_nX;
-    nH := m_nY;
+    FPendW := m_nX;
+    FPendH := m_nY;
     // Synchronize — Queue 는 종료 중 폼 해제 뒤 실행될 수 있다 (OnScriptMessage 와 동일 이유).
-    TThread.Synchronize(nil, procedure
-    begin
-      eSize(Self, nW, nH);
-    end);
+    TThread.Synchronize(nil, SyncVideoSize);
   end;
+end;
+
+procedure TMPVPlayer.SyncScriptMessage;
+begin
+  FPendMsg(Self, FPendCmd, FPendArgs);
 end;
 
 function TMPVPlayer.DoEventClientMsg(pCM: P_mpv_event_client_message): TMPVErrorCode;
 var
   ppc: PPMPVChar;
   i: Integer;
-  sCmd: string;
   cArgs: TStringList;
-  eMsg: TMPVScriptMessageEvent;
 begin
   Result := MPV_ERROR_SUCCESS;
 
@@ -116,29 +132,31 @@ begin
 
   ppc := pCM^.args;
 
-  sCmd := UTF8ToString(ppc^);
+  FPendCmd := string(ppc^);   // mpv 문자열 = UTF-8 = Lazarus string, 변환 불필요
   Inc(ppc);
 
   cArgs := TStringList.Create;
   try
     for i := 1 to pCM^.num_args - 1 do
     begin
-      cArgs.Add(UTF8ToString(ppc^));
+      cArgs.Add(string(ppc^));
       Inc(ppc);
     end;
 
     // OnScriptMessage 핸들러를 스레드 안전하게 읽기
     Lock;
-    eMsg := m_eOnScriptMessage;
+    FPendMsg := m_eOnScriptMessage;
     Unlock;
 
-    if Assigned(eMsg) then
+    if Assigned(FPendMsg) then
     begin
       // Synchronize 는 블로킹이라 리턴 후 finally 의 cArgs.Free 가 안전하다.
-      TThread.Synchronize(nil, procedure
-      begin
-        eMsg(Self, sCmd, cArgs);
-      end);
+      FPendArgs := cArgs;
+      try
+        TThread.Synchronize(nil, SyncScriptMessage);
+      finally
+        FPendArgs := nil;
+      end;
     end;
 
   finally

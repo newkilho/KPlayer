@@ -1,94 +1,15 @@
-﻿unit Assoc;
+unit Assoc;
+
+// 파일 연결 (Windows 레지스트리). 확장자 표는 Media.pas.
+// 인터페이스는 OS 무관 — 비-Windows 는 아래 {$ELSE} 의 빈 구현 (macOS 이식 때 채울 자리).
+// Win32 호출은 전부 W 판 명시 — FPC windows 유닛의 접미사 없는 이름은 A(ANSI) 판이라 한글 경로가 깨진다.
+
+{$mode delphi}{$H+}
 
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, Winapi.ShlObj, Winapi.ShellAPI,
-  Winapi.ShLwApi, Winapi.Dwmapi, System.SysUtils, System.Classes,
-  System.Generics.Collections, System.Win.Registry, Vcl.Forms, K.Translate;
-
-type
-  // 연결 카드의 확장자 분류
-  TAssocGroup = (agVideo, agAudio, agList);
-
-  TAssocExt = record
-    Ext:   string;        // '.mp4'
-    Desc:  string;        // 탐색기 표시 파일 종류명 (ProgID 기본값)
-    Group: TAssocGroup;
-    Main:  Boolean;       // [주요 파일] 버튼 선택 대상
-  end;
-
-const
-  AssocGroupNames: array[TAssocGroup] of string = ('비디오', '오디오', '재생목록');
-
-  // 재생 가능 확장자의 단일 출처 — 연결 카드 + List.AddFile 필터(IsMediaFile) 공용.
-  AssocExts: array[0..37] of TAssocExt = (
-    (Ext: '.mp4';  Desc: 'MP4 비디오';         Group: agVideo; Main: True),
-    (Ext: '.mkv';  Desc: 'Matroska 비디오';    Group: agVideo; Main: True),
-    (Ext: '.avi';  Desc: 'AVI 비디오';         Group: agVideo; Main: True),
-    (Ext: '.mov';  Desc: 'QuickTime 비디오';   Group: agVideo; Main: True),
-    (Ext: '.wmv';  Desc: 'Windows Media 비디오'; Group: agVideo; Main: True),
-    (Ext: '.flv';  Desc: 'Flash 비디오';       Group: agVideo; Main: False),
-    (Ext: '.webm'; Desc: 'WebM 비디오';        Group: agVideo; Main: True),
-    (Ext: '.m4v';  Desc: 'MPEG-4 비디오';      Group: agVideo; Main: False),
-    (Ext: '.mpg';  Desc: 'MPEG 비디오';        Group: agVideo; Main: False),
-    (Ext: '.mpeg'; Desc: 'MPEG 비디오';        Group: agVideo; Main: False),
-    (Ext: '.m2v';  Desc: 'MPEG-2 비디오';      Group: agVideo; Main: False),
-    (Ext: '.ts';   Desc: 'MPEG 전송 스트림';   Group: agVideo; Main: True),
-    (Ext: '.tp';   Desc: 'MPEG 전송 스트림';   Group: agVideo; Main: False),
-    (Ext: '.trp';  Desc: 'MPEG 전송 스트림';   Group: agVideo; Main: False),
-    (Ext: '.m2ts'; Desc: 'Blu-ray 비디오';     Group: agVideo; Main: False),
-    (Ext: '.mts';  Desc: 'AVCHD 비디오';       Group: agVideo; Main: False),
-    (Ext: '.vob';  Desc: 'DVD 비디오';         Group: agVideo; Main: False),
-    (Ext: '.asf';  Desc: 'ASF 비디오';         Group: agVideo; Main: False),
-    (Ext: '.rm';   Desc: 'RealMedia 비디오';   Group: agVideo; Main: False),
-    (Ext: '.rmvb'; Desc: 'RealMedia 비디오';   Group: agVideo; Main: False),
-    (Ext: '.ogv';  Desc: 'Ogg 비디오';         Group: agVideo; Main: False),
-    (Ext: '.3gp';  Desc: '3GPP 비디오';        Group: agVideo; Main: False),
-    (Ext: '.divx'; Desc: 'DivX 비디오';        Group: agVideo; Main: False),
-    (Ext: '.mp3';  Desc: 'MP3 오디오';         Group: agAudio; Main: True),
-    (Ext: '.flac'; Desc: 'FLAC 오디오';        Group: agAudio; Main: True),
-    (Ext: '.aac';  Desc: 'AAC 오디오';         Group: agAudio; Main: False),
-    (Ext: '.m4a';  Desc: 'MPEG-4 오디오';      Group: agAudio; Main: True),
-    (Ext: '.wav';  Desc: 'WAV 오디오';         Group: agAudio; Main: True),
-    (Ext: '.ogg';  Desc: 'Ogg 오디오';         Group: agAudio; Main: False),
-    (Ext: '.opus'; Desc: 'Opus 오디오';        Group: agAudio; Main: False),
-    (Ext: '.wma';  Desc: 'Windows Media 오디오'; Group: agAudio; Main: False),
-    (Ext: '.ape';  Desc: 'Monkey''s Audio';    Group: agAudio; Main: False),
-    (Ext: '.aiff'; Desc: 'AIFF 오디오';        Group: agAudio; Main: False),
-    (Ext: '.mka';  Desc: 'Matroska 오디오';    Group: agAudio; Main: False),
-    (Ext: '.dsf';  Desc: 'DSD 오디오';         Group: agAudio; Main: False),
-    (Ext: '.m3u';  Desc: '재생목록';           Group: agList;  Main: False),
-    (Ext: '.m3u8'; Desc: '재생목록';           Group: agList;  Main: False),
-    (Ext: '.pls';  Desc: '재생목록';           Group: agList;  Main: False));
-
-const
-  // 콤보 인덱스 → mpv 값. INI 가 인덱스 저장 — 순서 바꾸면 기존 값 의미 변경, 추가는 뒤에만.
-  HwdecValues:     array[0..2] of string = ('auto-safe', 'auto', 'no');
-  VoValues:        array[0..1] of string = ('gpu', 'gpu-next');
-  GpuApiValues:    array[0..3] of string = ('auto', 'd3d11', 'opengl', 'vulkan');
-  ScaleValues:     array[0..3] of string = ('lanczos', 'bilinear', 'spline36', 'ewa_lanczos');
-  DeintValues:     array[0..2] of string = ('auto', 'yes', 'no');
-  VideoSyncValues: array[0..1] of string = ('display-resample', 'audio');
-  ShotFmtValues:   array[0..1] of string = ('jpg', 'png');
-  SubAlignValues:  array[0..2] of string = ('left', 'center', 'right');   // sub-align-x
-  SubAssValues:    array[0..1] of string = ('force', 'yes');              // sub-ass-override: 0=우리 스타일 강제 1=자막 파일 스타일 우선
-
-  // 음량 평준화 프리셋 (dynaudnorm) — 0:낮게 1:보통 2:강하게
-  NormFilters: array[0..2] of string = (
-    'lavfi=[dynaudnorm=f=100:g=15:p=0.90:r=0.10:n=1]',
-    'lavfi=[dynaudnorm=f=75:g=7:p=0.95:r=0.20:n=1]',
-    'lavfi=[dynaudnorm=f=50:g=5:p=0.99:r=0.30:n=1]');
-
-// 재생 가능 파일 판정. List.AddFile 필터도 이 함수 — 두 벌로 갈리면
-// "연결했는데 더블클릭이 목록에 안 들어감" (실제 발생).
-function IsMediaFile(const AFileName: string): Boolean;
-
-// 재생목록 파일 (.m3u/.m3u8/.pls) — 목록 추가 시 항목으로 펼쳐야 함.
-function IsPlaylistFile(const AFileName: string): Boolean;
-
-// 등록된 연결을 현재 exe 경로로 재기록 (시작 시 1회) — 포터블, 폴더 이동 시 실행 명령 어긋남.
-procedure SyncFileAssoc;
+  Classes, SysUtils, Types, Media;
 
 type
   // 확장자 현재 상태 (AssocStateOf 가 채움).
@@ -106,25 +27,29 @@ type
   end;
 
   // [기본 앱 선택] 창의 뒷정리 대상 (ShowDefaultAppPicker 참고).
-  //   Sheet    - 투명화해 둔 파일 속성 창
+  //   Sheet    - 투명화해 둔 파일 속성 창 (HWND)
   //   TempFile - 속성 창용 빈 임시 파일
   TPickerJob = record
-    Sheet: HWND;
+    Sheet: THandle;
     TempFile: string;
   end;
 
+  TAssocChangeProc = procedure of object;
+  TAssocLogProc = procedure(const AMsg: string) of object;
+
+// 등록된 연결을 현재 exe 경로로 재기록 (시작 시 1회) — 포터블, 폴더 이동 시 실행 명령 어긋남.
+procedure SyncFileAssoc;
 
 // 상태
 function ExtProgID(const AExt: string): string;
-function AssocIndexOf(const AExt: string): Integer;
 function AssocStateOf(const AExt: string): TAssocState;
 function AssocOwned(const AExt: string): Boolean;
-function AssocOwnedList: TArray<string>;
+function AssocOwnedList: TStringDynArray;
 
 // 사용자 직접 조작 필요 상태 = UI [적용안됨] 뱃지 조건. 등록(체크)한 확장자만 알림.
 function AssocNeedsUser(const AState: TAssocState): Boolean;
 
-// 판정 근거 텍스트 — 레지스트리 값과 실제 동작이 어긋날 때 갈라진 지점 확인용 (툴팁).
+// 판정 근거 텍스트 — 레지스트리 값과 실제 동작이 어긋날 때 갈라진 지점 확인용.
 function AssocResolveInfo(const AExt: string): string;
 
 // 실행 환경 한 줄 (계정/승격/HKCU 하이브). 우리 HKCU ≠ 탐색기 하이브면 값은 맞는데 동작이 다름.
@@ -141,24 +66,32 @@ procedure AssocRegisterMain;
 // 등록한 연결 전부 복원 (제거 프로그램이 /uninst 로 호출).
 procedure AssocUnregisterAll;
 
+// 탐색기에 연결 변경 알림
+procedure AssocNotifyShell;
+
 // 기본 앱 선택
 function ShowDefaultAppPicker(const AExt: string; var AJob: TPickerJob;
   const AAnchor: TPoint): Boolean;
 procedure ClosePickerJob(var AJob: TPickerJob);
-procedure ShowDefaultApps(AHandle: HWND; AOurPage: Boolean);
+procedure ShowDefaultApps(AHandle: THandle; AOurPage: Boolean);
 
 // 감시. FileExts 변경 시 AOnChange 를 메인 스레드로. 알림 몰림 — 수신측
 // 디바운스 필요. 평시 이벤트 대기.
-function AssocWatch(const AOnChange: TProc): TThread;
+function AssocWatch(AOnChange: TAssocChangeProc): TThread;
 procedure AssocUnwatch(var AThread: TThread);
 
 // 로그. 환경설정 창이 자기 메모를 걺 (미설정 시 no-op).
 var
-  AssocLogProc: TProc<string> = nil;
+  AssocLogProc: TAssocLogProc = nil;
 
 procedure AssocLog(const AMsg: string);
 
 implementation
+
+{$IFDEF WINDOWS}
+uses
+  Windows, Messages, ShellApi, ShlObj, Registry, Forms, KTranslate;
+{$ENDIF}
 
 procedure AssocLog(const AMsg: string);
 begin
@@ -167,15 +100,76 @@ begin
     AssocLogProc(AMsg);
 end;
 
+function ExtProgID(const AExt: string): string;
+begin
+  Result := 'KPlayer' + AExt;   // '.mp4' -> 'KPlayer.mp4'
+end;
+
+function AssocNeedsUser(const AState: TAssocState): Boolean;
+begin
+  // 미등록 확장자는 남이 쥐어도 안 알림 (사용자가 원한 적 없음).
+  // Broken 만 등록 무관 알림 — 아무것도 안 열리는 상태라서.
+  Result := AState.Broken or (AState.Registered and (AState.Other <> ''));
+end;
+
+{$IFDEF WINDOWS}
+
+// FPC windows 유닛에 없거나 A 판만 있는 것
+const
+  EVENT_OBJECT_CREATE    = $8000;
+  EVENT_OBJECT_SHOW      = $8002;
+  WINEVENT_OUTOFCONTEXT  = $0000;
+  DWMWA_CLOAK            = 13;
+  LWA_ALPHA_             = $00000002;
+  WS_EX_LAYERED_         = $00080000;
+  TokenElevationClass    = 20;
+  REG_NOTIFY_CHANGE_NAME_     = $00000001;
+  REG_NOTIFY_CHANGE_LAST_SET_ = $00000004;
+
+type
+  TWinEventProc = procedure(hWinEventHook: THandle; event: DWORD; hwnd: HWND;
+    idObject, idChild: LONG; idEventThread, dwmsEventTime: DWORD); stdcall;
+
+  TTokenElevationRec = record
+    TokenIsElevated: DWORD;
+  end;
+
+  TSidAndAttributesRec = record
+    Sid: Pointer;
+    Attributes: DWORD;
+  end;
+  PTokenUserRec = ^TTokenUserRec;
+  TTokenUserRec = record
+    User: TSidAndAttributesRec;
+  end;
+
+function SetWinEventHook(eventMin, eventMax: DWORD; hmodWinEventProc: HMODULE;
+  pfnWinEventProc: TWinEventProc; idProcess, idThread, dwFlags: DWORD): THandle;
+  stdcall; external 'user32.dll' name 'SetWinEventHook';
+function UnhookWinEvent(hWinEventHook: THandle): BOOL; stdcall;
+  external 'user32.dll' name 'UnhookWinEvent';
+function SetLayeredWindowAttributes_(hwnd: HWND; crKey: COLORREF; bAlpha: Byte;
+  dwFlags: DWORD): BOOL; stdcall; external 'user32.dll' name 'SetLayeredWindowAttributes';
+function DwmSetWindowAttribute(hwnd: HWND; dwAttribute: DWORD; pvAttribute: Pointer;
+  cbAttribute: DWORD): HRESULT; stdcall; external 'dwmapi.dll' name 'DwmSetWindowAttribute';
+function SHDeleteKeyW(hkey: HKEY; pszSubKey: PWideChar): LONG; stdcall;
+  external 'shlwapi.dll' name 'SHDeleteKeyW';
+function SHDeleteValueW(hkey: HKEY; pszSubKey, pszValue: PWideChar): LONG; stdcall;
+  external 'shlwapi.dll' name 'SHDeleteValueW';
+function ConvertSidToStringSidW(Sid: Pointer; var StringSid: PWideChar): BOOL; stdcall;
+  external 'advapi32.dll' name 'ConvertSidToStringSidW';
+function GetUserNameW_(lpBuffer: PWideChar; var nSize: DWORD): BOOL; stdcall;
+  external 'advapi32.dll' name 'GetUserNameW';
+
 // 파일 속성 창 '연결 프로그램 - 변경' 명령 ID (비문서화) — 확장자별
 // [기본 앱 선택] 창을 띄움 (ShowDefaultAppPicker 참고).
 const
   IDM_CHANGE_ASSOC = $3363;
 
 // 'ProgID|exe' → 표시용 프로그램 이름 (FriendlyProgramName 이 채움).
-// 첫 사용 시 생성, finalization 에서 해제.
+// 첫 사용 시 생성, finalization 에서 해제. 이름=값 목록 (정렬·대소문자 무시).
 var
-  FriendlyCache: TDictionary<string, string> = nil;
+  FriendlyCache: TStringList = nil;
 
 // 레지스트리 계층 (모두 HKCU — UAC 승격 불요)
 //
@@ -197,17 +191,28 @@ const
   AssocBackupKey = '\Software\KPlayer\FileAssoc';
   AssocCapKey    = '\Software\KPlayer\Capabilities';
   AssocClassKey  = '\Software\Classes\';
+  FileExtsKey    = 'Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\';
 
 // 확장자별 아이콘 = exe 리소스 (KPlayerIcons.res, Tools\MakeIconRes.py 생성). IconIds 표.
 {$I IconIds.inc}
 
-function ExtProgID(const AExt: string): string;
+function W(const S: string): UnicodeString; inline;
 begin
-  Result := 'KPlayer' + AExt;   // '.mp4' -> 'KPlayer.mp4'
+  Result := UTF8Decode(S);
+end;
+
+function U(const S: UnicodeString): string; inline;
+begin
+  Result := UTF8Encode(S);
+end;
+
+function ExePath: string;
+begin
+  Result := ParamStr(0);
 end;
 
 // DefaultIcon 문자열 — "<exe>",-<RT_GROUP_ICON ID> (음수 = 리소스 ID, ZipMania 동일), 표에 없으면
-// exe 첫 아이콘(",0"). .rc 로 넣으면 RT_ICON 이 1부터 매겨져 KPlayer.res 의 MAINICON(1·2·3) 과 충돌
+// exe 첫 아이콘(",0"). .rc 로 넣으면 RT_ICON 이 1부터 매겨져 프로젝트 .res 의 MAINICON 과 충돌
 // → 링커가 한쪽 폐기. 그래서 Tools\MakeIconRes.py 가 RT_ICON 1000+/그룹 40000+ 로 .res 를 직접 쓴다.
 // 경로 캐시 안 함 (의도) — 포터블이라 폴더가 바뀜, SyncFileAssoc 의 AssocRegister 재호출이 새로 만듦.
 function ExtIconRef(const AExt: string): string;
@@ -215,7 +220,7 @@ var
   LExe, LStem: string;
   I: Integer;
 begin
-  LExe := ParamStr(0);
+  LExe := ExePath;
   LStem := Copy(AExt, 2, MaxInt);   // '.mp4' -> 'mp4'
   for I := Low(IconIds) to High(IconIds) do
     if SameText(IconIds[I].Ext, LStem) then
@@ -227,18 +232,19 @@ end;
 function RegStr(ARoot: HKEY; const AKey, AValue: string): string;
 var
   LKey: HKEY;
-  LBuf: array[0..511] of Char;
+  LBuf: array[0..511] of WideChar;
   LSize, LType: DWORD;
 begin
   Result := '';
 
-  if RegOpenKeyEx(ARoot, PChar(AKey), 0, KEY_READ, LKey) <> ERROR_SUCCESS then
+  if RegOpenKeyExW(ARoot, PWideChar(W(AKey)), 0, KEY_READ, LKey) <> ERROR_SUCCESS then
     Exit;
   try
-    LSize := SizeOf(LBuf);
-    if (RegQueryValueEx(LKey, PChar(AValue), nil, @LType, PByte(@LBuf),
+    FillChar(LBuf, SizeOf(LBuf), 0);
+    LSize := SizeOf(LBuf) - SizeOf(WideChar);   // 끝 #0 자리 보장
+    if (RegQueryValueExW(LKey, PWideChar(W(AValue)), nil, @LType, PByte(@LBuf[0]),
           @LSize) = ERROR_SUCCESS) and (LType = REG_SZ) then
-      Result := LBuf;
+      Result := U(PWideChar(@LBuf[0]));
   finally
     RegCloseKey(LKey);
   end;
@@ -248,9 +254,19 @@ function RegHasKey(ARoot: HKEY; const AKey: string): Boolean;
 var
   LKey: HKEY;
 begin
-  Result := RegOpenKeyEx(ARoot, PChar(AKey), 0, KEY_READ, LKey) = ERROR_SUCCESS;
+  Result := RegOpenKeyExW(ARoot, PWideChar(W(AKey)), 0, KEY_READ, LKey) = ERROR_SUCCESS;
   if Result then
     RegCloseKey(LKey);
+end;
+
+procedure RegDeleteKeyTree(const ASubKey: string);
+begin
+  SHDeleteKeyW(HKEY_CURRENT_USER, PWideChar(W(ASubKey)));
+end;
+
+procedure RegDeleteValueAt(const ASubKey, AValue: string);
+begin
+  SHDeleteValueW(HKEY_CURRENT_USER, PWideChar(W(ASubKey)), PWideChar(W(AValue)));
 end;
 
 // 확장자의 클래스 ProgID: HKCU 먼저, 없으면 HKCR (HKLM+HKCU 병합 뷰).
@@ -268,30 +284,26 @@ end;
 // 옛 키만 읽으면 "지정 없음" 오판 ("레지스트리는 우리 것인데 탐색기는 남을
 // 띄움" 모순의 원인). 새 키 → 옛 키 순.
 function UserChoiceProgID(const AExt: string): string;
-const
-  Base = 'Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\';
 begin
-  Result := RegStr(HKEY_CURRENT_USER, Base + AExt + '\UserChoiceLatest\ProgId',
+  Result := RegStr(HKEY_CURRENT_USER, FileExtsKey + AExt + '\UserChoiceLatest\ProgId',
     'ProgId');
 
   if Result = '' then
-    Result := RegStr(HKEY_CURRENT_USER, Base + AExt + '\UserChoiceLatest', 'ProgId');
+    Result := RegStr(HKEY_CURRENT_USER, FileExtsKey + AExt + '\UserChoiceLatest', 'ProgId');
 
   if Result = '' then
-    Result := RegStr(HKEY_CURRENT_USER, Base + AExt + '\UserChoice', 'ProgId');
+    Result := RegStr(HKEY_CURRENT_USER, FileExtsKey + AExt + '\UserChoice', 'ProgId');
 end;
 
 // 마지막으로 이 확장자를 연 exe 이름 (없으면 ''). UserChoice 없어도 이 이력이
 // 클래스 연결을 이김 — 필수 확인. MRUList 첫 글자가 가리키는 값 = 현재 승자.
 function OpenWithMruExe(const AExt: string): string;
-const
-  Base = 'Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\';
 var
   LKey, LMru: string;
 begin
   Result := '';
 
-  LKey := Base + AExt + '\OpenWithList';
+  LKey := FileExtsKey + AExt + '\OpenWithList';
   LMru := RegStr(HKEY_CURRENT_USER, LKey, 'MRUList');
   if LMru = '' then
     Exit;
@@ -332,9 +344,10 @@ const
 var
   LSize, LHandle: DWORD;
   LLen: UINT;
-  LBuf: TBytes;
+  LBuf: array of Byte;
   LPtr: Pointer;
   LLangs: array[0..2] of string;
+  LFile: UnicodeString;
   I, J: Integer;
 begin
   Result := '';
@@ -342,17 +355,21 @@ begin
   if (AExeFile = '') or not FileExists(AExeFile) then
     Exit;
 
-  LSize := GetFileVersionInfoSize(PChar(AExeFile), LHandle);
+  LFile := W(AExeFile);
+  LHandle := 0;
+  LSize := GetFileVersionInfoSizeW(PWideChar(LFile), LHandle);
   if LSize = 0 then
     Exit;
 
   SetLength(LBuf, LSize);
-  if not GetFileVersionInfo(PChar(AExeFile), LHandle, LSize, Pointer(LBuf)) then
+  if not GetFileVersionInfoW(PWideChar(LFile), 0, LSize, @LBuf[0]) then
     Exit;
 
   // 언어/코드페이지: 파일 제공값 먼저, 없으면 흔한 값 시도.
   LLangs[0] := '';
-  if VerQueryValue(Pointer(LBuf), '\VarFileInfo\Translation', LPtr, LLen) and
+  LPtr := nil;
+  LLen := 0;
+  if VerQueryValueW(@LBuf[0], PWideChar(UnicodeString('\VarFileInfo\Translation')), LPtr, LLen) and
      (LLen >= 4) then
     LLangs[0] := Format('%.4x%.4x',
       [PWord(LPtr)^, PWord(PByte(LPtr) + 2)^]);
@@ -366,14 +383,18 @@ begin
       Continue;
 
     for J := Low(Names) to High(Names) do
-      if VerQueryValue(Pointer(LBuf),
-           PChar('\StringFileInfo\' + LLangs[I] + '\' + Names[J]),
+    begin
+      LPtr := nil;
+      LLen := 0;
+      if VerQueryValueW(@LBuf[0],
+           PWideChar(W('\StringFileInfo\' + LLangs[I] + '\' + Names[J])),
            LPtr, LLen) and (LLen > 0) then
       begin
-        Result := Trim(PChar(LPtr));
+        Result := Trim(U(PWideChar(LPtr)));
         if Result <> '' then
           Exit;
       end;
+    end;
   end;
 end;
 
@@ -413,17 +434,23 @@ end;
 function FriendlyProgramName(const AProgID, AExe: string): string;
 var
   LKey: string;
+  LIdx: Integer;
 begin
   LKey := AProgID + '|' + AExe;
 
   if FriendlyCache = nil then
-    FriendlyCache := TDictionary<string, string>.Create;
+  begin
+    FriendlyCache := TStringList.Create;
+    FriendlyCache.Sorted := True;
+    FriendlyCache.CaseSensitive := False;
+  end;
 
-  if FriendlyCache.TryGetValue(LKey, Result) then
-    Exit;
+  LIdx := FriendlyCache.IndexOfName(LKey);
+  if LIdx >= 0 then
+    Exit(FriendlyCache.ValueFromIndex[LIdx]);
 
   Result := FriendlyProgramNameRaw(AProgID, AExe);
-  FriendlyCache.Add(LKey, Result);
+  FriendlyCache.Add(LKey + '=' + Result);
 end;
 
 // 우리가 등록한 확장자인가 (= 백업 목록 존재). 백업 없이 등록한 구버전 대비
@@ -434,10 +461,10 @@ var
 begin
   Result := False;
 
-  if RegOpenKeyEx(HKEY_CURRENT_USER, PChar('Software\KPlayer\FileAssoc'), 0,
+  if RegOpenKeyExW(HKEY_CURRENT_USER, PWideChar(UnicodeString('Software\KPlayer\FileAssoc')), 0,
        KEY_READ, LKey) = ERROR_SUCCESS then
   try
-    Result := RegQueryValueEx(LKey, PChar(AExt), nil, nil, nil, nil) = ERROR_SUCCESS;
+    Result := RegQueryValueExW(LKey, PWideChar(W(AExt)), nil, nil, nil, nil) = ERROR_SUCCESS;
   finally
     RegCloseKey(LKey);
   end;
@@ -483,8 +510,7 @@ begin
   LExe := OpenWithMruExe(AExt);
   if LExe <> '' then
   begin
-    Result.Ours := SameText(ExtractFileName(LExe),
-      ExtractFileName(ParamStr(0)));
+    Result.Ours := SameText(ExtractFileName(LExe), ExtractFileName(ExePath));
 
     if not Result.Ours then
     begin
@@ -500,13 +526,6 @@ begin
     Result.Other := FriendlyProgramName(LChoice, '');
 end;
 
-function AssocNeedsUser(const AState: TAssocState): Boolean;
-begin
-  // 미등록 확장자는 남이 쥐어도 안 알림 (사용자가 원한 적 없음).
-  // Broken 만 등록 무관 알림 — 아무것도 안 열리는 상태라서.
-  Result := AState.Broken or (AState.Registered and (AState.Other <> ''));
-end;
-
 // 판정 근거 원본 표시 — 어느 값에서 갈라지는지 확인용.
 function AssocResolveInfo(const AExt: string): string;
 var
@@ -515,15 +534,13 @@ begin
   LPID := ExtProgID(AExt);
 
   Result := 'UserChoiceLatest: ' + RegStr(HKEY_CURRENT_USER,
-      'Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\' + AExt +
-      '\UserChoiceLatest\ProgId', 'ProgId') + sLineBreak +
+      FileExtsKey + AExt + '\UserChoiceLatest\ProgId', 'ProgId') + LineEnding +
     'UserChoice: ' + RegStr(HKEY_CURRENT_USER,
-      'Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\' + AExt +
-      '\UserChoice', 'ProgId') + sLineBreak +
+      FileExtsKey + AExt + '\UserChoice', 'ProgId') + LineEnding +
     // 사용 이력 — 이 줄 없으면 갈린 단계 추적 불가.
-    'OpenWithList MRU: ' + OpenWithMruExe(AExt) + sLineBreak +
+    'OpenWithList MRU: ' + OpenWithMruExe(AExt) + LineEnding +
     'HKCU\Classes: ' + RegStr(HKEY_CURRENT_USER, 'Software\Classes\' + AExt, '') +
-    sLineBreak +
+    LineEnding +
     'HKCR: ' + RegStr(HKEY_CLASSES_ROOT, AExt, '');
 
   // 실제 실행 명령까지 추적 (셸 캐시 미경유).
@@ -534,41 +551,45 @@ begin
   if LEffective <> '' then
   begin
     LCmd := RegStr(HKEY_CLASSES_ROOT, LEffective + '\shell\open\command', '');
-    Result := Result + sLineBreak + '실행: ' + LCmd;
+    Result := Result + LineEnding + '실행: ' + LCmd;
   end;
 
-  Result := Result + sLineBreak + '우리 ProgID: ' + LPID;
+  Result := Result + LineEnding + '우리 ProgID: ' + LPID;
 end;
 
 function AssocEnvInfo: string;
 var
-  LName: array[0..255] of Char;
+  LName: array[0..255] of WideChar;
   LSize: DWORD;
   LToken: THandle;
-  LElev: TOKEN_ELEVATION;
+  LElev: TTokenElevationRec;
   LRet: DWORD;
   LUser, LSid: string;
-  LStr: LPWSTR;
+  LStr: PWideChar;
   LBuf: array[0..255] of Byte;
 begin
   LUser := '?';
   LSize := Length(LName);
-  if GetUserName(LName, LSize) then
-    LUser := LName;
+  if GetUserNameW_(@LName[0], LSize) then
+    LUser := U(PWideChar(@LName[0]));
 
   LSid := '?';
   Result := '';
 
+  LToken := 0;
   if OpenProcessToken(GetCurrentProcess, TOKEN_QUERY, LToken) then
   try
     // 승격 여부 — 승격 프로세스는 다른 하이브를 봄
-    if GetTokenInformation(LToken, TokenElevation, @LElev, SizeOf(LElev), LRet) then
+    LRet := 0;
+    if GetTokenInformation(LToken, TTokenInformationClass(TokenElevationClass), @LElev,
+         SizeOf(LElev), LRet) then
       Result := '상승=' + BoolToStr(LElev.TokenIsElevated <> 0, True);
 
-    if GetTokenInformation(LToken, TokenUser, @LBuf, SizeOf(LBuf), LRet) and
-       ConvertSidToStringSid(PTokenUser(@LBuf)^.User.Sid, LStr) then
+    LStr := nil;
+    if GetTokenInformation(LToken, TokenUser, @LBuf[0], SizeOf(LBuf), LRet) and
+       ConvertSidToStringSidW(PTokenUserRec(@LBuf[0])^.User.Sid, LStr) then
     try
-      LSid := LStr;
+      LSid := U(LStr);
     finally
       LocalFree(HLOCAL(LStr));
     end;
@@ -581,11 +602,11 @@ end;
 
 // 등록한 확장자 전체 — AssocExts 아닌 레지스트리에서 읽음. 노출 목록을 줄여도
 // 옛 등록이 방치되지 않게.
-function AssocOwnedList: TArray<string>;
+function AssocOwnedList: TStringDynArray;
 var
   LReg: TRegistry;
   LNames: TStringList;
-  I: Integer;
+  I, N: Integer;
 begin
   Result := nil;
 
@@ -598,9 +619,15 @@ begin
       LNames := TStringList.Create;
       try
         LReg.GetValueNames(LNames);
+        SetLength(Result, LNames.Count);
+        N := 0;
         for I := 0 to LNames.Count - 1 do
           if LNames[I] <> '' then
-            Result := Result + [LNames[I]];
+          begin
+            Result[N] := LNames[I];
+            Inc(N);
+          end;
+        SetLength(Result, N);
       finally
         LNames.Free;
       end;
@@ -612,29 +639,9 @@ begin
   end;
 end;
 
-// AssocExts 인덱스, 없으면 -1.
-function AssocIndexOf(const AExt: string): Integer;
-var
-  I: Integer;
+procedure AssocNotifyShell;
 begin
-  for I := Low(AssocExts) to High(AssocExts) do
-    if SameText(AssocExts[I].Ext, AExt) then
-      Exit(I);
-
-  Result := -1;
-end;
-
-function IsMediaFile(const AFileName: string): Boolean;
-begin
-  Result := AssocIndexOf(ExtractFileExt(AFileName)) >= 0;
-end;
-
-function IsPlaylistFile(const AFileName: string): Boolean;
-var
-  LIndex: Integer;
-begin
-  LIndex := AssocIndexOf(ExtractFileExt(AFileName));
-  Result := (LIndex >= 0) and (AssocExts[LIndex].Group = agList);
+  SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nil, nil);
 end;
 
 // 설정 앱 기본 앱 화면 (선택 창 실패 시 최후 수단).
@@ -643,21 +650,40 @@ end;
 // AOurPage=True = 우리 앱 페이지 직행. registeredAppUser = RegisteredApplications
 // 값 이름. 페이지엔 Capabilities 등록 확장자가 각각 [기본값 설정] 과 나열.
 // 확장자 단위 직행 파라미터 없음 — 쿼리 모르는 빌드는 그냥 목록.
-procedure ShowDefaultApps(AHandle: HWND; AOurPage: Boolean);
+procedure ShowDefaultApps(AHandle: THandle; AOurPage: Boolean);
 const
-  Uri: array[Boolean] of string = (
+  Uri: array[Boolean] of UnicodeString = (
     'ms-settings:defaultapps',
     'ms-settings:defaultapps?registeredAppUser=KPlayer');
 begin
-  ShellExecute(AHandle, 'open', PChar(Uri[AOurPage]), nil, nil, SW_SHOWNORMAL);
+  ShellExecuteW(AHandle, 'open', PWideChar(Uri[AOurPage]), nil, nil, SW_SHOWNORMAL);
 end;
 
 type
   PFindSheet = ^TFindSheet;
   TFindSheet = record
-    Name: string;   // 찾을 임시 파일명 (창 제목 = '<파일명> 속성')
+    Name: UnicodeString;   // 찾을 임시 파일명 (창 제목 = '<파일명> 속성'), 소문자
     Found: HWND;
   end;
+
+function WinClassIs(AWnd: HWND; const AClass: UnicodeString): Boolean;
+var
+  LClass: array[0..259] of WideChar;
+begin
+  Result := (GetClassNameW(AWnd, @LClass[0], Length(LClass)) > 0) and
+    (WideCompareText(UnicodeString(PWideChar(@LClass[0])), AClass) = 0);
+end;
+
+// 제목 소문자 ('' = 제목 없음)
+function WinTitleLower(AWnd: HWND): UnicodeString;
+var
+  LText: array[0..259] of WideChar;
+begin
+  if GetWindowTextW(AWnd, @LText[0], Length(LText)) > 0 then
+    Result := WideLowerCase(UnicodeString(PWideChar(@LText[0])))
+  else
+    Result := '';
+end;
 
 // 제목에 이름이 든 대화상자(#32770) 검색. 프로세스 불문 — 셸이 타 프로세스에서
 // 띄우기도 해 PID 필터로는 못 찾음. 비교는 확장자 뗀 이름
@@ -665,19 +691,16 @@ type
 function EnumSheetProc(AWnd: HWND; AParam: LPARAM): BOOL; stdcall;
 var
   LInfo: PFindSheet;
-  LClass, LText: array[0..259] of Char;
+  LTitle: UnicodeString;
 begin
   Result := True;   // 계속
   LInfo := PFindSheet(AParam);
 
-  if GetClassName(AWnd, LClass, Length(LClass)) = 0 then
-    Exit;
-  if not SameText(LClass, '#32770') then
+  if not WinClassIs(AWnd, '#32770') then
     Exit;
 
-  if GetWindowText(AWnd, LText, Length(LText)) = 0 then
-    Exit;
-  if Pos(LowerCase(LInfo^.Name), LowerCase(string(LText))) = 0 then
+  LTitle := WinTitleLower(AWnd);
+  if (LTitle = '') or (Pos(LInfo^.Name, LTitle) = 0) then
     Exit;
 
   LInfo^.Found := AWnd;
@@ -687,7 +710,7 @@ end;
 var
   // 속성 창을 뜨는 순간 잡는 훅 상태. 콜백에 인자 못 넘겨 유닛 변수
   // (선택 창은 동시 1개).
-  GSheetName: string;
+  GSheetName: UnicodeString;
   GSheetAnchor: TPoint;
   GSheetFound: HWND = 0;
 
@@ -698,9 +721,9 @@ procedure VanishSheet(AWnd: HWND; const AAnchor: TPoint);
 var
   LCloak: BOOL;
 begin
-  SetWindowLong(AWnd, GWL_EXSTYLE,
-    GetWindowLong(AWnd, GWL_EXSTYLE) or WS_EX_LAYERED);
-  SetLayeredWindowAttributes(AWnd, 0, 0, LWA_ALPHA);
+  SetWindowLongPtrW(AWnd, GWL_EXSTYLE,
+    GetWindowLongPtrW(AWnd, GWL_EXSTYLE) or WS_EX_LAYERED_);
+  SetLayeredWindowAttributes_(AWnd, 0, 0, LWA_ALPHA_);
 
   LCloak := True;
   DwmSetWindowAttribute(AWnd, DWMWA_CLOAK, @LCloak, SizeOf(LCloak));
@@ -710,10 +733,10 @@ end;
 
 // 속성 창 생성 순간 통지받아 표시 전 소거. EVENT_OBJECT_SHOW 는 늦음
 // (이미 표시 후) — CREATE 부터 받고, 셸 재표시 대비 SHOW 에서도 재소거.
-procedure SheetShownProc(hHook: THandle; event: DWORD; wnd: HWND;
-  idObject, idChild: Longint; idEventThread, dwmsEventTime: DWORD); stdcall;
+procedure SheetShownProc(hWinEventHook: THandle; event: DWORD; wnd: HWND;
+  idObject, idChild: LONG; idEventThread, dwmsEventTime: DWORD); stdcall;
 var
-  LClass, LText: array[0..259] of Char;
+  LTitle: UnicodeString;
   LPid: DWORD;
 begin
   // 창 자체 이벤트만 (OBJID_WINDOW = 0)
@@ -728,21 +751,21 @@ begin
     Exit;
   end;
 
-  if GetClassName(wnd, LClass, Length(LClass)) = 0 then
-    Exit;
-  if not SameText(LClass, '#32770') then
+  if not WinClassIs(wnd, '#32770') then
     Exit;
 
   // 생성 직후엔 제목이 빌 수 있음 — 이름 일치 = 확정, 빈 제목 = 후보
   // (우리 프로세스 대화상자 제외).
-  if GetWindowText(wnd, LText, Length(LText)) > 0 then
+  LTitle := WinTitleLower(wnd);
+  if LTitle <> '' then
   begin
-    if Pos(LowerCase(GSheetName), LowerCase(string(LText))) = 0 then
+    if Pos(GSheetName, LTitle) = 0 then
       Exit;
   end
   else
   begin
-    GetWindowThreadProcessId(wnd, LPid);
+    LPid := 0;
+    GetWindowThreadProcessId(wnd, @LPid);
     if LPid = GetCurrentProcessId then
       Exit;
   end;
@@ -767,20 +790,18 @@ function ShowDefaultAppPicker(const AExt: string; var AJob: TPickerJob;
 const
   SearchTimeout = 5000;   // 속성 창 대기 한계 (ms)
 var
-  LDir: array[0..MAX_PATH] of Char;
-  LExec: TShellExecuteInfo;
+  LExec: TShellExecuteInfoW;
   LFind: TFindSheet;
-  LHandle, LHook: THandle;
-  LDeadline: UInt64;
+  LHandle: THandle;
+  LHook: THandle;
+  LDeadline: QWord;
+  LFile: UnicodeString;
 begin
   Result := False;
 
   AJob.Sheet := 0;
-  AJob.TempFile := '';
-
-  GetTempPath(Length(LDir), LDir);
-  AJob.TempFile := IncludeTrailingPathDelimiter(LDir) +
-    Format('KPlayer-assoc-%u%s', [GetTickCount, AExt]);
+  AJob.TempFile := IncludeTrailingPathDelimiter(GetTempDir(False)) +
+    Format('KPlayer-assoc-%u%s', [GetTickCount64, AExt]);
 
   LHandle := FileCreate(AJob.TempFile);
   if LHandle = THandle(-1) then
@@ -793,12 +814,14 @@ begin
   AssocLog(AExt + ': 임시 파일 ' + AJob.TempFile);
 
   // 훅 먼저 (깜빡임 제거 핵심). 폴링은 훅 놓쳤을 때 보조.
-  LFind.Name := ChangeFileExt(ExtractFileName(AJob.TempFile), '');
+  LFind.Name := WideLowerCase(W(ChangeFileExt(ExtractFileName(AJob.TempFile), '')));
   LFind.Found := 0;
 
   GSheetName := LFind.Name;
   GSheetAnchor := AAnchor;
   GSheetFound := 0;
+
+  LFile := W(AJob.TempFile);
 
   // CREATE~SHOW 전부 수신 — 생성 시점에 지워야 안 깜빡임.
   LHook := SetWinEventHook(EVENT_OBJECT_CREATE, EVENT_OBJECT_SHOW, 0,
@@ -808,12 +831,12 @@ begin
     LExec.cbSize := SizeOf(LExec);
     LExec.fMask := SEE_MASK_INVOKEIDLIST;
     LExec.lpVerb := 'properties';
-    LExec.lpFile := PChar(AJob.TempFile);
+    LExec.lpFile := PWideChar(LFile);
 
     // 숨김 표시 요청 (셸이 무시하면 훅/폴링이 소거).
     LExec.nShow := SW_HIDE;
 
-    if not ShellExecuteEx(@LExec) then
+    if not ShellExecuteExW(@LExec) then
     begin
       AssocLog(Format('%s: 속성 창 호출 실패 (err=%d)', [AExt, GetLastError]));
       Exit;
@@ -837,23 +860,23 @@ begin
     begin
       // 훅이 잡음 — 그 자리에서 이미 소거됨.
       AJob.Sheet := GSheetFound;
-      AssocLog(Format('%s: 속성 창 HWND=%x (훅)', [AExt, GSheetFound]));
+      AssocLog(Format('%s: 속성 창 HWND=%x (훅)', [AExt, PtrUInt(GSheetFound)]));
     end
     else if LFind.Found <> 0 then
     begin
       AJob.Sheet := LFind.Found;
       GSheetFound := LFind.Found;   // 훅도 알아야 재소거함
-      AssocLog(Format('%s: 속성 창 HWND=%x (폴링)', [AExt, LFind.Found]));
+      AssocLog(Format('%s: 속성 창 HWND=%x (폴링)', [AExt, PtrUInt(LFind.Found)]));
       VanishSheet(AJob.Sheet, AAnchor);
     end
     else
     begin
       AssocLog(Format('%s: 속성 창을 찾지 못했다 (%dms 초과, 찾던 이름 "%s")',
-        [AExt, SearchTimeout, LFind.Name]));
+        [AExt, SearchTimeout, U(LFind.Name)]));
       Exit;
     end;
 
-    Result := PostMessage(AJob.Sheet, WM_COMMAND, IDM_CHANGE_ASSOC, 0);
+    Result := PostMessageW(AJob.Sheet, WM_COMMAND, IDM_CHANGE_ASSOC, 0);
     AssocLog(Format('%s: 변경 명령(0x%x) 전달 %s',
       [AExt, IDM_CHANGE_ASSOC, BoolToStr(Result, True)]));
 
@@ -877,14 +900,14 @@ begin
   if AJob.Sheet <> 0 then
   begin
     if IsWindow(AJob.Sheet) then
-      PostMessage(AJob.Sheet, WM_CLOSE, 0, 0);
+      PostMessageW(AJob.Sheet, WM_CLOSE, 0, 0);
     AJob.Sheet := 0;
   end;
 
   if AJob.TempFile <> '' then
   begin
     // 속성 창이 아직 파일을 붙들 수 있음 — 실패해도 %TEMP% 0바이트라 로그만.
-    if not System.SysUtils.DeleteFile(AJob.TempFile) then
+    if not SysUtils.DeleteFile(AJob.TempFile) then
       AssocLog('임시 파일 삭제 실패 — ' + AJob.TempFile);
 
     AJob.TempFile := '';
@@ -897,7 +920,7 @@ var
   LReg: TRegistry;
   LExe: string;
 begin
-  LExe := ParamStr(0);
+  LExe := ExePath;
 
   LReg := TRegistry.Create(KEY_READ or KEY_WRITE);
   try
@@ -938,7 +961,7 @@ var
 begin
   LExt := AssocExts[AIndex].Ext;
   LPID := ExtProgID(LExt);
-  LExe := ParamStr(0);
+  LExe := ExePath;
 
   LReg := TRegistry.Create(KEY_READ or KEY_WRITE);
   try
@@ -1064,33 +1087,25 @@ begin
     end;
 
     if LHasBackup then
-      SHDeleteValue(HKEY_CURRENT_USER, PChar(Copy(AssocBackupKey, 2, MaxInt)),
-        PChar(LExt));
+      RegDeleteValueAt(Copy(AssocBackupKey, 2, MaxInt), LExt);
   finally
     LReg.Free;
   end;
 
   // TRegistry.DeleteKey 는 하위 키 있으면 실패 → SHDeleteKey (재귀 삭제)
-  SHDeleteKey(HKEY_CURRENT_USER, PChar('Software\Classes\' + LPID));
+  RegDeleteKeyTree('Software\Classes\' + LPID);
 
-  SHDeleteValue(HKEY_CURRENT_USER,
-    PChar('Software\Classes\' + LExt + '\OpenWithProgIDs'), PChar(LPID));
-  SHDeleteValue(HKEY_CURRENT_USER,
-    PChar('Software\Classes\Applications\' + ExtractFileName(ParamStr(0)) +
-      '\SupportedTypes'), PChar(LExt));
-  SHDeleteValue(HKEY_CURRENT_USER,
-    PChar('Software\KPlayer\Capabilities\FileAssociations'), PChar(LExt));
+  RegDeleteValueAt('Software\Classes\' + LExt + '\OpenWithProgIDs', LPID);
+  RegDeleteValueAt('Software\Classes\Applications\' + ExtractFileName(ExePath) +
+    '\SupportedTypes', LExt);
+  RegDeleteValueAt('Software\KPlayer\Capabilities\FileAssociations', LExt);
 
   // 기본 앱=우리면 지정도 삭제 (삭제는 허용 — 해시 보호는 쓰기만). 남기면
   // 연결 없는 기본 앱 = Broken. 빌드별 활성 키가 달라 새/옛 키 둘 다 삭제.
   if SameText(UserChoiceProgID(LExt), LPID) then
   begin
-    SHDeleteKey(HKEY_CURRENT_USER,
-      PChar('Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\' +
-        LExt + '\UserChoiceLatest'));
-    SHDeleteKey(HKEY_CURRENT_USER,
-      PChar('Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\' +
-        LExt + '\UserChoice'));
+    RegDeleteKeyTree(FileExtsKey + LExt + '\UserChoiceLatest');
+    RegDeleteKeyTree(FileExtsKey + LExt + '\UserChoice');
   end;
 end;
 
@@ -1099,10 +1114,6 @@ begin
   AssocUnregisterExt(AssocExts[AIndex].Ext);
 end;
 
-// 등록 연결 전부 복원 + 우리 흔적 삭제. 제거 프로그램이 KPlayer.exe /uninst
-// 로 호출 — 설치 폴더 삭제 전이어야 함.
-// 대상은 AssocExts 아닌 소유 목록(AssocOwnedList) — 노출 목록에서 뺀 확장자가
-// 남으면 exe 삭제 후에도 기본 클래스가 우리 ProgID 를 가리킴.
 procedure AssocRegisterMain;
 var
   I: Integer;
@@ -1111,26 +1122,31 @@ begin
     if AssocExts[I].Main then
       AssocRegister(I);
   EnsureAppRegistered;
-  SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nil, nil);
+  AssocNotifyShell;
 end;
 
+// 등록 연결 전부 복원 + 우리 흔적 삭제. 제거 프로그램이 KPlayer.exe /uninst
+// 로 호출 — 설치 폴더 삭제 전이어야 함.
+// 대상은 AssocExts 아닌 소유 목록(AssocOwnedList) — 노출 목록에서 뺀 확장자가
+// 남으면 exe 삭제 후에도 기본 클래스가 우리 ProgID 를 가리킴.
 procedure AssocUnregisterAll;
 var
-  LExt: string;
+  LExts: TStringDynArray;
+  I: Integer;
 begin
-  for LExt in AssocOwnedList do
-    AssocUnregisterExt(LExt);
+  LExts := AssocOwnedList;
+  for I := 0 to High(LExts) do
+    AssocUnregisterExt(LExts[I]);
 
   // 잔여 키 (백업 목록 자체 + Capabilities). 하위 키 있어 재귀 삭제.
-  SHDeleteKey(HKEY_CURRENT_USER, 'Software\KPlayer');
+  RegDeleteKeyTree('Software\KPlayer');
 
   // '기본 앱' 등록 값 — 남으면 설정 앱에 죽은 항목 보임.
-  SHDeleteValue(HKEY_CURRENT_USER, 'Software\RegisteredApplications', 'KPlayer');
+  RegDeleteValueAt('Software\RegisteredApplications', 'KPlayer');
 
-  SHDeleteKey(HKEY_CURRENT_USER,
-    PChar('Software\Classes\Applications\' + ExtractFileName(ParamStr(0))));
+  RegDeleteKeyTree('Software\Classes\Applications\' + ExtractFileName(ExePath));
 
-  SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nil, nil);
+  AssocNotifyShell;
 end;
 
 type
@@ -1139,19 +1155,20 @@ type
   TAssocWatcher = class(TThread)
   private
     FStop: THandle;
-    FOnChange: TProc;
+    FOnChange: TAssocChangeProc;
+    procedure DoChange;
   protected
     procedure Execute; override;
-    procedure TerminatedSet; override;
   public
-    constructor Create(const AOnChange: TProc);
+    constructor Create(AOnChange: TAssocChangeProc);
     destructor Destroy; override;
+    procedure Stop;
   end;
 
-constructor TAssocWatcher.Create(const AOnChange: TProc);
+constructor TAssocWatcher.Create(AOnChange: TAssocChangeProc);
 begin
   FOnChange := AOnChange;
-  FStop := CreateEvent(nil, True, False, nil);   // 수동 리셋
+  FStop := CreateEventW(nil, True, False, nil);   // 수동 리셋
 
   FreeOnTerminate := False;
   inherited Create(False);
@@ -1163,26 +1180,34 @@ begin
   CloseHandle(FStop);
 end;
 
-procedure TAssocWatcher.TerminatedSet;
+// Terminate + 정지 이벤트 (INFINITE 대기 즉시 탈출)
+procedure TAssocWatcher.Stop;
 begin
-  SetEvent(FStop);   // INFINITE 대기 즉시 탈출
+  Terminate;
+  SetEvent(FStop);
+end;
+
+procedure TAssocWatcher.DoChange;
+begin
+  if Assigned(FOnChange) then
+    FOnChange();
 end;
 
 procedure TAssocWatcher.Execute;
 const
   // 이름/값 변경만 — 속성·보안까지 받으면 트리거만 증가.
-  Filter = REG_NOTIFY_CHANGE_NAME or REG_NOTIFY_CHANGE_LAST_SET;
+  Filter = REG_NOTIFY_CHANGE_NAME_ or REG_NOTIFY_CHANGE_LAST_SET_;
 var
   LKey: HKEY;
   LEvent: THandle;
   LWait: array[0..1] of THandle;
 begin
-  if RegOpenKeyEx(HKEY_CURRENT_USER,
-       'Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts', 0,
+  if RegOpenKeyExW(HKEY_CURRENT_USER,
+       PWideChar(UnicodeString('Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts')), 0,
        KEY_NOTIFY, LKey) <> ERROR_SUCCESS then
     Exit;
   try
-    LEvent := CreateEvent(nil, True, False, nil);
+    LEvent := CreateEventW(nil, True, False, nil);
     if LEvent = 0 then
       Exit;
     try
@@ -1202,11 +1227,8 @@ begin
           Break;
 
         // Queue (Synchronize 아님) — 기다릴 이유 없고 수신측이 타이머로 모아 처리.
-        Queue(procedure
-          begin
-            if Assigned(FOnChange) then
-              FOnChange();
-          end);
+        // 스레드 해제 시 TThread 가 남은 큐 항목을 걷어낸다 (RemoveQueuedEvents).
+        Queue(DoChange);
       end;
     finally
       CloseHandle(LEvent);
@@ -1216,7 +1238,7 @@ begin
   end;
 end;
 
-function AssocWatch(const AOnChange: TProc): TThread;
+function AssocWatch(AOnChange: TAssocChangeProc): TThread;
 begin
   Result := TAssocWatcher.Create(AOnChange);
 end;
@@ -1226,16 +1248,15 @@ begin
   if AThread = nil then
     Exit;
 
-  AThread.Terminate;    // TerminatedSet 이 정지 이벤트를 신호한다
+  TAssocWatcher(AThread).Stop;
   AThread.WaitFor;
   FreeAndNil(AThread);
 end;
 
 procedure SyncFileAssoc;
 var
-  LExts: TArray<string>;
-  LExt: string;
-  LIndex, LCount: Integer;
+  LExts: TStringDynArray;
+  I, LIndex, LCount: Integer;
 begin
   LExts := AssocOwnedList;
   if Length(LExts) = 0 then
@@ -1243,11 +1264,11 @@ begin
 
   LCount := 0;
 
-  for LExt in LExts do
+  for I := 0 to High(LExts) do
   begin
     // 노출 목록에서 빠진 확장자는 설명 정보가 없어 다시 쓸 수 없다.
     // 해제는 환경설정 화면에서만 한다 (여기서 조용히 지우면 사용자가 모른다).
-    LIndex := AssocIndexOf(LExt);
+    LIndex := AssocIndexOf(LExts[I]);
     if LIndex < 0 then
       Continue;
 
@@ -1258,7 +1279,7 @@ begin
   if LCount > 0 then
   begin
     EnsureAppRegistered;
-    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nil, nil);
+    AssocNotifyShell;
   end;
 end;
 
@@ -1266,5 +1287,30 @@ initialization
 
 finalization
   FriendlyCache.Free;   // nil 이어도 안전하다
+
+{$ELSE}
+
+// 비-Windows: 파일 연결 미구현 (macOS 는 Info.plist + NSWorkspace 로 이식 예정)
+
+procedure SyncFileAssoc; begin end;
+function AssocStateOf(const AExt: string): TAssocState; begin Result := Default(TAssocState); end;
+function AssocOwned(const AExt: string): Boolean; begin Result := False; end;
+function AssocOwnedList: TStringDynArray; begin Result := nil; end;
+function AssocResolveInfo(const AExt: string): string; begin Result := ''; end;
+function AssocEnvInfo: string; begin Result := ''; end;
+procedure AssocRegister(const AIndex: Integer); begin end;
+procedure AssocUnregister(const AIndex: Integer); begin end;
+procedure EnsureAppRegistered; begin end;
+procedure AssocRegisterMain; begin end;
+procedure AssocUnregisterAll; begin end;
+procedure AssocNotifyShell; begin end;
+function ShowDefaultAppPicker(const AExt: string; var AJob: TPickerJob;
+  const AAnchor: TPoint): Boolean; begin Result := False; end;
+procedure ClosePickerJob(var AJob: TPickerJob); begin AJob.Sheet := 0; AJob.TempFile := ''; end;
+procedure ShowDefaultApps(AHandle: THandle; AOurPage: Boolean); begin end;
+function AssocWatch(AOnChange: TAssocChangeProc): TThread; begin Result := nil; end;
+procedure AssocUnwatch(var AThread: TThread); begin AThread := nil; end;
+
+{$ENDIF}
 
 end.

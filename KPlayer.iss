@@ -92,10 +92,6 @@ Filename: "{app}\KPlayer.exe"; Parameters: "/inst"; Flags: nowait postinstall sk
 Name: "{app}"; Type: filesandordirs
 
 [Code]
-const
-  WM_CLOSE = $0010;
-  WM_QUERYENDSESSION = $0011;
-
 procedure TaskKill(FileName: String);
 var
   ErrorCode: Integer;
@@ -103,28 +99,11 @@ begin
   Exec(ExpandConstant('taskkill.exe'), '/f /im "'+FileName+'"', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
 end;
 
-procedure ProcKill(ClassName: String);
-var
-  Handle: HWND;
-  Loop: integer;
-begin
-  for Loop := 0 to 20 do
-  begin
-    Handle := FindWindowByClassName(ClassName);
-    if Handle>0 then
-    begin
-      PostMessage(Handle, WM_QUERYENDSESSION, 100, 0);
-      Sleep(100);
-    end;
-  end;
-end;
-
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
 
   TaskKill('KPlayer.exe');
-  ProcKill('TFrmKPlayer');
 end;
 
 procedure RunAsShellUser(FileName, Params: String);
@@ -144,7 +123,6 @@ begin
   Result := True;
 
   TaskKill('KPlayer.exe');
-  ProcKill('TFrmKPlayer');
 
   RunAsShellUser(ExpandConstant('{app}') + '\KPlayer.exe', '/uninst');
 end;

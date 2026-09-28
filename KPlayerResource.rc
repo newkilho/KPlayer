@@ -1,0 +1,11 @@
+/* KPlayer resources - keep this file ASCII only.
+   Built by build.bat:  python Tools\MakeRes.py -> KPlayerResource.res
+   (windres is not used: the one shipped with Lazarus has no C preprocessor.)
+   File names are lower case and use '/' on purpose: macOS is case sensitive. */
+translate RCDATA "translate.txt"
+script RCDATA "KPlayer.lua"
+list-repeat RCDATA "Res/list-repeat.png"
+list-repeat-one RCDATA "Res/list-repeat-one.png"
+list-random RCDATA "Res/list-random.png"
+list-plus RCDATA "Res/list-plus.png"
+list-minus RCDATA "Res/list-minus.png"

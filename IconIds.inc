@@ -1,4 +1,4 @@
-﻿// Tools\MakeIconRes.py 가 생성한다. 손으로 고치지 않는다. 확장자(점 없음) → KPlayerIcons.res 의 RT_GROUP_ICON ID.
+// Tools\MakeIconRes.py 가 생성한다. 손으로 고치지 않는다. 확장자(점 없음) → KPlayerIcons.res 의 RT_GROUP_ICON ID.
 const
   IconIds: array[0..18] of record Ext: string; Id: Word; end = (
     (Ext: '3gp';   Id: 40000),

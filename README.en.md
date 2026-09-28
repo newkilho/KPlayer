@@ -81,7 +81,7 @@ Settings are stored in `KPlayer.ini` and the playlist in `KPlayer.lst`, next to 
 ## Installation
 
 The installer puts KPlayer in `%LOCALAPPDATA%\KPlayer`. `libmpv-2.dll` must sit next to the executable.  
-To build from source you need Delphi (VCL, Win64) plus [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi), [Virtual Treeview](https://github.com/JAM-Software/Virtual-TreeView) and [SVGIconImageList](https://github.com/EtheaDev/SVGIconImageList).
+To build from source you need [Lazarus](https://www.lazarus-ide.org/) 4.x (FPC 3.2.2, Win64) plus [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi). Virtual Treeview comes with Lazarus (`laz.virtualtreeview_package`).
 
 ## License
 

@@ -1,21 +1,15 @@
-﻿unit Setup;
+unit Setup;
+
+{$mode delphi}{$H+}
 
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, Winapi.ShlObj, System.SysUtils, System.Variants,
-  System.Classes, System.Math, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
-  Vcl.FileCtrl, Vcl.CategoryButtons, Vcl.WinXPanels, Vcl.ExtCtrls, Vcl.StdCtrls,
-  Vcl.ComCtrls, Vcl.ButtonGroup, Vcl.Buttons, Vcl.ImgList, Vcl.Menus, System.Win.Registry,
-  Winapi.ShellAPI, Winapi.ShLwApi, Winapi.CommCtrl,
-  VirtualTrees.BaseAncestorVCL, VirtualTrees.BaseTree,
-  VirtualTrees.AncestorVCL, VirtualTrees.Types, VirtualTrees,
-  K.Theme, K.Config.INI, K.Translate, Assoc, MPVPlayer, Hotkey;
+  Classes, SysUtils, Types, Math, Graphics, Controls, Forms, Dialogs,
+  ExtCtrls, StdCtrls, ComCtrls, Buttons, LCLType, LCLIntf, LMessages,
+  laz.VirtualTrees, KTheme, KTranslate, Config, Media, Assoc, MPVPlayer, Hotkey;
 
-// 캡처 기본 폴더 = 바탕화면. exe 폴더 금지 — Program Files 쓰기 권한 없음 + 프로그램 폴더에 캡처 쌓임.
-function DesktopPath: string;
-
-// 기본 자막 언어 = OS 언어(K.Translate.Lang) + 영어 폴백. 2자(외부 자막 파일명 .ko.srt) + 3자(MKV 트랙 ISO 639-2)
+// 기본 자막 언어 = OS 언어(KTranslate.Lang) + 영어 폴백. 2자(외부 자막 파일명 .ko.srt) + 3자(MKV 트랙 ISO 639-2)
 // 둘 다. zh/fr 은 B/T 코드가 둘. INI sub_lang 은 사용자가 직접 고친 값만 담고 '' = 이 함수 (shot_dir 과 같은 이유:
 // 기본값을 써 버리면 OS 언어를 바꿔도 옛 값이 남는다).
 function DefaultSubLang: string;
@@ -25,23 +19,26 @@ function DefaultSubLang: string;
 procedure ApplySubStyle(AConfig: TConfig; AMPV: TMPVPlayer);
 
 type
+
+  { TFrmSetup }
+
   TFrmSetup = class(TForm)
     PnlMenu: TPanel;
-    BtnGeneral: TSpeedButton;
-    BtnVideo: TSpeedButton;
-    BtnAudio: TSpeedButton;
-    BtnSub: TSpeedButton;
-    BtnAssoc: TSpeedButton;
-    BtnKeys: TSpeedButton;
-    BtnMouse: TSpeedButton;
-    BtnAbout: TSpeedButton;
+    BtnGeneral: TKMenuButton;
+    BtnVideo: TKMenuButton;
+    BtnAudio: TKMenuButton;
+    BtnSub: TKMenuButton;
+    BtnAssoc: TKMenuButton;
+    BtnKeys: TKMenuButton;
+    BtnMouse: TKMenuButton;
+    BtnAbout: TKMenuButton;
     LineMenu: TShape;
     PnlRight: TPanel;
     PnlHeader: TPanel;
     LblTitle: TLabel;
     LineHeader: TShape;
-    PnlMain: TCardPanel;
-    CardGeneral: TCard;
+    PnlMain: TNotebook;
+    CardGeneral: TPage;
     BoxGeneral: TScrollBox;
     LblRepeat: TLabel;
     CboRepeat: TComboBox;
@@ -58,7 +55,7 @@ type
     CboTopMost: TComboBox;
     LblWinSize: TLabel;
     CboWinSize: TComboBox;
-    CardVideo: TCard;
+    CardVideo: TPage;
     BoxVideo: TScrollBox;
     LblHwdec: TLabel;
     CboHwdec: TComboBox;
@@ -72,7 +69,7 @@ type
     CboScale: TComboBox;
     LblDeint: TLabel;
     CboDeint: TComboBox;
-    CardAudio: TCard;
+    CardAudio: TPage;
     BoxAudio: TScrollBox;
     LblVolume: TLabel;
     LblVolumeValue: TLabel;
@@ -81,7 +78,7 @@ type
     CboNormalize: TComboBox;
     LblNormLevel: TLabel;
     CboNormLevel: TComboBox;
-    CardSub: TCard;
+    CardSub: TPage;
     BoxSub: TScrollBox;
     LblSubVisible: TLabel;
     CboSubVisible: TComboBox;
@@ -113,22 +110,21 @@ type
     CboSubAlign: TComboBox;
     LblSubAss: TLabel;
     CboSubAss: TComboBox;
-    CardAssoc: TCard;
-    TreeAssoc: TVirtualStringTree;
+    CardAssoc: TPage;
     BtnAssocAll: TButton;
     BtnAssocNone: TButton;
     BtnAssocMain: TButton;
     BtnAssocDefaults: TButton;
     MemoAssocLog: TMemo;
     LblAssocHint: TLabel;
-    CardKeys: TCard;
+    CardKeys: TPage;
     LvKeys: TListView;
     LblKeyHint: TLabel;
     LblKeyAction: TLabel;
     EdtKey: TEdit;
     BtnKeyClear: TButton;
     BtnKeyDefault: TButton;
-    CardMouse: TCard;
+    CardMouse: TPage;
     BoxMouse: TScrollBox;
     LblMLClick: TLabel;
     CboMLClick: TComboBox;
@@ -140,7 +136,7 @@ type
     CboMWheelUp: TComboBox;
     LblMWheelDown: TLabel;
     CboMWheelDown: TComboBox;
-    CardAbout: TCard;
+    CardAbout: TPage;
     MemAbout: TMemo;
     BtnReset: TButton;
     procedure FormCreate(Sender: TObject);
@@ -160,26 +156,11 @@ type
     procedure TrackChange(Sender: TObject);
     procedure BtnAssocSelectClick(Sender: TObject);
     procedure BtnAssocDefaultsClick(Sender: TObject);
-    procedure TreeAssocChecked(Sender: TBaseVirtualTree; Node: PVirtualNode);
-    procedure TreeAssocFreeNode(Sender: TBaseVirtualTree; Node: PVirtualNode);
-    procedure TreeAssocGetText(Sender: TBaseVirtualTree; Node: PVirtualNode;
-      Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
-    procedure TreeAssocGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode;
-      Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean;
-      var ImageIndex: TImageIndex);
-    procedure TreeAssocPaintText(Sender: TBaseVirtualTree;
-      const TargetCanvas: TCanvas; Node: PVirtualNode; Column: TColumnIndex;
-      TextType: TVSTTextType);
-    procedure TreeAssocBeforeCellPaint(Sender: TBaseVirtualTree;
-      TargetCanvas: TCanvas; Node: PVirtualNode; Column: TColumnIndex;
-      CellPaintMode: TVTCellPaintMode; CellRect: TRect; var ContentRect: TRect);
-    procedure TreeAssocMouseMove(Sender: TObject; Shift: TShiftState;
-      X, Y: Integer);
-    procedure TreeAssocMouseLeave(Sender: TObject);
-
-    function BadgeBusy: Boolean;
-    function BadgeRect(ACanvas: TCanvas; const ACell: TRect): TRect;
   private
+    // 트리는 코드로 만든다 (List 와 같은 이유 — 디자이너가 laz.virtualtreeview 에 매이지 않게)
+    TreeAssoc: TLazVirtualStringTree;
+    FKTheme: TKTheme;
+
     FLoading: Boolean;
 
     // 트리 채우는 중 체크 이벤트 무시. CheckState 대입 자체가 OnChecked 를 불러
@@ -199,11 +180,11 @@ type
     //   FDirty        연결 카드 밖에서 온 변경 → 카드 진입 시 반영
     FWatcher: TThread;
     FWatchTimer: TTimer;
-    FQuietUntil: UInt64;
+    FQuietUntil: QWord;
     FDirty: Boolean;
     FAssocIcons: TImageList;   // 확장자 아이콘 (폼 소유 → 해제 불필요)
 
-    // 직접 그린 체크박스 (이유: MakeSoftCheckImages). InsertComponent 로 폼 소유 → 해제 불필요.
+    // 직접 그린 체크박스 (이유: MakeSoftCheckImages). 폼 소유 → 해제 불필요.
     FCheckImages: TImageList;
 
     // [기본 앱 선택] 뒷정리 대상 (숨긴 속성 창 + 임시 파일). 닫힘 시점 불명 → 이 창 복귀 시 정리.
@@ -227,6 +208,11 @@ type
 
     procedure FillAbout;
 
+    function ActiveCard: TPage;
+    procedure HookCardWheel;
+    procedure CardMouseWheel(Sender: TObject; Shift: TShiftState;
+      WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+
     procedure SetupAssocTree;
     procedure FillAssoc;
     function ExtIconIndex(AIndex: Integer): Integer;
@@ -242,7 +228,27 @@ type
     procedure PickDefaultApp(const AExt: string);
     procedure ClosePicker;
     procedure LogAssoc(const AMsg: string);
+
+    procedure TreeAssocChecked(Sender: TBaseVirtualTree; Node: PVirtualNode);
+    procedure TreeAssocFreeNode(Sender: TBaseVirtualTree; Node: PVirtualNode);
+    procedure TreeAssocGetText(Sender: TBaseVirtualTree; Node: PVirtualNode;
+      Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
+    procedure TreeAssocGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode;
+      Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean;
+      var ImageIndex: Integer);
+    procedure TreeAssocPaintText(Sender: TBaseVirtualTree;
+      const TargetCanvas: TCanvas; Node: PVirtualNode; Column: TColumnIndex;
+      TextType: TVSTTextType);
+    procedure TreeAssocBeforeCellPaint(Sender: TBaseVirtualTree;
+      TargetCanvas: TCanvas; Node: PVirtualNode; Column: TColumnIndex;
+      CellPaintMode: TVTCellPaintMode; CellRect: TRect; var ContentRect: TRect);
+    procedure TreeAssocMouseMove(Sender: TObject; Shift: TShiftState;
+      X, Y: Integer);
+    procedure TreeAssocMouseLeave(Sender: TObject);
     procedure TreeAssocClick(Sender: TObject);
+
+    function BadgeBusy: Boolean;
+    function BadgeRect(ACanvas: TCanvas; const ACell: TRect): TRect;
 
     procedure LoadValues;
     procedure SaveValues;
@@ -257,9 +263,10 @@ type
     function Config: TConfig;
     function CfgInt(const AKey: string; ADef: Integer): Integer;
     function CfgStr(const AKey, ADef: string): string;
-  protected
-    // 휠 = 카드 스크롤. 기본 VCL 은 포커스 컨트롤이 먼저 받아 콤보/트랙바 값이 바뀌고 스크롤박스는 안 움직였다.
-    procedure MouseWheelHandler(var Message: TMessage); override;
+    {$IFDEF WINDOWS}
+    // 고정 크기 — bsSizeable 프레임(캡션 높이 유지) + 테두리 히트를 HTBORDER 로 (GUI.md 2.1)
+    procedure WMNCHitTest(var Msg: TLMNCHitTest); message LM_NCHITTEST;
+    {$ENDIF}
   public
     { Public declarations }
   end;
@@ -269,20 +276,24 @@ var
 
 implementation
 
-uses Main;
+{$R *.lfm}
+
+uses
+  {$IFDEF WINDOWS}Windows, ShellApi,{$ENDIF}
+  Menus, Main, OSUtil;
 
 const
   // 아이콘 캐시 미조회 표시 (-1 = 셸이 못 줌)
   IconUnknown = -2;
 
-  // 연결 트리 행 두께 — 여기만 고침 (재생목록은 List.pas 의 24). 방식 동일:
+  // 연결 트리 행 두께 (96dpi 기준, Scale96ToForm) — 여기만 고침 (재생목록은 List.pas 의 24). 방식 동일:
   // toVariableNodeHeight·toAutoChangeScale 끄고 노드마다 NodeHeight 직접 대입.
   // OnMeasureItem 은 마우스 지나간 행만 재측정 → 두께 들썩임.
   AssocRowHeight = 28;
 
   // 상태 뱃지 = HTML 규격 이식 (padding 0 6px / radius 3px / 11px, 배경 #fde8e8,
   // 글자 #9b1c1c). 창 라이트 고정 → 다크 값 없음. 테두리 평소 없음, 호버 시
-  // 글자색. Delphi 색상 = BGR.
+  // 글자색. TColor = BGR.
   BadgeBackColor = $00E8E8FD;
   BadgeTextColor = $001C1C9B;   // 호버 테두리도 이 색
   BadgeRadius    = 3;           // 크게 주면 GDI 계단
@@ -299,7 +310,7 @@ const
   // 클릭 가능 신호 = 호버 테두리 + 손 커서.
   BadgeTextNormal = '적용안됨';
 
-{$R *.dfm}
+{$I Const.inc}
 
 function DefaultSubLang: string;
 begin
@@ -317,10 +328,10 @@ end;
 // TColor(BGR) → mpv '#RRGGBB'. 시스템색은 ColorToRGB 로 실제값.
 function ColorToMpv(AColor: TColor): string;
 var
-  C: Longint;
+  C: TColor;
 begin
   C := ColorToRGB(AColor);
-  Result := Format('#%.2x%.2x%.2x', [GetRValue(C), GetGValue(C), GetBValue(C)]);
+  Result := Format('#%.2x%.2x%.2x', [Red(C), Green(C), Blue(C)]);
 end;
 
 // 글꼴 '' = mpv 기본(sans-serif). 사용자 지정 글꼴은 fontconfig 이름 매칭 — 못 찾으면 libass 대체 글꼴 (UI 안내).
@@ -348,8 +359,6 @@ begin
     SubAssValues[EnsureRange(AConfig.ReadInteger('sub_ass', 0), 0, High(SubAssValues))]]);
 end;
 
-{$I Const.inc}
-
 function B2I(AValue: Boolean): Integer;
 begin
   if AValue then Result := 1 else Result := 0;
@@ -366,22 +375,11 @@ begin
   ACombo.ItemIndex := B2I(AValue);
 end;
 
-// CSIDL_DESKTOPDIRECTORY 는 OneDrive 리디렉션·타 언어에서도 실제 경로 (USERPROFILE+'\Desktop' 조립은 그때 틀림).
-function DesktopPath: string;
-var
-  Buf: array[0..MAX_PATH] of Char;
-begin
-  if SHGetSpecialFolderPath(0, Buf, CSIDL_DESKTOPDIRECTORY, False) then
-    Result := IncludeTrailingPathDelimiter(Buf)
-  else
-    Result := ExtractFilePath(ParamStr(0));   // 못 얻으면 예전처럼 exe 폴더
-end;
-
 procedure TFrmSetup.FormCreate(Sender: TObject);
 var
   LGroup: TAssocGroup;
 begin
-  PnlMain.ActiveCardIndex := 0;
+  PnlMain.PageIndex := 0;
   LblTitle.Caption := BtnGeneral.Caption;
 
   Translate(Self);
@@ -397,6 +395,7 @@ begin
   SetupAssocTree;
   FillKeys;
   FillMouse;
+  HookCardWheel;
 
   FApplyTimer := TTimer.Create(Self);
   FApplyTimer.Enabled := False;
@@ -410,68 +409,112 @@ begin
 
   // 로그·정보 카드는 디버그 빌드 전용 (Main.pas 의 lua 경로 분기와 같은 기준).
   // 훅 없으면 Assoc.pas 는 문자열도 안 만듦.
-  MemoAssocLog.Visible := ReportMemoryLeaksOnShutDown;
-  BtnAbout.Visible := ReportMemoryLeaksOnShutDown;
+  MemoAssocLog.Visible := IsDebugBuild;
+  BtnAbout.Visible := IsDebugBuild;
 
-  if ReportMemoryLeaksOnShutDown then
+  if IsDebugBuild then
   begin
-    AssocLogProc :=
-      procedure(AMsg: string)
-      begin
-        LogAssoc(AMsg);
-      end;
+    AssocLogProc := LogAssoc;
 
     // 로그 복사 보고용 — 앞머리에 환경 기록.
     LogAssoc('exe = ' + ParamStr(0));
     LogAssoc(AssocEnvInfo);
+    {$IFDEF WINDOWS}
     LogAssoc(Format('Windows %d.%d build %d',
-      [TOSVersion.Major, TOSVersion.Minor, TOSVersion.Build]));
+      [Win32MajorVersion, Win32MinorVersion, Win32BuildNumber]));
+    {$ENDIF}
   end;
 
-  SetTheme(Self);
+  // 고정 크기 (GUI.md 2.1). LCL 에서 Width/Height 는 클라이언트 크기.
+  Constraints.MinWidth := Width;
+  Constraints.MaxWidth := Width;
+  Constraints.MinHeight := Height;
+  Constraints.MaxHeight := Height;
+
+  // 다크 타이틀바 + 캡션 아래 강조선 (Delphi K.Theme.SetTheme 대응). Handle 은 건드리지 않는다 (GUI.md 0장 #2).
+  FKTheme := ApplyTheme(Self);
+  FKTheme.HideFocus := True;
+end;
+
+{$IFDEF WINDOWS}
+procedure TFrmSetup.WMNCHitTest(var Msg: TLMNCHitTest);
+begin
+  // 핸들러는 LCL 기본 처리보다 먼저 불린다 — DefWindowProc 로 결과를 얻는다 (GUI.md 0장 #9)
+  Msg.Result := Windows.DefWindowProc(Handle, WM_NCHITTEST, 0,
+    LPARAM(MakeLong(Word(Msg.XPos), Word(Msg.YPos))));
+  case Msg.Result of
+    HTLEFT, HTRIGHT, HTTOP, HTTOPLEFT, HTTOPRIGHT,
+    HTBOTTOM, HTBOTTOMLEFT, HTBOTTOMRIGHT: Msg.Result := HTBORDER;   // 리사이즈 커서·드래그 제거
+  end;
+end;
+{$ENDIF}
+
+function TFrmSetup.ActiveCard: TPage;
+begin
+  if PnlMain.PageIndex >= 0 then
+    Result := PnlMain.Page[PnlMain.PageIndex]
+  else
+    Result := nil;
+end;
+
+// 휠 = 카드 스크롤. 기본 동작은 마우스 아래 콤보/트랙바가 먼저 받아 값이 바뀌고 스크롤박스는 안 움직였다
+// (Delphi 판은 MouseWheelHandler 로 폼에서 가로챘다 — LCL 엔 없어 스크롤박스 안 컨트롤마다 건다).
+type
+  // OnMouseWheel 은 TControl 의 protected — 같은 유닛의 파생 형변환으로 접근
+  TControlAccess = class(TControl);
+
+procedure TFrmSetup.HookCardWheel;
+
+  procedure Hook(ABox: TScrollBox);
+  var
+    I: Integer;
+    C: TControl;
+  begin
+    for I := 0 to ABox.ControlCount - 1 do
+    begin
+      C := ABox.Controls[I];
+      if C is TWinControl then   // 콤보·트랙바·에디트·버튼 (라벨·도형은 휠을 안 받는다)
+        TControlAccess(C).OnMouseWheel := CardMouseWheel;
+    end;
+  end;
+
+begin
+  Hook(BoxGeneral);
+  Hook(BoxVideo);
+  Hook(BoxAudio);
+  Hook(BoxSub);
+  Hook(BoxMouse);
+end;
+
+procedure TFrmSetup.CardMouseWheel(Sender: TObject; Shift: TShiftState;
+  WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+const
+  Step = 60;   // px / 노치 (96dpi)
+var
+  C: TWinControl;
+  Box: TScrollBox;
+begin
+  // 콤보 목록이 펼쳐진 동안은 그 목록이 휠을 받아야 한다 (안 그러면 목록 대신 카드가 스크롤).
+  if (Sender is TCustomComboBox) and TCustomComboBox(Sender).DroppedDown then
+    Exit;
+
+  C := TWinControl(Sender).Parent;
+  while (C <> nil) and not (C is TScrollBox) do
+    C := C.Parent;
+  if C = nil then Exit;
+
+  Box := TScrollBox(C);
+  // 정밀 터치패드는 한 노치(120) 미만으로 온다 → 비례 계산 (div 면 0 이 되어 안 움직임)
+  Box.VertScrollBar.Position := Box.VertScrollBar.Position -
+    Round(WheelDelta / 120 * Scale96ToForm(Step));
+  Handled := True;
 end;
 
 // 폼은 1회 생성, ShowModal 재사용. 볼륨·반복·연결 상태는 창 밖에서도 바뀜 → 열 때마다 재로드.
-// 마우스 아래가 활성 카드의 스크롤박스면 그것만 스크롤하고 소비 — 포커스 컨트롤엔 안 넘긴다
-// (콤보 위에서 휠 굴리다 설정이 바뀌는 사고 방지). 카드 밖이면 기본 처리.
-procedure TFrmSetup.MouseWheelHandler(var Message: TMessage);
-const
-  Step = 60;   // px / 노치
-var
-  Card: TCard;
-  Box: TScrollBox;
-  I: Integer;
-  P: TPoint;
-  Delta: SmallInt;
-begin
-  // 콤보 목록이 펼쳐진 동안은 그 목록이 휠을 받아야 한다 (안 그러면 목록 대신 카드가 스크롤).
-  if (ActiveControl is TCustomComboBox) and TCustomComboBox(ActiveControl).DroppedDown then
-  begin
-    inherited;
-    Exit;
-  end;
-
-  Card := PnlMain.ActiveCard;
-  if Card <> nil then
-    for I := 0 to Card.ControlCount - 1 do
-      if Card.Controls[I] is TScrollBox then
-      begin
-        Box := TScrollBox(Card.Controls[I]);
-        P := Box.ScreenToClient(SmallPointToPoint(TWMMouseWheel(Message).Pos));
-        if PtInRect(Box.ClientRect, P) then
-        begin
-          Delta := TWMMouseWheel(Message).WheelDelta;
-          // 정밀 터치패드는 한 노치(120) 미만으로 온다 → 비례 계산 (div 면 0 이 되어 안 움직임)
-          Box.VertScrollBar.Position := Box.VertScrollBar.Position - Round(Delta / WHEEL_DELTA * Step);
-          Message.Result := 1;
-          Exit;
-        end;
-      end;
-  inherited;
-end;
-
 procedure TFrmSetup.FormShow(Sender: TObject);
 begin
+  HideCaptionIcon(Self);   // Delphi 판 bsDialog 처럼 캡션 아이콘 없음 (GUI.md 2.1, 모달은 매번)
+
   if BtnAbout.Visible then
     FillAbout;   // 감춘 카드에 mpv 버전 조회 불필요
 
@@ -480,18 +523,14 @@ begin
 
   // 창 떠 있는 동안만 감시 (닫으면 스레드 해제).
   if FWatcher = nil then
-    FWatcher := AssocWatch(
-      procedure
-      begin
-        AssocChanged;
-      end);
+    FWatcher := AssocWatch(AssocChanged);
 end;
 
 // 연결 카드 메모에 한 줄. 복사용 시각 접두.
 procedure TFrmSetup.LogAssoc(const AMsg: string);
 begin
   // 폼 내부 직접 호출도 있어 여기서도 차단 (FormCreate 참고)
-  if not ReportMemoryLeaksOnShutDown then
+  if not IsDebugBuild then
     Exit;
 
   if MemoAssocLog = nil then
@@ -502,8 +541,8 @@ begin
 
   MemoAssocLog.Lines.Add(FormatDateTime('hh:nn:ss', Now) + '  ' + AMsg);
 
-  // 마지막 줄이 보이게 스크롤
-  SendMessage(MemoAssocLog.Handle, EM_LINESCROLL, 0, MemoAssocLog.Lines.Count);
+  // 마지막 줄이 보이게
+  MemoAssocLog.SelStart := Length(MemoAssocLog.Text);
 end;
 
 // 선택 창/설정 앱 다녀오면 기본 앱 변동 가능. 닫힘 시점 불명 → 이 창 복귀 순간이 뒷정리 지점.
@@ -512,13 +551,13 @@ begin
   if (FPicker.Sheet <> 0) or (FPicker.TempFile <> '') then
   begin
     ClosePicker;
-    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nil, nil);
+    AssocNotifyShell;
 
     // 기본 앱 변동 가능 → 아이콘 재취득
     ResetIcons;
   end;
 
-  if (PnlMain.ActiveCard = CardAssoc) and (TreeAssoc.RootNodeCount > 0) then
+  if (ActiveCard = CardAssoc) and (TreeAssoc.RootNodeCount > 0) then
     RefreshAssocView;
 end;
 
@@ -540,15 +579,15 @@ end;
 
 procedure TFrmSetup.BtnNavClick(Sender: TObject);
 var
-  B: TSpeedButton;
+  B: TKMenuButton;
 begin
-  B := Sender as TSpeedButton;
+  B := Sender as TKMenuButton;
 
-  PnlMain.ActiveCardIndex := B.Tag;
+  PnlMain.PageIndex := B.Tag;
   LblTitle.Caption := B.Caption;
 
   // 타 카드에 있는 동안의 연결 변경분 반영.
-  if FDirty and (PnlMain.ActiveCard = CardAssoc) then
+  if FDirty and (ActiveCard = CardAssoc) then
     RefreshAssocView;
 end;
 
@@ -569,9 +608,12 @@ type
 // 실제 파일 불필요). 셸 호출이라 38개 일괄 시 창 멈춤 — 보이는 항목만 부르고
 // 결과는 FIconIndex 재사용.
 function TFrmSetup.ExtIconIndex(AIndex: Integer): Integer;
+{$IFDEF WINDOWS}
 var
-  LInfo: TSHFileInfo;
+  LInfo: TSHFileInfoW;
   LIcon: TIcon;
+  LName: UnicodeString;
+{$ENDIF}
 begin
   Result := FIconIndex[AIndex];
   if Result <> IconUnknown then
@@ -580,8 +622,11 @@ begin
   Result := -1;   // 실패 시 재시도 안 함 (셸이 못 주는 확장자)
   FIconIndex[AIndex] := Result;
 
-  if SHGetFileInfo(PChar('x' + AssocExts[AIndex].Ext), FILE_ATTRIBUTE_NORMAL,
-       LInfo, SizeOf(LInfo),
+  {$IFDEF WINDOWS}
+  LName := UTF8Decode('x' + AssocExts[AIndex].Ext);
+  FillChar(LInfo, SizeOf(LInfo), 0);
+  if SHGetFileInfoW(PWideChar(LName), FILE_ATTRIBUTE_NORMAL,
+       @LInfo, SizeOf(LInfo),
        SHGFI_ICON or SHGFI_SMALLICON or SHGFI_USEFILEATTRIBUTES) = 0 then
     Exit;
 
@@ -596,6 +641,7 @@ begin
   finally
     LIcon.Free;
   end;
+  {$ENDIF}
 end;
 
 // 아이콘 = 현재 연결 프로그램 것. 연결 변경 시 옛 아이콘 잔존 → 캐시 버리고 재취득 (보이는 항목만).
@@ -621,16 +667,15 @@ begin
   end;
 end;
 
-// 체크박스 직접 그림. VTV 7 CheckImageKind = ckSystemDefault/ckCustom 뿐,
-// 시스템 것은 강조색 꽉 차 튐.
-// 그림 순서 = VTV 규약 (BaseAncestorVcl.CreateSystemImageSet):
+// 체크박스 직접 그림. 시스템 것은 강조색 꽉 차 튐.
+// 그림 순서 = VTV 규약 (laz.VirtualTrees ckEmpty 등 상수):
 //   0 빈 그림 / 1..8 라디오(안 씀, 자리 채움) / 9..12 체크 해제(보통/마우스/
 //   누름/사용불가) / 13..16 체크 / 17..20 혼합(그룹 일부만 체크)
-function MakeSoftCheckImages(ASize: Integer): TImageList;
+function MakeSoftCheckImages(AOwner: TComponent; ASize: Integer): TImageList;
 const
   MaskColor = clFuchsia;
 var
-  LBmp: TBitmap;
+  LBmp: Graphics.TBitmap;
   I: Integer;
 
   procedure PaintOne(AIdx: Integer);
@@ -642,10 +687,10 @@ var
   begin
     LBmp.Canvas.Brush.Color := MaskColor;
     LBmp.Canvas.Brush.Style := bsSolid;
-    LBmp.Canvas.FillRect(Rect(0, 0, ASize, ASize));
+    LBmp.Canvas.FillRect(Types.Rect(0, 0, ASize, ASize));
 
     LRadio := AIdx < 8;
-    LChecked := (AIdx >= 4) and (AIdx <= 7) or ((AIdx >= 12) and (AIdx <= 15));
+    LChecked := ((AIdx >= 4) and (AIdx <= 7)) or ((AIdx >= 12) and (AIdx <= 15));
     LMixed := AIdx >= 16;
 
     // 상태별 진하기: 호버 살짝 진하게, 사용불가 옅게.
@@ -657,7 +702,7 @@ var
       begin LBorder := $00ACACAC; LMark := $00707070; end;      // 보통
     end;
 
-    LRect := Rect(1, 1, ASize - 1, ASize - 1);
+    LRect := Types.Rect(1, 1, ASize - 1, ASize - 1);
 
     LBmp.Canvas.Brush.Color := clWhite;
     LBmp.Canvas.Pen.Color := LBorder;
@@ -673,7 +718,7 @@ var
       // 혼합 = 가운데 작은 네모 (일부만 체크)
       LInset := ASize div 4;
       LBmp.Canvas.Brush.Color := LMark;
-      LBmp.Canvas.FillRect(Rect(LInset, LInset, ASize - LInset, ASize - LInset));
+      LBmp.Canvas.FillRect(Types.Rect(LInset, LInset, ASize - LInset, ASize - LInset));
     end
     else if LChecked then
     begin
@@ -681,28 +726,26 @@ var
       LBmp.Canvas.Pen.Color := LMark;
       LBmp.Canvas.Pen.Width := 2;
       LBmp.Canvas.Polyline([
-        Point(ASize div 4, ASize div 2),
-        Point(ASize * 45 div 100, ASize * 72 div 100),
-        Point(ASize * 78 div 100, ASize * 28 div 100)]);
+        Types.Point(ASize div 4, ASize div 2),
+        Types.Point(ASize * 45 div 100, ASize * 72 div 100),
+        Types.Point(ASize * 78 div 100, ASize * 28 div 100)]);
     end;
 
     Result.AddMasked(LBmp, MaskColor);
   end;
 
 begin
-  Result := TImageList.CreateSize(ASize, ASize);
-  Result.Handle := ImageList_Create(ASize, ASize, ILC_COLOR32 or ILC_MASK, 0,
-    Result.AllocBy);
-  Result.Masked := True;
-  Result.BkColor := clWhite;
+  Result := TImageList.Create(AOwner);
+  Result.Width := ASize;
+  Result.Height := ASize;
 
-  LBmp := TBitmap.Create;
+  LBmp := Graphics.TBitmap.Create;
   try
     LBmp.SetSize(ASize, ASize);
 
     // 0번 = 빈 그림 (VTV '표시 없음' 용).
     LBmp.Canvas.Brush.Color := MaskColor;
-    LBmp.Canvas.FillRect(Rect(0, 0, ASize, ASize));
+    LBmp.Canvas.FillRect(Types.Rect(0, 0, ASize, ASize));
     Result.AddMasked(LBmp, MaskColor);
 
     for I := 0 to 19 do
@@ -715,42 +758,54 @@ end;
 // 열 폭 = 뱃지 글자 길이 기반. 숫자 고정 시 문구/언어 변경에 뱃지가 칸에 갇혀 잘림.
 procedure TFrmSetup.LayoutAssocColumns;
 const
-  // 트리 폭 300 - 테두리 2 - 세로 스크롤바 17
-  ColsWidth  = 281;
   CellPadX   = 8;    // 뱃지 밖 여백 (칸 좌우)
   ExtMinWidth = 120; // 확장자 열이 이보다 좁아지지 않게
 var
-  LBmp: TBitmap;
-  LWidth: Integer;
+  LBmp: Graphics.TBitmap;
+  LWidth, LCols: Integer;
 begin
-  // 폼 생성 중에도 불림 → 트리 Canvas 금지 (핸들 없을 수 있음).
-  LBmp := TBitmap.Create;
+  // 트리 폭 - 테두리 2 - 세로 스크롤바
+  LCols := TreeAssoc.Width - 2 - GetSystemMetrics(SM_CXVSCROLL);
+
+  // 트리 Canvas 금지 (핸들 없을 수 있음).
+  LBmp := Graphics.TBitmap.Create;
   try
     LBmp.Canvas.Font.Assign(TreeAssoc.Font);
-    LBmp.Canvas.Font.Height := BadgeFontSize;
+    LBmp.Canvas.Font.Height := Scale96ToForm(BadgeFontSize);
 
     LWidth := LBmp.Canvas.TextWidth(FBadgeText);
   finally
     LBmp.Free;
   end;
 
-  LWidth := LWidth + (BadgePadX + CellPadX) * 2;
+  LWidth := LWidth + Scale96ToForm(BadgePadX + CellPadX) * 2;
 
-  if LWidth > ColsWidth - ExtMinWidth then
-    LWidth := ColsWidth - ExtMinWidth;
+  if LWidth > LCols - Scale96ToForm(ExtMinWidth) then
+    LWidth := LCols - Scale96ToForm(ExtMinWidth);
 
   TreeAssoc.Header.Columns[1].Width := LWidth;
-  TreeAssoc.Header.Columns[0].Width := ColsWidth - LWidth;
+  TreeAssoc.Header.Columns[0].Width := LCols - LWidth;
 end;
 
 procedure TFrmSetup.SetupAssocTree;
 var
-  I: Integer;
+  I, LCheck: Integer;
 begin
+  TreeAssoc := TLazVirtualStringTree.Create(Self);
+  TreeAssoc.Parent := CardAssoc;
+  TreeAssoc.SetBounds(Scale96ToForm(24), Scale96ToForm(12), Scale96ToForm(300), Scale96ToForm(480));
+  TreeAssoc.TabOrder := 0;
+  TreeAssoc.Indent := Scale96ToForm(20);
+  TreeAssoc.ScrollBarOptions.ScrollBars := ssVertical;
+  TreeAssoc.OnChecked := TreeAssocChecked;
+  TreeAssoc.OnFreeNode := TreeAssocFreeNode;
+  TreeAssoc.OnGetText := TreeAssocGetText;
+  TreeAssoc.OnPaintText := TreeAssocPaintText;
+  TreeAssoc.OnGetImageIndex := TreeAssocGetImageIndex;
+
   FAssocIcons := TImageList.Create(Self);
   FAssocIcons.Width := 16;
   FAssocIcons.Height := 16;
-  FAssocIcons.ColorDepth := cd32Bit;
 
   SetLength(FIconIndex, Length(AssocExts));
   for I := 0 to High(FIconIndex) do
@@ -759,19 +814,19 @@ begin
   TreeAssoc.NodeDataSize := SizeOf(TAssocNode);
   TreeAssoc.Images := FAssocIcons;
 
-  FCheckImages := MakeSoftCheckImages(GetSystemMetrics(SM_CXMENUCHECK));
-  InsertComponent(FCheckImages);   // 폼이 소유 → 폼과 함께 해제된다
+  LCheck := GetSystemMetrics(SM_CXMENUCHECK);
+  if LCheck <= 0 then
+    LCheck := Scale96ToForm(13);
+  FCheckImages := MakeSoftCheckImages(Self, LCheck);   // 폼이 소유 → 폼과 함께 해제된다
   TreeAssoc.CustomCheckImages := FCheckImages;
   TreeAssoc.CheckImageKind := ckCustom;
 
-  TreeAssoc.BevelInner := bvNone;
-  TreeAssoc.BevelOuter := bvNone;
   TreeAssoc.BorderStyle := bsSingle;
 
-
-  // 헤더 감춤 (DFM: Header.Options = []), 열 둘:
+  // 헤더 감춤, 열 둘:
   //   0 체크박스+아이콘+확장자
   //   1 동작 — 남이 기본 앱이면 [적용안됨] 뱃지, 그 칸 클릭 시 [기본 앱 선택] 창.
+  TreeAssoc.Header.Options := [];
   TreeAssoc.Header.Columns.Clear;
   TreeAssoc.Header.Columns.Add;
 
@@ -789,7 +844,7 @@ begin
   // 클릭 시 판정 근거 로그 (이 창은 힌트 미사용).
   TreeAssoc.OnClick := TreeAssocClick;
 
-  // 트리 형태 — 접기 버튼, 들여쓰기(DFM Indent=20), 점선 연결선. toShowTreeLines
+  // 트리 형태 — 접기 버튼, 들여쓰기, 점선 연결선. toShowTreeLines
   // 만으론 부족 — 기본 포함된 toHideTreeLinesIfThemed 가 테마 시 선 생략 → 같이 제거.
   TreeAssoc.TreeOptions.PaintOptions := TreeAssoc.TreeOptions.PaintOptions +
     [toUseBlendedSelection, toHideFocusRect, toUseExplorerTheme, toHotTrack,
@@ -805,13 +860,12 @@ begin
   TreeAssoc.TreeOptions.MiscOptions := TreeAssoc.TreeOptions.MiscOptions +
     [toCheckSupport] - [toAcceptOLEDrop, toVariableNodeHeight];
 
-  // toAutoChangeScale 필수 OFF. 켜면 폰트 변경마다 (CMFontChanged → AutoScale)
-  // 행 높이를 '글자 높이+TextMargin' 으로 덮고 기존 노드도 비율 축소 —
-  // 28 넣어도 창 뜨는 사이 19 됨.
+  // toAutoChangeScale 필수 OFF. 켜면 폰트 변경마다 행 높이를 '글자 높이+TextMargin' 으로 덮고
+  // 기존 노드도 비율 축소 — 28 넣어도 창 뜨는 사이 19 됨 (VCL 판 실측).
   TreeAssoc.TreeOptions.AutoOptions :=
     TreeAssoc.TreeOptions.AutoOptions - [toAutoChangeScale];
 
-  TreeAssoc.DefaultNodeHeight := AssocRowHeight;
+  TreeAssoc.DefaultNodeHeight := Scale96ToForm(AssocRowHeight);
 
   // 그룹 체크 ↔ 자식 체크 연동
   TreeAssoc.TreeOptions.AutoOptions := TreeAssoc.TreeOptions.AutoOptions +
@@ -823,10 +877,11 @@ var
   LGroup: TAssocGroup;
   LGroupNode, LNode: PVirtualNode;
   LData: PAssocNode;
-  I, LOn, LTotal: Integer;
-  LTick: UInt64;
+  I, LOn, LTotal, LRow: Integer;
+  LTick: QWord;
 begin
   LTick := GetTickCount64;
+  LRow := Scale96ToForm(AssocRowHeight);
 
   FBadgeHot := nil;         // 아래에서 노드 전부 삭제 (남기면 죽은 포인터)
   FFilling := True;
@@ -844,7 +899,7 @@ begin
     for LGroup := Low(TAssocGroup) to High(TAssocGroup) do
     begin
       LGroupNode := TreeAssoc.AddChild(nil);
-      TreeAssoc.NodeHeight[LGroupNode] := AssocRowHeight;
+      TreeAssoc.NodeHeight[LGroupNode] := LRow;
       LData := TreeAssoc.GetNodeData(LGroupNode);
       LData^.IsGroup := True;
       LData^.Group := LGroup;
@@ -863,7 +918,7 @@ begin
         Inc(LTotal);
 
         LNode := TreeAssoc.AddChild(LGroupNode);
-        TreeAssoc.NodeHeight[LNode] := AssocRowHeight;
+        TreeAssoc.NodeHeight[LNode] := LRow;
         LData := TreeAssoc.GetNodeData(LNode);
         LData^.IsGroup := False;
         LData^.Group := LGroup;
@@ -944,7 +999,7 @@ end;
 
 procedure TFrmSetup.TreeAssocGetImageIndex(Sender: TBaseVirtualTree;
   Node: PVirtualNode; Kind: TVTImageKind; Column: TColumnIndex;
-  var Ghosted: Boolean; var ImageIndex: TImageIndex);
+  var Ghosted: Boolean; var ImageIndex: Integer);
 var
   LData: PAssocNode;
 begin
@@ -978,7 +1033,7 @@ begin
   if Column > 0 then
   begin
     // 뱃지 안 글자 (배경은 TreeAssocBeforeCellPaint). 11px = 본문보다 작게 → 태그 느낌.
-    TargetCanvas.Font.Height := BadgeFontSize;
+    TargetCanvas.Font.Height := Scale96ToForm(BadgeFontSize);
 
     if BadgeBusy then
       TargetCanvas.Font.Color := BadgeDisTextColor
@@ -1046,7 +1101,7 @@ begin
 
   // 탐색기 아이콘/연결 재로드. SHCNF_FLUSH 는 셸 전체 수신자 대기 → 창 멈춤, 금지.
   try
-    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nil, nil);
+    AssocNotifyShell;
 
     ResetIcons;   // 연결 변경 → 아이콘 재취득
     RefreshAssocStates;
@@ -1081,7 +1136,7 @@ begin
   FPicking := True;
   try
     if ShowDefaultAppPicker(AExt, FPicker,
-         Point(Left + Width div 2, Top + Height div 2)) then
+         Types.Point(Left + Width div 2, Top + Height div 2)) then
       Exit;   // 뒷정리·상태 갱신은 이 창 복귀 시 (FormActivate)
 
     // 선택 창 실패 → 설정 앱.
@@ -1159,7 +1214,7 @@ begin
   if LBroken > 0 then
   begin
     if LText <> '' then
-      LText := LText + sLineBreak + sLineBreak;
+      LText := LText + LineEnding + LineEnding;
 
     LText := LText + Format(_('%d개 확장자는 연결이 끊어져 있습니다. ' +
       '[적용안됨] 을 누르면 되살립니다.'), [LBroken]);
@@ -1192,7 +1247,7 @@ begin
   if GetTickCount64 < FQuietUntil then
     Exit;
 
-  if PnlMain.ActiveCard <> CardAssoc then
+  if ActiveCard <> CardAssoc then
   begin
     FDirty := True;
     Exit;
@@ -1224,7 +1279,8 @@ var
   LHit: THitInfo;
   LData: PAssocNode;
   LExt: string;
-  LLine: string;
+  LLines: TStringList;
+  I: Integer;
 begin
   LPos := TreeAssoc.ScreenToClient(Mouse.CursorPos);
   TreeAssoc.GetHitTestInfoAt(LPos.X, LPos.Y, True, LHit);
@@ -1273,8 +1329,14 @@ begin
      BoolToStr(LData^.State.Ours, True), BoolToStr(LData^.State.Hard, True),
      BoolToStr(LData^.State.Broken, True), LData^.State.Other]));
 
-  for LLine in AssocResolveInfo(LExt).Split([sLineBreak]) do
-    LogAssoc('  ' + LLine);
+  LLines := TStringList.Create;
+  try
+    LLines.Text := AssocResolveInfo(LExt);
+    for I := 0 to LLines.Count - 1 do
+      LogAssoc('  ' + LLines[I]);
+  finally
+    LLines.Free;
+  end;
 end;
 
 // 선택 창 여는 중? (전 뱃지 회색). FBadgeBusy 병행 — FPicking 켜지기 전 첫 그리기에도 적용 위해.
@@ -1287,28 +1349,31 @@ end;
 function TFrmSetup.BadgeRect(ACanvas: TCanvas; const ACell: TRect): TRect;
 var
   LFontHeight: Integer;
-  LWidth, LHeight: Integer;
+  LWidth, LHeight, LCellW, LCellH: Integer;
 begin
   // 글자 크기는 뱃지 글꼴로 측정 (캔버스 원복)
   LFontHeight := ACanvas.Font.Height;
   try
-    ACanvas.Font.Height := BadgeFontSize;
-    LWidth := ACanvas.TextWidth(FBadgeText) + BadgePadX * 2;
-    LHeight := ACanvas.TextHeight(FBadgeText) + BadgePadY * 2;
+    ACanvas.Font.Height := Scale96ToForm(BadgeFontSize);
+    LWidth := ACanvas.TextWidth(FBadgeText) + Scale96ToForm(BadgePadX) * 2;
+    LHeight := ACanvas.TextHeight(FBadgeText) + Scale96ToForm(BadgePadY) * 2;
   finally
     ACanvas.Font.Height := LFontHeight;
   end;
 
-  if LWidth > ACell.Width then
-    LWidth := ACell.Width;
+  LCellW := ACell.Right - ACell.Left;
+  LCellH := ACell.Bottom - ACell.Top;
+
+  if LWidth > LCellW then
+    LWidth := LCellW;
 
   // 행 안 상하 최소 2px 여백
-  if LHeight > ACell.Height - 4 then
-    LHeight := ACell.Height - 4;
+  if LHeight > LCellH - 4 then
+    LHeight := LCellH - 4;
 
-  Result.Left := ACell.Left + (ACell.Width - LWidth) div 2;
+  Result.Left := ACell.Left + (LCellW - LWidth) div 2;
   Result.Right := Result.Left + LWidth;
-  Result.Top := ACell.Top + (ACell.Height - LHeight) div 2;
+  Result.Top := ACell.Top + (LCellH - LHeight) div 2;
   Result.Bottom := Result.Top + LHeight;
 end;
 
@@ -1331,14 +1396,15 @@ begin
 
   // 칸 안 넘게 (좁은 열에선 ContentRect > 칸 가능)
   if LRect.Left < CellRect.Left then
-    LRect.Offset(CellRect.Left - LRect.Left, 0);
+    OffsetRect(LRect, CellRect.Left - LRect.Left, 0);
   if LRect.Right > CellRect.Right then
-    LRect.Offset(CellRect.Right - LRect.Right, 0);
+    OffsetRect(LRect, CellRect.Right - LRect.Right, 0);
 
   if BadgeBusy then
     TargetCanvas.Brush.Color := BadgeDisBackColor
   else
     TargetCanvas.Brush.Color := BadgeBackColor;
+  TargetCanvas.Brush.Style := bsSolid;
 
   // RoundRect 는 펜 윤곽 필수 (테두리 제거 불가) — 평소 펜 = 배경색, 호버 뱃지만 글자색.
   if (Node = FBadgeHot) and not BadgeBusy then
@@ -1442,8 +1508,8 @@ begin
     TreeAssoc.EndUpdate;
   end;
 
-  // 위 CheckState 대입 → OnChecked 이미 발생(VST SetCheckState 가 DoCheckClick 호출),
-  // 매번 타이머 재설정됨. 여기서 끄고 한 번만 반영 — 기다릴 이유 없음.
+  // 위 CheckState 대입 → OnChecked 이미 발생했을 수 있음 (타이머 재설정).
+  // 여기서 끄고 한 번만 반영 — 기다릴 이유 없음.
   FApplyTimer.Enabled := False;
   ApplyAssoc;
 end;
@@ -1452,8 +1518,8 @@ procedure TFrmSetup.BtnResetClick(Sender: TObject);
 begin
   if Config = nil then Exit;
 
-  if TaskMessageDlg(_('모든 설정을 기본값으로 되돌립니다.'),
-       _('지금 화면의 값과 저장된 설정이 모두 기본값으로 바뀝니다.') + sLineBreak +
+  if MessageDlg(_('모든 설정을 기본값으로 되돌립니다.') + LineEnding + LineEnding +
+       _('지금 화면의 값과 저장된 설정이 모두 기본값으로 바뀝니다.') + LineEnding +
        _('파일 연결은 바뀌지 않습니다.'),
        mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
     Exit;
@@ -1501,20 +1567,20 @@ begin
   ApplyLive;
 end;
 
-// 폴더 선택은 이 창(Handle)을 소유자로 — 소유자 없는 SelectDirectory 는 '항상 위' 상태의
-// 본체/설정 창 뒤로 숨어 안 뜬 것처럼 보였다 (2026-09-11 문의). TFileOpenDialog = Vista 픽커.
+// 폴더 선택은 이 창을 소유자로 — 소유자 없는 대화상자는 '항상 위' 상태의
+// 본체/설정 창 뒤로 숨어 안 뜬 것처럼 보였다 (2026-09-11 문의). LCL 대화상자는 활성 폼이 소유자.
 procedure TFrmSetup.BtnShotDirClick(Sender: TObject);
 var
-  Dlg: TFileOpenDialog;
+  Dlg: TSelectDirectoryDialog;
   Dir: string;
 begin
-  Dlg := TFileOpenDialog.Create(Self);
+  Dlg := TSelectDirectoryDialog.Create(Self);
   try
     Dlg.Title := _('스크린샷을 저장할 폴더를 선택하세요.');
-    Dlg.Options := [fdoPickFolders, fdoPathMustExist, fdoForceFileSystem];
+    Dlg.Options := Dlg.Options + [ofPathMustExist];
     if DirectoryExists(EdtShotDir.Text) then
-      Dlg.DefaultFolder := EdtShotDir.Text;
-    if not Dlg.Execute(Handle) then Exit;
+      Dlg.InitialDir := EdtShotDir.Text;
+    if not Dlg.Execute then Exit;
     Dir := Dlg.FileName;
   finally
     Dlg.Free;
@@ -1690,10 +1756,12 @@ begin
   MPV.Command(['set', 'screenshot-format', ShotFmtValues[CboShotFmt.ItemIndex]]);
   MPV.Command(['set', 'volume', IntToStr(TrkVolume.Position)]);
 
+  // 끌 때는 빈 값 — Command 는 빈 인자를 버려 'set af' 로 실패하므로 (Delphi 판에서 평준화가 안 꺼지던 원인)
+  // 속성 API 로 직접.
   if CboOn(CboNormalize) then
     MPV.Command(['set', 'af', NormFilters[CboNormLevel.ItemIndex]])
   else
-    MPV.Command(['set', 'af', '']);
+    MPV.SetPropertyString('af', '');
 
   // sub-visibility 는 여기서 안 보낸다 — '자막 기본 표시' 는 시작값이고, 재생 중엔 자막 버튼이 상태를
   // 바꾼다. 글꼴 등 다른 항목을 만질 때마다 덮어쓰면 켜 둔 자막이 꺼진다 (2026-09-11 문의).
@@ -1747,14 +1815,18 @@ end;
 procedure TFrmSetup.FillFonts;
 var
   I: Integer;
+  S: string;
 begin
   CboSubFont.Items.BeginUpdate;
   try
     CboSubFont.Items.Clear;
     CboSubFont.Items.Add(_('(기본)'));
     for I := 0 to Screen.Fonts.Count - 1 do
-      if not Screen.Fonts[I].StartsWith('@') then
-        CboSubFont.Items.Add(Screen.Fonts[I]);
+    begin
+      S := Screen.Fonts[I];
+      if (S <> '') and (S[1] <> '@') then
+        CboSubFont.Items.Add(S);
+    end;
   finally
     CboSubFont.Items.EndUpdate;
   end;
@@ -1774,8 +1846,7 @@ begin
   Dlg := TColorDialog.Create(Self);
   try
     Dlg.Color := Shape.Brush.Color;
-    Dlg.Options := [cdFullOpen];
-    if not Dlg.Execute(Handle) then Exit;
+    if not Dlg.Execute then Exit;
     Shape.Brush.Color := Dlg.Color;
   finally
     Dlg.Free;
@@ -1793,10 +1864,10 @@ var
   Img: TImageList;
 begin
   // 행 두께 — TListView 는 직접 못 정하고 SmallImages 높이를 따른다. 폭 1 짜리 빈 목록으로 26px
-  // (연결 트리 28 과 비슷). OwnerDraw+WM_MEASUREITEM 은 그리기까지 떠안아야 해서 안 씀.
+  // (연결 트리 28 과 비슷). OwnerDraw 는 그리기까지 떠안아야 해서 안 씀.
   Img := TImageList.Create(Self);
   Img.Width := 1;
-  Img.Height := 26;
+  Img.Height := Scale96ToForm(26);
   LvKeys.SmallImages := Img;
 
   LvKeys.Items.BeginUpdate;
@@ -1814,7 +1885,7 @@ begin
   RefreshKeyRows;
 end;
 
-// 마우스 카드 콤보. 항목은 코드에서 (dfm 에 두면 7개 콤보에 같은 10줄 반복) — Translate 뒤라 _() 직접.
+// 마우스 카드 콤보. 항목은 코드에서 (lfm 에 두면 콤보마다 같은 10줄 반복) — Translate 뒤라 _() 직접.
 procedure TFrmSetup.FillMouse;
 var
   E: TMouseEvent;
@@ -1887,10 +1958,12 @@ begin
   K := Key;
   Key := 0;   // 에디트에 아무것도 안 들어가게 (ReadOnly 여도 커서 이동·비프)
 
-  // 조합키 단독 / 고정 키 (ESC 는 Main.FormKeyDown 고정, TAB 은 AppMessage) / 토글 키 무시
-  if K in [VK_SHIFT, VK_CONTROL, VK_MENU, VK_LWIN, VK_RWIN, VK_APPS,
-           VK_ESCAPE, VK_TAB, VK_CAPITAL, VK_NUMLOCK, VK_SCROLL] then
-    Exit;
+  // 조합키 단독 / 고정 키 (ESC 는 Main.FormKeyDown 고정, TAB 은 Main.KeyDownBefore) / 토글 키 무시
+  case K of
+    VK_SHIFT, VK_CONTROL, VK_MENU, VK_LWIN, VK_RWIN, VK_APPS,
+    VK_ESCAPE, VK_TAB, VK_CAPITAL, VK_NUMLOCK, VK_SCROLL:
+      Exit;
+  end;
 
   AssignKey(ShortCut(K, Shift));
 end;
