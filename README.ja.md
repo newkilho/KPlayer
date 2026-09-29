@@ -5,6 +5,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![Engine](https://img.shields.io/badge/engine-libmpv-green)
 ![License](https://img.shields.io/badge/license-GPL--2.0--or--later-lightgrey)
+![Built with](https://img.shields.io/badge/built%20with-Lazarus-orange)
 
 広告もアドウェアも余計なものもない、すっきりした Windows メディアプレイヤー。  
 オープンソースのメディアエンジン **libmpv** ベース。
@@ -16,6 +17,8 @@
 - **38 形式** — 動画 23 種 (MP4, MKV, AVI, MOV, WMV, WebM, TS, M2TS, VOB, RM/RMVB など)、
   音声 12 種 (MP3, FLAC, AAC, M4A, WAV, OGG, Opus, WMA, APE, DSF など)、プレイリスト 3 種 (M3U, M3U8, PLS)
 - ファイルやフォルダをドロップするだけで追加 — 本体ウィンドウはリストを置き換え、プレイリストウィンドウは追記
+- **フォルダ内ファイルの自動追加** — ファイルを 1 つ開くと、同じフォルダの続きのファイル (第 1 話・第 2 話…) を自然順で一緒に追加
+- **多重起動の防止** — 起動済みのウィンドウで再生、またはそのリストに追加 (複数起動も選択可能)
 - ドラッグでプレイリストの順序変更、リピート再生とシャッフル再生、プレイリストの保存
 - 字幕の表示/非表示とトラック切替、フォント・色・縁取り・影・位置の設定
 - チャプター移動、フレーム単位の移動、再生速度 (0.25×–4.0×)、スクリーンショット (PNG/JPG)
@@ -34,6 +37,7 @@
 | キー | 動作 |
 |-----|--------|
 | `Space` | 再生 / 一時停止 |
+| `Ctrl` + `O` | ファイルを開く |
 | `Enter` | 全画面 |
 | `←` / `→` | 5 秒戻る / 進む |
 | `Shift` + `←` / `→` | 1 秒戻る / 進む (正確) |
@@ -68,12 +72,12 @@
 
 | カード | 項目 |
 |-----|--------|
-| 一般 | リピートモード・シャッフル・プレイリストの保存・スクリーンショットのフォルダ/形式・常に手前に表示・再生ウィンドウのサイズ |
+| 一般 | リピートモード・シャッフル・プレイリストの保存・フォルダ内ファイルの自動追加・起動済みのとき・スクリーンショットのフォルダ/形式・常に手前に表示・再生ウィンドウのサイズ |
 | 映像 | ハードウェアデコード・出力ドライバー・グラフィック API・画面同期・アップスケーラー・インターレース解除 |
 | 音声 | 既定の音量・音量ノーマライズ・強度 |
 | 字幕 | 既定で表示・サイズ・既定の言語・フォント・太字・文字色・縁取り・影・縦位置・配置・字幕ファイルのスタイルを優先 |
 | 関連付け | 拡張子ごとの登録・既定のアプリの選択 |
-| ショートカット | 29 種の動作にキーを割り当て |
+| ショートカット | 30 種の動作にキーを割り当て |
 | マウス | クリック・ダブルクリック・中ボタン・ホイールの動作 |
 
 設定は `KPlayer.ini`、プレイリストは `KPlayer.lst` として実行ファイルの隣に保存されます (ポータブル)。
@@ -81,7 +85,23 @@
 ## インストール
 
 インストーラーは `%LOCALAPPDATA%\KPlayer` に配置します。実行ファイルの隣に `libmpv-2.dll` が必要です。  
-ソースからビルドするには [Lazarus](https://www.lazarus-ide.org/) 4.x (FPC 3.2.2, Win64) と [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi) が必要です。Virtual Treeview は Lazarus 同梱の `laz.virtualtreeview_package` を使います。
+ポータブル版 zip は任意のフォルダに展開してそのまま実行できます。
+
+## ビルド
+
+[Lazarus](https://www.lazarus-ide.org/) 4.x (FPC 3.2.2, Win64) のプロジェクトです。1.1.0.0 で Delphi から移行しました。最後の Delphi 版は git タグ `delphi-final` です。
+
+- [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi) — libmpv バインディング (FPC 対応、DLL を動的ロード)
+- Virtual Treeview — Lazarus 同梱の `laz.virtualtreeview_package`
+- Python 3 — リソース生成 (`Tools\MakeRes.py`)
+
+```
+build.bat          Release ビルド
+build.bat debug    Debug ビルド
+build.bat /b       フルリビルド
+```
+
+`Const-sample.inc` を `Const.inc` にコピーして値を入れてからビルドします。
 
 ## ライセンス
 

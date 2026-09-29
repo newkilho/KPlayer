@@ -5,6 +5,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![Engine](https://img.shields.io/badge/engine-libmpv-green)
 ![License](https://img.shields.io/badge/license-GPL--2.0--or--later-lightgrey)
+![Built with](https://img.shields.io/badge/built%20with-Lazarus-orange)
 
 A clean Windows media player — no ads, no adware, no bloat.  
 Built on the open-source media engine **libmpv**.
@@ -16,6 +17,8 @@ Built on the open-source media engine **libmpv**.
 - **38 formats** — 23 video (MP4, MKV, AVI, MOV, WMV, WebM, TS, M2TS, VOB, RM/RMVB, …),
   12 audio (MP3, FLAC, AAC, M4A, WAV, OGG, Opus, WMA, APE, DSF, …), 3 playlist (M3U, M3U8, PLS)
 - Drag and drop files or folders to add them instantly — the player window replaces the list, the playlist window appends
+- **Auto-add files from the folder** — open one file and the following files in the same folder (episode 1, 2, …) are added too, in natural order
+- **Single instance** — play in the window that is already open, or add to its playlist (multiple instances can be allowed)
 - Reorder playlist items by dragging; repeat and shuffle; the playlist is saved
 - Subtitle on/off and track switching; font, color, outline, shadow and position settings
 - Chapter navigation, frame stepping, playback speed (0.25×–4.0×), screenshots (PNG/JPG)
@@ -34,6 +37,7 @@ Every key can be changed in Settings → **Shortcuts**. Only `ESC` (leave full s
 | Key | Action |
 |-----|--------|
 | `Space` | Play / pause |
+| `Ctrl` + `O` | Open file |
 | `Enter` | Full screen |
 | `←` / `→` | Seek −5 s / +5 s |
 | `Shift` + `←` / `→` | Seek −1 s / +1 s (exact) |
@@ -68,12 +72,12 @@ Drag anywhere to move the window.
 
 | Card | Items |
 |-----|--------|
-| General | Repeat mode · shuffle · save playlist · screenshot folder/format · always on top · player window size |
+| General | Repeat mode · shuffle · save playlist · auto-add files from the folder · when already running · screenshot folder/format · always on top · player window size |
 | Video | Hardware decoding · output driver · graphics API · display sync · upscaler · deinterlacing |
 | Audio | Default volume · loudness normalization · strength |
 | Subtitles | Show by default · size · default language · font · bold · color · outline · shadow · vertical position · alignment · prefer subtitle file styles |
 | Associations | Register per extension · choose default app |
-| Shortcuts | Assign keys for 29 actions |
+| Shortcuts | Assign keys for 30 actions |
 | Mouse | Click · double-click · middle button · wheel actions |
 
 Settings are stored in `KPlayer.ini` and the playlist in `KPlayer.lst`, next to the executable (portable).
@@ -81,7 +85,23 @@ Settings are stored in `KPlayer.ini` and the playlist in `KPlayer.lst`, next to 
 ## Installation
 
 The installer puts KPlayer in `%LOCALAPPDATA%\KPlayer`. `libmpv-2.dll` must sit next to the executable.  
-To build from source you need [Lazarus](https://www.lazarus-ide.org/) 4.x (FPC 3.2.2, Win64) plus [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi). Virtual Treeview comes with Lazarus (`laz.virtualtreeview_package`).
+The portable zip runs from any folder — just extract it.
+
+## Building
+
+KPlayer is a [Lazarus](https://www.lazarus-ide.org/) 4.x (FPC 3.2.2, Win64) project. It was ported from Delphi in 1.1.0.0; the last Delphi version is the git tag `delphi-final`.
+
+- [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi) — libmpv bindings (FPC support, DLL loaded dynamically)
+- Virtual Treeview — `laz.virtualtreeview_package`, bundled with Lazarus
+- Python 3 — resource generation (`Tools\MakeRes.py`)
+
+```
+build.bat          Release build
+build.bat debug    Debug build
+build.bat /b       Full rebuild
+```
+
+Copy `Const-sample.inc` to `Const.inc`, fill in the values, then build.
 
 ## License
 

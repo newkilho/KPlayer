@@ -5,6 +5,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![Engine](https://img.shields.io/badge/engine-libmpv-green)
 ![License](https://img.shields.io/badge/license-GPL--2.0--or--later-lightgrey)
+![Built with](https://img.shields.io/badge/built%20with-Lazarus-orange)
 
 광고도, 애드웨어도, 군더더기도 없는 깔끔한 윈도우 미디어 플레이어.  
 오픈 소스 미디어 엔진 **libmpv** 기반.
@@ -16,6 +17,8 @@
 - **38가지 형식** — 비디오 23종 (MP4, MKV, AVI, MOV, WMV, WebM, TS, M2TS, VOB, RM/RMVB 등),
   오디오 12종 (MP3, FLAC, AAC, M4A, WAV, OGG, Opus, WMA, APE, DSF 등), 재생목록 3종 (M3U, M3U8, PLS)
 - 파일이나 폴더를 끌어다 놓으면 곧바로 추가 — 본체 창은 목록 교체, 재생목록 창은 덧붙임
+- **폴더 내 파일 자동 추가** — 파일 하나를 열면 같은 폴더의 이어지는 파일(1화·2화…)을 자연 정렬로 함께 추가
+- **단일 실행** — 이미 떠 있는 창에서 재생하거나 목록에 추가 (여러 개 실행도 선택 가능)
 - 재생목록 항목을 끌어서 순서 변경, 반복 재생과 랜덤 재생, 재생목록 저장
 - 자막 켜기/끄기와 트랙 전환, 글꼴·색·외곽선·그림자·위치 설정
 - 챕터 이동, 프레임 단위 이동, 배속 (0.25×–4.0×), 스크린샷 (PNG/JPG)
@@ -34,6 +37,7 @@
 | 키 | 동작 |
 |-----|--------|
 | `Space` | 재생 / 일시정지 |
+| `Ctrl` + `O` | 파일 열기 |
 | `Enter` | 전체 화면 |
 | `←` / `→` | 뒤로 / 앞으로 5초 |
 | `Shift` + `←` / `→` | 뒤로 / 앞으로 1초 (정확) |
@@ -68,12 +72,12 @@
 
 | 카드 | 항목 |
 |-----|--------|
-| 일반 | 반복 모드 · 랜덤 재생 · 재생목록 저장 · 스크린샷 폴더/형식 · 항상 위 · 재생 창 크기 |
+| 일반 | 반복 모드 · 랜덤 재생 · 재생목록 저장 · 폴더 내 파일 자동 추가 · 이미 실행 중일 때 · 스크린샷 폴더/형식 · 항상 위 · 재생 창 크기 |
 | 영상 | 하드웨어 디코딩 · 출력 드라이버 · 그래픽 API · 화면 동기화 · 업스케일러 · 인터레이스 해제 |
 | 음성 | 기본 볼륨 · 음량 평준화 · 평준화 강도 |
 | 자막 | 기본 표시 · 크기 · 기본 언어 · 글꼴 · 굵게 · 글자색 · 외곽선 · 그림자 · 세로 위치 · 정렬 · 자막 파일 스타일 우선 |
 | 연결 | 확장자별 등록 · 기본 앱 선택 |
-| 단축키 | 동작 29종의 키 지정 |
+| 단축키 | 동작 30종의 키 지정 |
 | 마우스 | 클릭 · 더블클릭 · 가운데 버튼 · 휠 동작 |
 
 설정은 `KPlayer.ini`, 재생목록은 `KPlayer.lst` 로 실행 파일 옆에 저장된다 (포터블).
@@ -81,7 +85,23 @@
 ## 설치
 
 설치본은 `%LOCALAPPDATA%\KPlayer` 에 들어가며, 실행 파일 옆에 `libmpv-2.dll` 이 있어야 한다.  
-직접 빌드하려면 [Lazarus](https://www.lazarus-ide.org/) 4.x (FPC 3.2.2, Win64) 와 [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi) 가 필요하다. Virtual Treeview 는 Lazarus 에 들어 있는 `laz.virtualtreeview_package` 를 쓴다.
+포터블 zip 은 아무 폴더에 풀어 바로 실행한다.
+
+## 빌드
+
+[Lazarus](https://www.lazarus-ide.org/) 4.x (FPC 3.2.2, Win64) 프로젝트다. 1.1.0.0 에서 Delphi 로부터 옮겨 왔으며, 마지막 Delphi 판은 git 태그 `delphi-final` 이다.
+
+- [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi) — libmpv 바인딩 (FPC 지원, DLL 동적 로드)
+- Virtual Treeview — Lazarus 에 들어 있는 `laz.virtualtreeview_package`
+- Python 3 — 리소스 생성 (`Tools\MakeRes.py`)
+
+```
+build.bat          Release 빌드
+build.bat debug    Debug 빌드
+build.bat /b       전체 다시 빌드
+```
+
+`Const-sample.inc` 를 `Const.inc` 로 복사해 값을 채운 뒤 빌드한다.
 
 ## 라이선스
 

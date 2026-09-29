@@ -5,6 +5,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![Engine](https://img.shields.io/badge/engine-libmpv-green)
 ![License](https://img.shields.io/badge/license-GPL--2.0--or--later-lightgrey)
+![Built with](https://img.shields.io/badge/built%20with-Lazarus-orange)
 
 没有广告、没有捆绑软件、没有多余功能的简洁 Windows 媒体播放器。  
 基于开源媒体引擎 **libmpv**。
@@ -16,6 +17,8 @@
 - **38 种格式** — 视频 23 种 (MP4, MKV, AVI, MOV, WMV, WebM, TS, M2TS, VOB, RM/RMVB 等)、
   音频 12 种 (MP3, FLAC, AAC, M4A, WAV, OGG, Opus, WMA, APE, DSF 等)、播放列表 3 种 (M3U, M3U8, PLS)
 - 拖放文件或文件夹即可添加 — 拖到主窗口替换列表，拖到播放列表窗口则追加
+- **自动添加文件夹内文件** — 打开一个文件时，同一文件夹中的后续文件 (第 1 集、第 2 集…) 按自然顺序一并添加
+- **单实例运行** — 在已打开的窗口中播放，或添加到其播放列表 (也可允许多开)
 - 拖动调整播放列表顺序，循环播放与随机播放，播放列表自动保存
 - 字幕开关与轨道切换，字体、颜色、描边、阴影、位置设置
 - 章节跳转、逐帧步进、播放速度 (0.25×–4.0×)、截图 (PNG/JPG)
@@ -34,6 +37,7 @@
 | 按键 | 动作 |
 |-----|--------|
 | `Space` | 播放 / 暂停 |
+| `Ctrl` + `O` | 打开文件 |
 | `Enter` | 全屏 |
 | `←` / `→` | 后退 / 前进 5 秒 |
 | `Shift` + `←` / `→` | 后退 / 前进 1 秒 (精确) |
@@ -68,12 +72,12 @@
 
 | 卡片 | 项目 |
 |-----|--------|
-| 常规 | 循环模式、随机播放、保存播放列表、截图文件夹/格式、窗口置顶、播放窗口大小 |
+| 常规 | 循环模式、随机播放、保存播放列表、自动添加文件夹内文件、已在运行时、截图文件夹/格式、窗口置顶、播放窗口大小 |
 | 视频 | 硬件解码、输出驱动、图形 API、画面同步、放大算法、反交错 |
 | 音频 | 默认音量、音量标准化、强度 |
 | 字幕 | 默认显示、大小、默认语言、字体、粗体、文字颜色、描边、阴影、垂直位置、对齐、优先使用字幕文件样式 |
 | 关联 | 按扩展名注册、选择默认应用 |
-| 快捷键 | 为 29 种动作指定按键 |
+| 快捷键 | 为 30 种动作指定按键 |
 | 鼠标 | 单击、双击、中键、滚轮动作 |
 
 设置保存在 `KPlayer.ini`，播放列表保存在 `KPlayer.lst`，均位于可执行文件旁 (便携)。
@@ -81,7 +85,23 @@
 ## 安装
 
 安装程序将 KPlayer 放在 `%LOCALAPPDATA%\KPlayer`。可执行文件旁必须有 `libmpv-2.dll`。  
-从源码构建需要 [Lazarus](https://www.lazarus-ide.org/) 4.x (FPC 3.2.2, Win64) 以及 [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi)。Virtual Treeview 使用 Lazarus 自带的 `laz.virtualtreeview_package`。
+便携版 zip 解压到任意文件夹即可直接运行。
+
+## 构建
+
+这是一个 [Lazarus](https://www.lazarus-ide.org/) 4.x (FPC 3.2.2, Win64) 项目。自 1.1.0.0 起由 Delphi 迁移而来，最后的 Delphi 版本为 git 标签 `delphi-final`。
+
+- [LibMPVDelphi](https://github.com/nbuyer/libmpvdelphi) — libmpv 绑定 (支持 FPC，动态加载 DLL)
+- Virtual Treeview — Lazarus 自带的 `laz.virtualtreeview_package`
+- Python 3 — 生成资源 (`Tools\MakeRes.py`)
+
+```
+build.bat          Release 构建
+build.bat debug    Debug 构建
+build.bat /b       完全重新构建
+```
+
+将 `Const-sample.inc` 复制为 `Const.inc` 并填写数值后再构建。
 
 ## 许可证
 
