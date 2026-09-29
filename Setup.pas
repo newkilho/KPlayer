@@ -93,6 +93,8 @@ type
     BoxSub: TScrollBox;
     LblSubVisible: TLabel;
     CboSubVisible: TComboBox;
+    LblSubAuto: TLabel;
+    CboSubAuto: TComboBox;
     LblSubSize: TLabel;
     LblSubSizeValue: TLabel;
     TrkSubSize: TTrackBar;
@@ -382,6 +384,9 @@ begin
   // 예전엔 KPlayer.lua file-loaded 가 force 고정 — 옵션화하며 여기로 (전역 속성이라 1회면 됨).
   AMPV.Command(['set', 'sub-ass-override',
     SubAssValues[EnsureRange(AConfig.ReadInteger('sub_ass', 0), 0, High(SubAssValues))]]);
+  // 다음 loadfile 부터 적용 (재생 중 파일엔 영향 없음). Main.FormCreate 는 첫 loadfile 전에 부른다.
+  AMPV.Command(['set', 'sub-auto',
+    SubAutoValues[EnsureRange(AConfig.ReadInteger('sub_auto', 2), 0, High(SubAutoValues))]]);
 end;
 
 function B2I(AValue: Boolean): Integer;
@@ -1570,7 +1575,8 @@ begin
   Config.WriteInteger('normalize', 1);
   Config.WriteInteger('norm_level', 1);
 
-  Config.WriteInteger('sub_visible', 0);
+  Config.WriteInteger('sub_visible', 1);
+  Config.WriteInteger('sub_auto', 2);
   Config.WriteInteger('sub_size', 55);
   Config.WriteString('sub_lang', '');   // '' = OS 언어 (DefaultSubLang)
   Config.WriteString('sub_font', '');
@@ -1682,7 +1688,8 @@ begin
     SetCboOn(CboNormalize, CfgInt('normalize', 1) <> 0);
     CboNormLevel.ItemIndex := EnsureRange(CfgInt('norm_level', 1), 0, CboNormLevel.Items.Count - 1);
 
-    SetCboOn(CboSubVisible, CfgInt('sub_visible', 0) <> 0);
+    SetCboOn(CboSubVisible, CfgInt('sub_visible', 1) <> 0);
+    CboSubAuto.ItemIndex := EnsureRange(CfgInt('sub_auto', 2), 0, CboSubAuto.Items.Count - 1);
     TrkSubSize.Position := EnsureRange(CfgInt('sub_size', 55), TrkSubSize.Min, TrkSubSize.Max);
     EdtSubLang.Text := CfgStr('sub_lang', '');
     if EdtSubLang.Text = '' then EdtSubLang.Text := DefaultSubLang;
@@ -1748,6 +1755,7 @@ begin
   Config.WriteInteger('norm_level', CboNormLevel.ItemIndex);
 
   Config.WriteInteger('sub_visible', B2I(CboOn(CboSubVisible)));
+  Config.WriteInteger('sub_auto', CboSubAuto.ItemIndex);
   Config.WriteInteger('sub_size', TrkSubSize.Position);
   // 기본값과 같으면 '' 로 — OS 언어를 따르는 상태 유지 (DefaultSubLang 주석)
   if Trim(EdtSubLang.Text) = DefaultSubLang then

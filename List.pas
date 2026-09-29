@@ -365,15 +365,33 @@ end;
 
 // 목록 창 드롭도 추가한 첫 항목부터 재생 (본체 창 드롭과 달리 기존 목록은 유지).
 // 불러왔는데 재생이 안 걸려 더블클릭해야 했다는 문의 (2026-08-29) → 자동 재생으로 통일.
+// 자막 파일은 목록 대신 재생 중 영상에 (FrmKPlayer.AddSubtitles).
 procedure TFrmList.FormDropFiles(Sender: TObject; const FileNames: array of string);
 var
-  LFiles: TStringArray;
-  I: Integer;
+  LFiles, LSubs: TStringArray;
+  I, N, NS: Integer;
 begin
   SetLength(LFiles, Length(FileNames));
+  SetLength(LSubs, Length(FileNames));
+  N := 0;
+  NS := 0;
   for I := 0 to High(FileNames) do
-    LFiles[I] := FileNames[I];
-  AddFiles(LFiles, True);
+    if IsSubtitleFile(FileNames[I]) then
+    begin
+      LSubs[NS] := FileNames[I];
+      Inc(NS);
+    end
+    else
+    begin
+      LFiles[N] := FileNames[I];
+      Inc(N);
+    end;
+  SetLength(LFiles, N);
+  SetLength(LSubs, NS);
+
+  if N > 0 then
+    AddFiles(LFiles, True);
+  FrmKPlayer.AddSubtitles(LSubs);
 end;
 
 procedure TFrmList.FormResize(Sender: TObject);
@@ -1262,9 +1280,20 @@ end;
 
 // 본체 창 드롭 전용 — 기존 목록을 버리고 떨군 것만 남긴다 (목록 창 드롭은 AddFiles = 덧붙임).
 // 재생 시작은 양쪽 같다.
+// 넣을 게 하나도 없으면(미지원 확장자만) 목록을 지우지 않는다 — 전엔 비우고 재생이 멈췄다 (1.1.1.0).
 procedure TFrmList.ReplaceFiles(const AFiles: TStringArray);
+var
+  I: Integer;
+  LAny: Boolean;
 begin
-  if Length(AFiles) = 0 then
+  LAny := False;
+  for I := 0 to High(AFiles) do
+    if DirectoryExists(AFiles[I]) or IsMediaFile(AFiles[I]) then
+    begin
+      LAny := True;
+      Break;
+    end;
+  if not LAny then
     Exit;
 
   DelFile(dmAll);              // 재생 중이던 항목도 사라짐 → 아래 AddFiles 가 새 첫 곡을 건다

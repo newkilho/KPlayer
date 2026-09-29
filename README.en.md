@@ -20,6 +20,7 @@ Built on the open-source media engine **libmpv**.
 - **Auto-add files from the folder** — open one file and the following files in the same folder (episode 1, 2, …) are added too, in natural order
 - **Single instance** — play in the window that is already open, or add to its playlist (multiple instances can be allowed)
 - Reorder playlist items by dragging; repeat and shuffle; the playlist is saved
+- External subtitles (SMI, SRT, ASS, …) load automatically; drop a subtitle file onto the video to add it
 - Subtitle on/off and track switching; font, color, outline, shadow and position settings
 - Chapter navigation, frame stepping, playback speed (0.25×–4.0×), screenshots (PNG/JPG)
 - `TAB` info panel — file, codec, resolution, frame rate and more
@@ -75,7 +76,7 @@ Drag anywhere to move the window.
 | General | Repeat mode · shuffle · save playlist · auto-add files from the folder · when already running · screenshot folder/format · always on top · player window size |
 | Video | Hardware decoding · output driver · graphics API · display sync · upscaler · deinterlacing |
 | Audio | Default volume · loudness normalization · strength |
-| Subtitles | Show by default · size · default language · font · bold · color · outline · shadow · vertical position · alignment · prefer subtitle file styles |
+| Subtitles | Show by default · auto-load external subtitles · size · default language · font · bold · color · outline · shadow · vertical position · alignment · prefer subtitle file styles |
 | Associations | Register per extension · choose default app |
 | Shortcuts | Assign keys for 30 actions |
 | Mouse | Click · double-click · middle button · wheel actions |

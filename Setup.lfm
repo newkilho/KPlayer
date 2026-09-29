@@ -716,11 +716,21 @@ object FrmSetup: TFrmSetup
             Caption = '자막 기본 표시'
             Transparent = True
           end
+          object LblSubAuto: TLabel
+            AnchorSideTop.Control = CboSubAuto
+            AnchorSideTop.Side = asrCenter
+            Left = 24
+            Top = 63
+            Width = 95
+            Height = 15
+            Caption = '외부 자막 자동 로드'
+            Transparent = True
+          end
           object LblSubSize: TLabel
             AnchorSideTop.Control = TrkSubSize
             AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 63
+            Top = 103
             Width = 51
             Height = 15
             Caption = '자막 크기'
@@ -730,7 +740,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = TrkSubSize
             AnchorSideTop.Side = asrCenter
             Left = 397
-            Top = 63
+            Top = 103
             Width = 48
             Height = 15
             Alignment = taRightJustify
@@ -743,7 +753,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = EdtSubLang
             AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 103
+            Top = 143
             Width = 78
             Height = 15
             Caption = '기본 자막 언어'
@@ -753,7 +763,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = CboSubFont
             AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 143
+            Top = 183
             Width = 24
             Height = 15
             Caption = '글꼴'
@@ -763,7 +773,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = CboSubBold
             AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 183
+            Top = 223
             Width = 24
             Height = 15
             Caption = '굵게'
@@ -773,7 +783,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = BtnSubColor
             AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 223
+            Top = 263
             Width = 36
             Height = 15
             Caption = '글자색'
@@ -783,7 +793,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = TrkSubBorder
             AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 303
+            Top = 343
             Width = 63
             Height = 15
             Caption = '외곽선 두께'
@@ -793,7 +803,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = TrkSubBorder
             AnchorSideTop.Side = asrCenter
             Left = 397
-            Top = 303
+            Top = 343
             Width = 48
             Height = 15
             Alignment = taRightJustify
@@ -806,7 +816,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = BtnSubBorderColor
             AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 263
+            Top = 303
             Width = 51
             Height = 15
             Caption = '외곽선 색'
@@ -816,7 +826,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = TrkSubShadow
             AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 343
+            Top = 383
             Width = 36
             Height = 15
             Caption = '그림자'
@@ -826,7 +836,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = TrkSubShadow
             AnchorSideTop.Side = asrCenter
             Left = 397
-            Top = 343
+            Top = 383
             Width = 48
             Height = 15
             Alignment = taRightJustify
@@ -839,7 +849,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = TrkSubPos
             AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 383
+            Top = 423
             Width = 51
             Height = 15
             Caption = '세로 위치'
@@ -849,7 +859,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = TrkSubPos
             AnchorSideTop.Side = asrCenter
             Left = 397
-            Top = 383
+            Top = 423
             Width = 48
             Height = 15
             Alignment = taRightJustify
@@ -862,7 +872,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = CboSubAlign
             AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 423
+            Top = 463
             Width = 24
             Height = 15
             Caption = '정렬'
@@ -872,7 +882,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = CboSubAss
             AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 463
+            Top = 503
             Width = 117
             Height = 15
             Caption = '자막 파일 스타일 우선'
@@ -882,7 +892,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = BtnSubColor
             AnchorSideTop.Side = asrCenter
             Left = 513
-            Top = 220
+            Top = 260
             Width = 60
             Height = 21
             Anchors = [akTop, akRight]
@@ -892,7 +902,7 @@ object FrmSetup: TFrmSetup
             AnchorSideTop.Control = BtnSubBorderColor
             AnchorSideTop.Side = asrCenter
             Left = 513
-            Top = 260
+            Top = 300
             Width = 60
             Height = 21
             Anchors = [akTop, akRight]
@@ -911,9 +921,24 @@ object FrmSetup: TFrmSetup
               '사용안함'
               '사용함')
           end
+          object CboSubAuto: TComboBox
+            Left = 473
+            Top = 59
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 1
+            OnChange = ControlChange
+            Items.Strings = (
+              '사용안함'
+              '같은 이름만'
+              '이름이 포함된 자막'
+              '폴더의 모든 자막')
+          end
           object TrkSubSize: TTrackBar
             Left = 453
-            Top = 56
+            Top = 96
             Width = 190
             Height = 28
             Anchors = [akTop, akRight]
@@ -923,37 +948,37 @@ object FrmSetup: TFrmSetup
             Frequency = 10
             Position = 20
             ShowSelRange = False
-            TabOrder = 1
+            TabOrder = 2
             TickStyle = tsNone
             OnChange = TrackChange
           end
           object EdtSubLang: TEdit
             Left = 393
-            Top = 99
-            Width = 250
-            Height = 23
-            Anchors = [akTop, akRight]
-            TabOrder = 2
-            OnChange = ControlChange
-          end
-          object CboSubFont: TComboBox
-            Left = 393
             Top = 139
             Width = 250
             Height = 23
-            Style = csDropDownList
             Anchors = [akTop, akRight]
             TabOrder = 3
             OnChange = ControlChange
           end
-          object CboSubBold: TComboBox
-            Left = 473
+          object CboSubFont: TComboBox
+            Left = 393
             Top = 179
-            Width = 170
+            Width = 250
             Height = 23
             Style = csDropDownList
             Anchors = [akTop, akRight]
             TabOrder = 4
+            OnChange = ControlChange
+          end
+          object CboSubBold: TComboBox
+            Left = 473
+            Top = 219
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 5
             OnChange = ControlChange
             Items.Strings = (
               '사용안함'
@@ -961,38 +986,15 @@ object FrmSetup: TFrmSetup
           end
           object BtnSubColor: TButton
             Left = 583
-            Top = 219
-            Width = 60
-            Height = 23
-            Anchors = [akTop, akRight]
-            Caption = '변경'
-            TabOrder = 5
-            OnClick = BtnSubColorClick
-          end
-          object TrkSubBorder: TTrackBar
-            Left = 453
-            Top = 296
-            Width = 190
-            Height = 28
-            Anchors = [akTop, akRight]
-            Max = 5
-            PageSize = 1
-            ShowSelRange = False
-            TabOrder = 6
-            TickStyle = tsNone
-            OnChange = TrackChange
-          end
-          object BtnSubBorderColor: TButton
-            Left = 583
             Top = 259
             Width = 60
             Height = 23
             Anchors = [akTop, akRight]
             Caption = '변경'
-            TabOrder = 7
+            TabOrder = 6
             OnClick = BtnSubColorClick
           end
-          object TrkSubShadow: TTrackBar
+          object TrkSubBorder: TTrackBar
             Left = 453
             Top = 336
             Width = 190
@@ -1001,13 +1003,36 @@ object FrmSetup: TFrmSetup
             Max = 5
             PageSize = 1
             ShowSelRange = False
+            TabOrder = 7
+            TickStyle = tsNone
+            OnChange = TrackChange
+          end
+          object BtnSubBorderColor: TButton
+            Left = 583
+            Top = 299
+            Width = 60
+            Height = 23
+            Anchors = [akTop, akRight]
+            Caption = '변경'
             TabOrder = 8
+            OnClick = BtnSubColorClick
+          end
+          object TrkSubShadow: TTrackBar
+            Left = 453
+            Top = 376
+            Width = 190
+            Height = 28
+            Anchors = [akTop, akRight]
+            Max = 5
+            PageSize = 1
+            ShowSelRange = False
+            TabOrder = 9
             TickStyle = tsNone
             OnChange = TrackChange
           end
           object TrkSubPos: TTrackBar
             Left = 453
-            Top = 376
+            Top = 416
             Width = 190
             Height = 28
             Anchors = [akTop, akRight]
@@ -1015,18 +1040,18 @@ object FrmSetup: TFrmSetup
             PageSize = 5
             Frequency = 10
             ShowSelRange = False
-            TabOrder = 9
+            TabOrder = 10
             TickStyle = tsNone
             OnChange = TrackChange
           end
           object CboSubAlign: TComboBox
             Left = 473
-            Top = 419
+            Top = 459
             Width = 170
             Height = 23
             Style = csDropDownList
             Anchors = [akTop, akRight]
-            TabOrder = 10
+            TabOrder = 11
             OnChange = ControlChange
             Items.Strings = (
               '왼쪽'
@@ -1035,12 +1060,12 @@ object FrmSetup: TFrmSetup
           end
           object CboSubAss: TComboBox
             Left = 473
-            Top = 459
+            Top = 499
             Width = 170
             Height = 23
             Style = csDropDownList
             Anchors = [akTop, akRight]
-            TabOrder = 11
+            TabOrder = 12
             OnChange = ControlChange
             Items.Strings = (
               '사용안함'

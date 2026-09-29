@@ -17,6 +17,14 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
+  1.1.1.0
+  [+] 외부 자막 자동 로드 - 환경설정 자막 '외부 자막 자동 로드' = 사용안함 / 같은 이름만 / 이름이 포함된 자막(기본) / 폴더의 모든 자막 (mpv sub-auto).
+      전엔 미설정 = exact 라 이름 다른 smi 가 안 떠 'smi 미지원' 문의 (Setup.pas: ApplySubStyle, CboSubAuto / Media.pas: SubAutoValues)
+  [+] 자막 파일 드롭 - .smi/.srt/.ass 등을 본체·목록 창에 떨구면 재생 중 영상에 sub-add + 표시 켬. 영상과 섞이면 자막은 버리고 자동 로드에 맡김
+      (Main.pas: FormDropFiles, AddSubtitles / List.pas: FormDropFiles / Media.pas: SubtitleExts, IsSubtitleFile)
+  [*] 본체 창에 미지원 파일(자막 등)만 떨구면 목록이 비고 재생이 멈추던 문제 - 넣을 항목이 없으면 목록 유지 (List.pas: ReplaceFiles)
+  [*] 자막 기본 표시를 켬으로 - 끔이 기본이라 자막 있는 영상도 첫 재생에 안 보임 (Main.pas: FormCreate / Setup.pas: 기본값)
+
   1.1.0.0
   [+] 단일 실행 - 이미 떠 있으면 새 창 대신 그 창에 파일을 넘긴다. 환경설정 일반 '실행 중일 때 파일 열기' = 여러 개 실행 허용 /
       실행 중인 창에서 재생(기본) / 실행 중인 창 목록에 추가. 탐색기 다중 선택은 첫 파일 재생 + 나머지 추가
@@ -247,6 +255,7 @@ type
     function IsLoaded: Boolean;
     function IsEOF: Boolean;
     procedure SetPause(AState: Boolean);
+    procedure AddSubtitles(const AFiles: TStringArray);
     procedure Alert(const AMsg: string; const AColor: string = ALERT_INFO);
 
     procedure HandlePlay(const AFile: string);
@@ -336,8 +345,8 @@ begin
   // 파일 없어도 플레이어 종료 방지
   MPVPlayer.SetOptionString('idle', 'yes');
 
-  // 자막 기본 끔 — 자막 버튼으로 켬
-  if FConfig.ReadInteger('sub_visible', 0) <> 0 then
+  // 자막 기본 켬 (1.1.0.0 까지 끔 — 'smi 미지원' 문의로 오인, 2026-09-29)
+  if FConfig.ReadInteger('sub_visible', 1) <> 0 then
     MPVPlayer.SetOptionString('sub-visibility', 'yes')
   else
     MPVPlayer.SetOptionString('sub-visibility', 'no');
@@ -461,15 +470,57 @@ end;
 // 본체 창 드롭 = 목록 교체 + 재생. 덧붙이려면 목록 창에 떨군다 (TFrmList.FormDropFiles).
 // HandlePlay 직접 호출 시 mpv 만 재생, 목록 '재생 중' 표시 누락 → FrmList 경유.
 // 재생 시작점은 드롭 경로가 아니라 목록에 실제로 들어간 첫 항목 (AddFiles 주석).
+// 자막 파일은 목록 대신 재생 중 영상에 (AddSubtitles). 영상과 섞여 오면 자막은 버린다 — 새 영상에
+// 붙일 시점(file-loaded)을 잡는 대신 sub-auto 자동 로드에 맡김.
 procedure TFrmKPlayer.FormDropFiles(Sender: TObject; const FileNames: array of string);
 var
-  LFiles: TStringArray;
-  I: Integer;
+  LFiles, LSubs: TStringArray;
+  I, N, NS: Integer;
 begin
   SetLength(LFiles, Length(FileNames));
+  SetLength(LSubs, Length(FileNames));
+  N := 0;
+  NS := 0;
   for I := 0 to High(FileNames) do
-    LFiles[I] := FileNames[I];
-  FrmList.ReplaceFiles(LFiles);
+    if IsSubtitleFile(FileNames[I]) then
+    begin
+      LSubs[NS] := FileNames[I];
+      Inc(NS);
+    end
+    else
+    begin
+      LFiles[N] := FileNames[I];
+      Inc(N);
+    end;
+  SetLength(LFiles, N);
+  SetLength(LSubs, NS);
+
+  if N > 0 then
+    FrmList.ReplaceFiles(LFiles)
+  else
+    AddSubtitles(LSubs);
+end;
+
+// 외부 자막을 재생 중 영상에 추가 — 첫 파일 선택, 표시 켬 (떨군 것 = 보려는 것).
+// 1.1.0.0 까지는 자막 드롭이 ReplaceFiles 로 가 목록만 비우고 재생이 멈췄다 (2026-09-29 문의).
+procedure TFrmKPlayer.AddSubtitles(const AFiles: TStringArray);
+var
+  I: Integer;
+begin
+  if Length(AFiles) = 0 then Exit;
+  if not IsLoaded then
+  begin
+    Alert(_('자막을 넣을 영상을 먼저 재생하세요'), ALERT_WARN);
+    Exit;
+  end;
+
+  for I := 0 to High(AFiles) do
+    if I = 0 then
+      MPVPlayer.Command(['sub-add', AFiles[I], 'select'])
+    else
+      MPVPlayer.Command(['sub-add', AFiles[I], 'auto']);
+  MPVPlayer.Command(['set', 'sub-visibility', 'yes']);
+  Alert(_('자막을 불러왔습니다') + ' — ' + ExtractFileName(AFiles[0]));
 end;
 
 procedure TFrmKPlayer.OnScriptMessage(ASender: TObject; const ACommand: string; AParams: TStrings);

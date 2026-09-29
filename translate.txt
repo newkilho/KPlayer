@@ -1827,3 +1827,63 @@ it=Aggiungi alla playlist attiva
 fr=Ajouter à la liste ouverte
 es=Añadir a la lista abierta
 ar=إضافة إلى قائمة النافذة المفتوحة
+
+ko=외부 자막 자동 로드
+en=Auto-load external subtitles
+ja=外部字幕を自動で読み込む
+zh=自动加载外部字幕
+ru=Автозагрузка внешних субтитров
+it=Caricamento automatico sottotitoli esterni
+fr=Chargement auto des sous-titres externes
+es=Carga automática de subtítulos externos
+ar=تحميل الترجمات الخارجية تلقائيًا
+
+ko=같은 이름만
+en=Same name only
+ja=同じ名前のみ
+zh=仅同名
+ru=Только с тем же именем
+it=Solo con lo stesso nome
+fr=Même nom uniquement
+es=Solo con el mismo nombre
+ar=الاسم نفسه فقط
+
+ko=이름이 포함된 자막
+en=Names containing the video name
+ja=動画名を含む字幕
+zh=包含视频名的字幕
+ru=Содержащие имя видео
+it=Contenenti il nome del video
+fr=Contenant le nom de la vidéo
+es=Que contengan el nombre del vídeo
+ar=التي تحتوي على اسم الفيديو
+
+ko=폴더의 모든 자막
+en=All subtitles in the folder
+ja=フォルダ内のすべての字幕
+zh=文件夹中的所有字幕
+ru=Все субтитры в папке
+it=Tutti i sottotitoli della cartella
+fr=Tous les sous-titres du dossier
+es=Todos los subtítulos de la carpeta
+ar=جميع الترجمات في المجلد
+
+ko=자막을 넣을 영상을 먼저 재생하세요
+en=Play a video first, then drop the subtitle
+ja=字幕を追加する動画を先に再生してください
+zh=请先播放要添加字幕的视频
+ru=Сначала запустите видео для субтитров
+it=Riproduci prima il video a cui aggiungere i sottotitoli
+fr=Lisez d'abord la vidéo à sous-titrer
+es=Reproduce primero el vídeo al que añadir subtítulos
+ar=شغّل الفيديو أولًا ثم أضف الترجمة
+
+ko=자막을 불러왔습니다
+en=Subtitle loaded
+ja=字幕を読み込みました
+zh=已加载字幕
+ru=Субтитры загружены
+it=Sottotitoli caricati
+fr=Sous-titres chargés
+es=Subtítulos cargados
+ar=تم تحميل الترجمة

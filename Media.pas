@@ -77,6 +77,12 @@ const
   ShotFmtValues:   array[0..1] of string = ('jpg', 'png');
   SubAlignValues:  array[0..2] of string = ('left', 'center', 'right');   // sub-align-x
   SubAssValues:    array[0..1] of string = ('force', 'yes');              // sub-ass-override: 0=우리 스타일 강제 1=자막 파일 스타일 우선
+  // sub-auto: 0=끔 1=같은 이름만(영상.smi·영상.ko.smi, mpv 기본) 2=이름 포함(기본) 3=폴더의 모든 자막.
+  // 1.1.0.0 까지 미설정 = exact → 이름 다른 smi 가 안 떠 '자막 미지원' 문의 (2026-09-29).
+  SubAutoValues:   array[0..3] of string = ('no', 'exact', 'fuzzy', 'all');
+
+  // 드롭으로 sub-add 할 외부 자막. mpv 가 읽는 형식 중 흔한 것만 (.lrc 는 가사라 뺌).
+  SubtitleExts: array[0..8] of string = ('.smi', '.sami', '.srt', '.ass', '.ssa', '.vtt', '.sub', '.idx', '.sup');
 
   // 음량 평준화 프리셋 (dynaudnorm) — 0:낮게 1:보통 2:강하게
   NormFilters: array[0..2] of string = (
@@ -89,6 +95,9 @@ function AssocIndexOf(const AExt: string): Integer;
 
 // 재생 가능 파일 판정. List.AddFile 필터도 이 함수.
 function IsMediaFile(const AFileName: string): Boolean;
+
+// 외부 자막 파일 (SubtitleExts). 목록에 넣지 않고 재생 중 영상에 sub-add.
+function IsSubtitleFile(const AFileName: string): Boolean;
 
 // 재생목록 파일 (.m3u/.m3u8/.pls) — 목록 추가 시 항목으로 펼쳐야 함.
 function IsPlaylistFile(const AFileName: string): Boolean;
@@ -117,6 +126,18 @@ end;
 function IsMediaFile(const AFileName: string): Boolean;
 begin
   Result := AssocIndexOf(ExtractFileExt(AFileName)) >= 0;
+end;
+
+function IsSubtitleFile(const AFileName: string): Boolean;
+var
+  LExt: string;
+  I: Integer;
+begin
+  LExt := ExtractFileExt(AFileName);
+  for I := Low(SubtitleExts) to High(SubtitleExts) do
+    if SameText(SubtitleExts[I], LExt) then
+      Exit(True);
+  Result := False;
 end;
 
 function IsPlaylistFile(const AFileName: string): Boolean;
