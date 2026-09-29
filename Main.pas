@@ -17,6 +17,12 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
+  1.1.4.0
+  [*] 창 가장자리 끌어도 크기 안 바뀌던 문제 - bsNone(WS_POPUP)은 WS_THICKFRAME 없으면 HTRIGHT 등을 줘도 크기 조절 안 함.
+      가장자리 누르는 동안만 WS_THICKFRAME 켬 + WM_NCCALCSIZE 로 테두리 숨김, 끝나면 LCL 크기 재동기 (OSUtil.pas: RunSizingLoop / Main.pas: WndHook)
+  [*] 가장자리 커서가 화살표로 남던 문제 - Delphi 는 VCL 이 WM_SETCURSOR 를 기본 처리로 넘겨 저절로 됐으나 LCL 은 폼 Cursor 로 덮음.
+      WM_SETCURSOR 에서 HT 값별 크기 조절 커서 (Main.pas: WndHook)
+
   1.1.3.0
   [*] <P> 태그 없는 SMI ('<SYNC Start=..>텍스트') 는 트랙만 생기고 글자가 안 뜨던 문제 - FFmpeg 디코더는 '<P' 뒤만 읽음.
       SYNC 마다 '<P>' 넣은 사본으로 교체, mpv 가 넣어 둔 빈 원본 트랙은 sub-remove (MPVPlayer.pas: SamiAddParagraphs, FindExtSub)
@@ -717,6 +723,8 @@ end;
 
 // 창 프로시저 가로채기 (OSUtil.HookWindowMessages).
 //   WM_NCHITTEST   가장자리 8px = 리사이즈 (테두리 없는 창). 전체화면(최대화) 중엔 안 함.
+//   WM_NCLBUTTONDOWN 가장자리 누름 → RunSizingLoop (WS_THICKFRAME 없으면 기본 처리가 크기 조절 안 함).
+//   WM_NCCALCSIZE  그 루프 동안의 WS_THICKFRAME 테두리 없앰.
 //   WM_DEVICECHANGE USB·네트워크 드라이브가 붙거나 빠지면 목록의 '없는 파일' 판정이 통째로 뒤집힌다.
 //   WM_COPYDATA    다른 실행이 넘긴 파일 (Instance.pas). 보낸 쪽이 SendMessage 로 기다리므로 여기선 모으기만.
 function TFrmKPlayer.WndHook(AMsg: Cardinal; AW: PtrUInt; AL: PtrInt;
@@ -729,6 +737,7 @@ const
   DBT_DEVNODES_CHANGED     = $0007;
 var
   P: TPoint;
+  R: Windows.RECT;
   IsLeft, IsRight, IsTop, IsBottom: Boolean;
   LFiles: TStringArray;
   I, N: Integer;
@@ -760,6 +769,38 @@ begin
 
         AHandled := True;
       end;
+
+    // 가장자리 커서 — LCL 이 폼 Cursor 로 덮어 화살표로 남는다
+    WM_SETCURSOR:
+      if (WindowState <> wsMaximized) and (AW = PtrUInt(Handle)) then
+      begin
+        case LoWord(DWORD(AL)) of
+          HTLEFT, HTRIGHT:             Windows.SetCursor(LoadCursor(0, IDC_SIZEWE));
+          HTTOP, HTBOTTOM:             Windows.SetCursor(LoadCursor(0, IDC_SIZENS));
+          HTTOPLEFT, HTBOTTOMRIGHT:    Windows.SetCursor(LoadCursor(0, IDC_SIZENWSE));
+          HTTOPRIGHT, HTBOTTOMLEFT:    Windows.SetCursor(LoadCursor(0, IDC_SIZENESW));
+        else
+          Exit;
+        end;
+        Result := 1;
+        AHandled := True;
+      end;
+
+    WM_NCLBUTTONDOWN:
+      if (AW >= HTLEFT) and (AW <= HTBOTTOMRIGHT) and (WindowState <> wsMaximized) then
+      begin
+        RunSizingLoop(Handle, AW, AL);
+        // 루프 중 LCL 은 WS_THICKFRAME 기준으로 Width = 창 − 14 를 기억, 스타일 복원(SWP_NOSIZE)으론 안 고침
+        // → 저장 크기가 14px 작아짐 (실측). 실제 창 크기로 다시 맞춘다.
+        GetWindowRect(Handle, R);
+        SetBounds(R.Left, R.Top, R.Right - R.Left, R.Bottom - R.Top);
+        AHandled := True;
+      end;
+
+    // RunSizingLoop 동안 켜는 WS_THICKFRAME 테두리 제거 — 창 전체를 클라이언트로
+    WM_NCCALCSIZE:
+      if AW <> 0 then
+        AHandled := True;   // Result = 0
 
     // DBT_DEVNODES_CHANGED 까지 받는 이유 — 매핑 드라이브 복구가 볼륨 통지 없이 오는 경우가 있다.
     WM_DEVICECHANGE:

@@ -42,6 +42,13 @@ type
 // 반환 객체를 Free 하면 해제. 비-Windows 는 nil (아무 일 없음).
 function HookWindowMessages(AHandle: THandle; AEvent: TWndHookEvent): TObject;
 
+// 가장자리 WM_NCLBUTTONDOWN(AHit = HTLEFT..HTBOTTOMRIGHT) → 크기 조절 루프. 끝나야 돌아온다.
+// bsNone(WS_POPUP)은 WM_NCHITTEST 가 HTRIGHT 등을 줘도 WS_THICKFRAME 없으면 DefWindowProc 가 크기 조절 안 함
+// (1.1.4.0 실측: 끌어도 그대로, 붙이면 됨). 상시로 켜 두면 안 됨 — LCL 폼 Width = 창 − AdjustWindowRectEx(현재 스타일)
+// 이라 실제 창이 14px 커진다 (SetBounds·ResizeWindow 어긋남). 그래서 루프 동안만 켠다.
+// 켜진 동안 테두리 안 보이게 창 쪽에서 WM_NCCALCSIZE(wParam≠0) → 0. 비-Windows 는 아무 일 없음.
+procedure RunSizingLoop(AHandle: THandle; AHit: PtrUInt; APos: PtrInt);
+
 implementation
 
 uses
@@ -254,10 +261,36 @@ begin
   H.FHooked := SetWindowSubclass(AHandle, @HookProc, HookSubclassID, DWORD_PTR(H));
   Result := H;
 end;
+
+procedure SetSizingFrame(AHandle: THandle; AOn: Boolean);
+var
+  S, N: LONG_PTR;
+begin
+  S := GetWindowLongPtrW(AHandle, GWL_STYLE);
+  if AOn then N := S or WS_THICKFRAME else N := S and not WS_THICKFRAME;
+  if N = S then Exit;
+  SetWindowLongPtrW(AHandle, GWL_STYLE, N);
+  SetWindowPos(AHandle, 0, 0, 0, 0, 0,
+    SWP_NOMOVE or SWP_NOSIZE or SWP_NOZORDER or SWP_NOACTIVATE or SWP_FRAMECHANGED);
+end;
+
+procedure RunSizingLoop(AHandle: THandle; AHit: PtrUInt; APos: PtrInt);
+begin
+  SetSizingFrame(AHandle, True);
+  try
+    DefWindowProcW(AHandle, WM_NCLBUTTONDOWN, AHit, APos);   // → SC_SIZE 모달 루프
+  finally
+    SetSizingFrame(AHandle, False);
+  end;
+end;
 {$ELSE}
 function HookWindowMessages(AHandle: THandle; AEvent: TWndHookEvent): TObject;
 begin
   Result := nil;
+end;
+
+procedure RunSizingLoop(AHandle: THandle; AHit: PtrUInt; APos: PtrInt);
+begin
 end;
 {$ENDIF}
 
