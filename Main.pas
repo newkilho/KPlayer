@@ -17,6 +17,10 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
+  1.1.3.0
+  [*] <P> 태그 없는 SMI ('<SYNC Start=..>텍스트') 는 트랙만 생기고 글자가 안 뜨던 문제 - FFmpeg 디코더는 '<P' 뒤만 읽음.
+      SYNC 마다 '<P>' 넣은 사본으로 교체, mpv 가 넣어 둔 빈 원본 트랙은 sub-remove (MPVPlayer.pas: SamiAddParagraphs, FindExtSub)
+
   1.1.2.0
   [*] SMI 만 안 뜨던 문제 - FFmpeg 는 첫 6바이트가 '<SAMI>' 인 파일만 SAMI 로 인식 ('<sami>'·앞 빈 줄이면 자동 로드·드롭 모두 무시).
       머리말 고친 사본을 %TEMP%\KPlayer\sub 에 써서 sub-add (MPVPlayer.pas: SamiLoadPath, DoEventFileLoaded / Main.pas: AddSubtitles)

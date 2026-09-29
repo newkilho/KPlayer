@@ -16,7 +16,7 @@ uses
   {$IFDEF WINDOWS}
   Windows,
   {$ENDIF}
-  SysUtils, Classes, SyncObjs,
+  SysUtils, Classes, SyncObjs, StrUtils,
   MPVBasePlayer, MPVClient;
 
 type
@@ -56,9 +56,11 @@ type
     function DoEventStartFile(pSF: P_mpv_event_start_file): TMPVErrorCode; override;
     function DoEventVideoReconfig: TMPVErrorCode; override;
 
-    // 머리말 깨진 SMI 자동 로드 — mpv sub-auto 는 probe 실패로 조용히 건너뜀 (SamiLoadPath).
+    // 머리말 깨진·<P> 없는 SMI 자동 로드 — mpv sub-auto 는 probe 실패로 건너뛰거나 빈 트랙 (SamiLoadPath).
     // 규칙은 sub-auto 값 따라: exact=같은 이름(·이름.언어) fuzzy=이름 포함 all=전부. 이벤트 스레드.
     function DoEventFileLoaded: TMPVErrorCode; override;
+    // 외부 자막 트랙 중 external-filename = AFile 인 것 (구분자·대소문자 무시)
+    function FindExtSub(const AFile: string; out Id: string; out Sel: Boolean): Boolean;
 
   public
     // script-message 수신 이벤트 (UI 스레드에서 호출됨)
@@ -76,6 +78,8 @@ type
 // 공백·주석으로 시작하는 흔한 SMI 가 sub-auto·sub-add 모두 실패 → 'smi 만 안 뜬다' 문의 (1.1.1.0, 2026-09-29).
 // 머리말만 고치면 본문(소문자 태그 포함)은 읽힌다 (libmpv 실측). 깨졌으면 %TEMP%\KPlayer\sub\ 에 같은 이름으로
 // 고친 사본을 쓰고 그 경로, 멀쩡하거나 실패면 AFile 그대로. 8비트 인코딩만 (UTF-16 은 그대로 둠).
+// <P> 없는 SMI('<SYNC Start=..>텍스트'): probe 는 통과하나 디코더가 '<P' 뒤만 꺼내 트랙은 있고 글자 없음
+// (1.1.3.0 z:\test.smi, libmpv 실측) → SYNC 마다 '<P>' 넣음.
 function SamiLoadPath(const AFile: string): string;
 
 implementation
@@ -88,11 +92,43 @@ begin
   Result := (Ext = '.smi') or (Ext = '.sami');
 end;
 
+// '<SYNC ...>' 뒤(공백 건너뜀)가 '<P>'·'<P ' 가 아니면 '<P>' 삽입. Changed = 하나라도 넣었나.
+function SamiAddParagraphs(const Body: RawByteString; out Changed: Boolean): RawByteString;
+var
+  Low: RawByteString;
+  I, N, Last, Q: Integer;
+begin
+  Changed := False;
+  Low := LowerCase(Body);
+  N := Length(Body);
+  Result := '';
+  Last := 1;
+  I := Pos('<sync', Low);
+  while I > 0 do
+  begin
+    Q := I;
+    while (Q <= N) and (Low[Q] <> '>') do Inc(Q);
+    if Q > N then Break;
+    I := Q + 1;
+    while (I <= N) and (Low[I] in [' ', #9, #13, #10]) do Inc(I);
+    if not ((I + 2 <= N) and (Low[I] = '<') and (Low[I + 1] = 'p') and
+            (Low[I + 2] in ['>', ' ', #9, #13, #10])) then
+    begin
+      Result := Result + Copy(Body, Last, Q + 1 - Last) + '<P>';
+      Last := Q + 1;
+      Changed := True;
+    end;
+    I := PosEx('<sync', Low, Q + 1);
+  end;
+  Result := Result + Copy(Body, Last, MaxInt);
+end;
+
 function SamiLoadPath(const AFile: string): string;
 var
   F: TFileStream;
   Data, Head, Body, Low: RawByteString;
   P, Q: Integer;
+  HeadOk, ParaAdded: Boolean;
   Dir: string;
 begin
   Result := AFile;
@@ -113,16 +149,22 @@ begin
     else if (Copy(Data, 1, 2) = #$FF#$FE) or (Copy(Data, 1, 2) = #$FE#$FF) then
       Exit;
     Body := Copy(Data, Length(Head) + 1, MaxInt);
-    if Copy(Body, 1, 6) = '<SAMI>' then Exit;
-
-    Low := LowerCase(Body);
-    P := Pos('<sami', Low);
-    if P > 0 then
+    HeadOk := Copy(Body, 1, 6) = '<SAMI>';
+    if HeadOk then
+      Delete(Body, 1, 6)
+    else
     begin
-      Q := Pos('>', Copy(Low, P, MaxInt));
-      if Q > 0 then
-        Body := Copy(Body, P + Q, MaxInt);
+      Low := LowerCase(Body);
+      P := Pos('<sami', Low);
+      if P > 0 then
+      begin
+        Q := Pos('>', Copy(Low, P, MaxInt));
+        if Q > 0 then
+          Body := Copy(Body, P + Q, MaxInt);
+      end;
     end;
+    Body := SamiAddParagraphs(Body, ParaAdded);
+    if HeadOk and not ParaAdded then Exit;
 
     Dir := IncludeTrailingPathDelimiter(GetTempDir(False)) + 'KPlayer' + PathDelim + 'sub';
     ForceDirectories(Dir);
@@ -140,6 +182,32 @@ begin
 end;
 
 { TMPVPlayer }
+
+function TMPVPlayer.FindExtSub(const AFile: string; out Id: string; out Sel: Boolean): Boolean;
+var
+  Cnt: Int64;
+  I: Integer;
+  S, Key: string;
+begin
+  Result := False;
+  Id := '';
+  Sel := False;
+  Cnt := 0;
+  if GetPropertyInt64('track-list/count', Cnt, False) <> MPV_ERROR_SUCCESS then Exit;
+  Key := LowerCase(StringReplace(AFile, '/', '\', [rfReplaceAll]));
+  for I := 0 to Cnt - 1 do
+  begin
+    S := '';
+    GetPropertyString(Format('track-list/%d/type', [I]), S, False);
+    if S <> 'sub' then Continue;
+    S := '';
+    GetPropertyString(Format('track-list/%d/external-filename', [I]), S, False);
+    if LowerCase(StringReplace(S, '/', '\', [rfReplaceAll])) <> Key then Continue;
+    GetPropertyString(Format('track-list/%d/id', [I]), Id, False);
+    GetPropertyBool(Format('track-list/%d/selected', [I]), Sel, False);
+    Exit(Id <> '');
+  end;
+end;
 
 // Debug 빌드 전용 — DebugView 로 확인. Release 는 호출 자체가 없다.
 procedure TMPVPlayer.Log(const sMsg: string; bError: Boolean);
@@ -159,9 +227,9 @@ end;
 
 function TMPVPlayer.DoEventFileLoaded: TMPVErrorCode;
 var
-  Path, Mode, Sid, Dir, Base, Name, Fixed: string;
+  Path, Mode, Sid, Dir, Base, Name, Fixed, Id: string;
   SR: TSearchRec;
-  Match, Selected: Boolean;
+  Match, Selected, WasSel: Boolean;
 begin
   Result := inherited DoEventFileLoaded;
   Path := '';
@@ -190,6 +258,12 @@ begin
 
       Fixed := SamiLoadPath(Dir + SR.Name);
       if Fixed = Dir + SR.Name then Continue;   // 멀쩡 → mpv 가 이미 넣음
+      // <P> 없는 SMI 는 probe 통과 → mpv 가 빈 트랙으로 넣어 둠. 빼고 사본으로 (선택돼 있었으면 사본 선택)
+      if FindExtSub(Dir + SR.Name, Id, WasSel) then
+      begin
+        Command(['sub-remove', Id]);
+        if WasSel then Selected := False;
+      end;
       if Selected then
         Command(['sub-add', Fixed, 'auto'])
       else
