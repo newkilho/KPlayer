@@ -17,6 +17,10 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
+  1.1.2.0
+  [*] SMI 만 안 뜨던 문제 - FFmpeg 는 첫 6바이트가 '<SAMI>' 인 파일만 SAMI 로 인식 ('<sami>'·앞 빈 줄이면 자동 로드·드롭 모두 무시).
+      머리말 고친 사본을 %TEMP%\KPlayer\sub 에 써서 sub-add (MPVPlayer.pas: SamiLoadPath, DoEventFileLoaded / Main.pas: AddSubtitles)
+
   1.1.1.0
   [+] 외부 자막 자동 로드 - 환경설정 자막 '외부 자막 자동 로드' = 사용안함 / 같은 이름만 / 이름이 포함된 자막(기본) / 폴더의 모든 자막 (mpv sub-auto).
       전엔 미설정 = exact 라 이름 다른 smi 가 안 떠 'smi 미지원' 문의 (Setup.pas: ApplySubStyle, CboSubAuto / Media.pas: SubAutoValues)
@@ -516,9 +520,9 @@ begin
 
   for I := 0 to High(AFiles) do
     if I = 0 then
-      MPVPlayer.Command(['sub-add', AFiles[I], 'select'])
+      MPVPlayer.Command(['sub-add', SamiLoadPath(AFiles[I]), 'select'])
     else
-      MPVPlayer.Command(['sub-add', AFiles[I], 'auto']);
+      MPVPlayer.Command(['sub-add', SamiLoadPath(AFiles[I]), 'auto']);
   MPVPlayer.Command(['set', 'sub-visibility', 'yes']);
   Alert(_('자막을 불러왔습니다') + ' — ' + ExtractFileName(AFiles[0]));
 end;

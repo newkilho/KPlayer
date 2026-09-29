@@ -56,6 +56,10 @@ type
     function DoEventStartFile(pSF: P_mpv_event_start_file): TMPVErrorCode; override;
     function DoEventVideoReconfig: TMPVErrorCode; override;
 
+    // 머리말 깨진 SMI 자동 로드 — mpv sub-auto 는 probe 실패로 조용히 건너뜀 (SamiLoadPath).
+    // 규칙은 sub-auto 값 따라: exact=같은 이름(·이름.언어) fuzzy=이름 포함 all=전부. 이벤트 스레드.
+    function DoEventFileLoaded: TMPVErrorCode; override;
+
   public
     // script-message 수신 이벤트 (UI 스레드에서 호출됨)
     property OnScriptMessage: TMPVScriptMessageEvent
@@ -68,7 +72,72 @@ type
       write m_eOnVideoSize;
   end;
 
+// FFmpeg sami probe = 파일 첫 6바이트가 정확히 '<SAMI>' (대소문자 구분, BOM 만 건너뜀). '<sami>'·앞 빈 줄·
+// 공백·주석으로 시작하는 흔한 SMI 가 sub-auto·sub-add 모두 실패 → 'smi 만 안 뜬다' 문의 (1.1.1.0, 2026-09-29).
+// 머리말만 고치면 본문(소문자 태그 포함)은 읽힌다 (libmpv 실측). 깨졌으면 %TEMP%\KPlayer\sub\ 에 같은 이름으로
+// 고친 사본을 쓰고 그 경로, 멀쩡하거나 실패면 AFile 그대로. 8비트 인코딩만 (UTF-16 은 그대로 둠).
+function SamiLoadPath(const AFile: string): string;
+
 implementation
+
+function IsSamiExt(const AFile: string): Boolean;
+var
+  Ext: string;
+begin
+  Ext := LowerCase(ExtractFileExt(AFile));
+  Result := (Ext = '.smi') or (Ext = '.sami');
+end;
+
+function SamiLoadPath(const AFile: string): string;
+var
+  F: TFileStream;
+  Data, Head, Body, Low: RawByteString;
+  P, Q: Integer;
+  Dir: string;
+begin
+  Result := AFile;
+  if not IsSamiExt(AFile) then Exit;
+  try
+    F := TFileStream.Create(AFile, fmOpenRead or fmShareDenyNone);
+    try
+      SetLength(Data, F.Size);
+      if F.Size > 0 then
+        F.ReadBuffer(Data[1], F.Size);
+    finally
+      F.Free;
+    end;
+
+    Head := '';
+    if Copy(Data, 1, 3) = #$EF#$BB#$BF then
+      Head := #$EF#$BB#$BF
+    else if (Copy(Data, 1, 2) = #$FF#$FE) or (Copy(Data, 1, 2) = #$FE#$FF) then
+      Exit;
+    Body := Copy(Data, Length(Head) + 1, MaxInt);
+    if Copy(Body, 1, 6) = '<SAMI>' then Exit;
+
+    Low := LowerCase(Body);
+    P := Pos('<sami', Low);
+    if P > 0 then
+    begin
+      Q := Pos('>', Copy(Low, P, MaxInt));
+      if Q > 0 then
+        Body := Copy(Body, P + Q, MaxInt);
+    end;
+
+    Dir := IncludeTrailingPathDelimiter(GetTempDir(False)) + 'KPlayer' + PathDelim + 'sub';
+    ForceDirectories(Dir);
+    Result := IncludeTrailingPathDelimiter(Dir) + ExtractFileName(AFile);
+    Data := Head + '<SAMI>' + Body;
+    F := TFileStream.Create(Result, fmCreate);
+    try
+      F.WriteBuffer(Data[1], Length(Data));
+    finally
+      F.Free;
+    end;
+  except
+    Result := AFile;
+  end;
+end;
 
 { TMPVPlayer }
 
@@ -86,6 +155,52 @@ function TMPVPlayer.DoEventStartFile(pSF: P_mpv_event_start_file): TMPVErrorCode
 begin
   m_bSized := False;
   Result := inherited DoEventStartFile(pSF);
+end;
+
+function TMPVPlayer.DoEventFileLoaded: TMPVErrorCode;
+var
+  Path, Mode, Sid, Dir, Base, Name, Fixed: string;
+  SR: TSearchRec;
+  Match, Selected: Boolean;
+begin
+  Result := inherited DoEventFileLoaded;
+  Path := '';
+  Mode := '';
+  GetPropertyString('path', Path);
+  GetPropertyString('sub-auto', Mode);
+  if (Path = '') or (Pos('://', Path) > 0) or (Mode = '') or (Mode = 'no') then Exit;
+
+  Sid := '';
+  GetPropertyString('sid', Sid);
+  Selected := (Sid <> '') and (Sid <> 'no');
+  Dir := IncludeTrailingPathDelimiter(ExtractFilePath(Path));
+  Base := LowerCase(ChangeFileExt(ExtractFileName(Path), ''));
+  if FindFirst(Dir + '*', faAnyFile, SR) = 0 then
+  try
+    repeat
+      if ((SR.Attr and faDirectory) <> 0) or not IsSamiExt(SR.Name) then Continue;
+      Name := LowerCase(ChangeFileExt(SR.Name, ''));
+      if Mode = 'all' then
+        Match := True
+      else if Mode = 'fuzzy' then
+        Match := Pos(Base, Name) > 0
+      else
+        Match := (Name = Base) or (Copy(Name, 1, Length(Base) + 1) = Base + '.');
+      if not Match then Continue;
+
+      Fixed := SamiLoadPath(Dir + SR.Name);
+      if Fixed = Dir + SR.Name then Continue;   // 멀쩡 → mpv 가 이미 넣음
+      if Selected then
+        Command(['sub-add', Fixed, 'auto'])
+      else
+      begin
+        Command(['sub-add', Fixed, 'select']);
+        Selected := True;
+      end;
+    until FindNext(SR) <> 0;
+  finally
+    FindClose(SR);
+  end;
 end;
 
 procedure TMPVPlayer.SyncVideoSize;
