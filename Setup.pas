@@ -19,6 +19,13 @@ function DefaultSubLang: string;
 procedure ApplySubStyle(AConfig: TConfig; AMPV: TMPVPlayer);
 
 type
+  // 메뉴 버튼 마우스 오버 = 선택(Down)과 같은 둥근 배경 (Delphi 판 Flat TSpeedButton 의 hot 표시 대응, 사용자 지정).
+  // klib 은 공유라 안 고치고 같은 이름 가로채기 클래스 — LFM 은 폼 필드 형으로 클래스를 찾아 이쪽이 만들어진다.
+  // 다시 그리기는 LCL 이 해 준다 (Flat 이면 MouseEnter/Leave → UpdateState → Invalidate).
+  TKMenuButton = class(KTheme.TKMenuButton)
+  protected
+    procedure Paint; override;
+  end;
 
   { TFrmSetup }
 
@@ -46,6 +53,10 @@ type
     CboRandom: TComboBox;
     LblSaveList: TLabel;
     CboSaveList: TComboBox;
+    LblFolderAdd: TLabel;
+    CboFolderAdd: TComboBox;
+    LblInstance: TLabel;
+    CboInstance: TComboBox;
     LblShotDir: TLabel;
     EdtShotDir: TEdit;
     BtnShotDir: TButton;
@@ -311,6 +322,20 @@ const
   BadgeTextNormal = '적용안됨';
 
 {$I Const.inc}
+
+procedure TKMenuButton.Paint;
+begin
+  if MouseInControl and not Down and Enabled then
+  begin
+    Canvas.Brush.Style := bsSolid;
+    Canvas.Brush.Color := SelColor;
+    Canvas.Pen.Style := psSolid;
+    Canvas.Pen.Width := 1;
+    Canvas.Pen.Color := SelBorderColor;
+    Canvas.RoundRect(0, 0, Width, Height, CornerRadius, CornerRadius);
+  end;
+  inherited Paint;   // 글자 (+ Down 이면 배경)
+end;
 
 function DefaultSubLang: string;
 begin
@@ -1527,6 +1552,8 @@ begin
   Config.WriteInteger('repeat', 0);
   Config.WriteInteger('random', 0);
   Config.WriteInteger('save_playlist', 1);
+  Config.WriteInteger('folder_add', 1);
+  Config.WriteInteger('instance_mode', 1);
   Config.WriteString('shot_dir', DesktopPath);
   Config.WriteInteger('shot_format', 0);
   Config.WriteInteger('topmost', 0);
@@ -1636,6 +1663,8 @@ begin
     CboRepeat.ItemIndex := EnsureRange(CfgInt('repeat', 0), 0, CboRepeat.Items.Count - 1);
     CboRandom.ItemIndex := EnsureRange(CfgInt('random', 0), 0, CboRandom.Items.Count - 1);
     SetCboOn(CboSaveList, CfgInt('save_playlist', 1) <> 0);
+    CboFolderAdd.ItemIndex := EnsureRange(CfgInt('folder_add', 1), 0, CboFolderAdd.Items.Count - 1);
+    CboInstance.ItemIndex := EnsureRange(CfgInt('instance_mode', 1), 0, CboInstance.Items.Count - 1);
     EdtShotDir.Text := CfgStr('shot_dir', DesktopPath);
     CboShotFmt.ItemIndex := EnsureRange(CfgInt('shot_format', 0), 0, CboShotFmt.Items.Count - 1);
     SetCboOn(CboTopMost, CfgInt('topmost', 0) <> 0);
@@ -1696,6 +1725,8 @@ begin
 
   // 목록 자체는 종료 시 List.SavePlaylist 가 기록 (여기는 켜짐/꺼짐만)
   Config.WriteInteger('save_playlist', B2I(CboOn(CboSaveList)));
+  Config.WriteInteger('folder_add', CboFolderAdd.ItemIndex);   // 열 때 읽는다 (List.ExpandFolder) — ApplyLive 불필요
+  Config.WriteInteger('instance_mode', CboInstance.ItemIndex); // 다음 실행이 읽는다 (Instance.ForwardToRunning)
 
   Config.WriteInteger('shot_format', CboShotFmt.ItemIndex);
   Config.WriteInteger('topmost', B2I(CboOn(CboTopMost)));

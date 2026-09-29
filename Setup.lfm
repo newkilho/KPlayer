@@ -41,7 +41,7 @@ object FrmSetup: TFrmSetup
     object BtnVideo: TKMenuButton
       Tag = 1
       Left = 8
-      Top = 46
+      Top = 52
       Width = 99
       Height = 32
       GroupIndex = 1
@@ -52,7 +52,7 @@ object FrmSetup: TFrmSetup
     object BtnAudio: TKMenuButton
       Tag = 2
       Left = 8
-      Top = 84
+      Top = 96
       Width = 99
       Height = 32
       GroupIndex = 1
@@ -63,7 +63,7 @@ object FrmSetup: TFrmSetup
     object BtnSub: TKMenuButton
       Tag = 3
       Left = 8
-      Top = 122
+      Top = 140
       Width = 99
       Height = 32
       GroupIndex = 1
@@ -74,7 +74,7 @@ object FrmSetup: TFrmSetup
     object BtnAssoc: TKMenuButton
       Tag = 4
       Left = 8
-      Top = 160
+      Top = 184
       Width = 99
       Height = 32
       GroupIndex = 1
@@ -85,7 +85,7 @@ object FrmSetup: TFrmSetup
     object BtnKeys: TKMenuButton
       Tag = 5
       Left = 8
-      Top = 198
+      Top = 228
       Width = 99
       Height = 32
       GroupIndex = 1
@@ -96,7 +96,7 @@ object FrmSetup: TFrmSetup
     object BtnMouse: TKMenuButton
       Tag = 6
       Left = 8
-      Top = 236
+      Top = 272
       Width = 99
       Height = 32
       GroupIndex = 1
@@ -107,7 +107,7 @@ object FrmSetup: TFrmSetup
     object BtnAbout: TKMenuButton
       Tag = 7
       Left = 8
-      Top = 274
+      Top = 316
       Width = 99
       Height = 32
       GroupIndex = 1
@@ -203,56 +203,90 @@ object FrmSetup: TFrmSetup
           BorderStyle = bsNone
           TabOrder = 0
           object LblRepeat: TLabel
+            AnchorSideTop.Control = CboRepeat
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 21
+            Top = 23
             Width = 51
             Height = 15
             Caption = '반복 모드'
             Transparent = True
           end
           object LblRandom: TLabel
+            AnchorSideTop.Control = CboRandom
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 85
+            Top = 63
             Width = 51
             Height = 15
             Caption = '랜덤 재생'
             Transparent = True
           end
           object LblSaveList: TLabel
+            AnchorSideTop.Control = CboSaveList
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 149
+            Top = 103
             Width = 75
             Height = 15
             Caption = '재생목록 저장'
             Transparent = True
           end
-          object LblShotDir: TLabel
+          object LblFolderAdd: TLabel
+            AnchorSideTop.Control = CboFolderAdd
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 213
+            Top = 143
+            Width = 123
+            Height = 15
+            Caption = '폴더 내 파일 자동 추가'
+            Transparent = True
+          end
+          object LblInstance: TLabel
+            AnchorSideTop.Control = CboInstance
+            AnchorSideTop.Side = asrCenter
+            Left = 24
+            Top = 183
+            Width = 99
+            Height = 15
+            Caption = '이미 실행 중일 때'
+            Transparent = True
+          end
+          object LblShotDir: TLabel
+            AnchorSideTop.Control = EdtShotDir
+            AnchorSideTop.Side = asrCenter
+            Left = 24
+            Top = 223
             Width = 75
             Height = 15
             Caption = '스크린샷 폴더'
             Transparent = True
           end
           object LblShotFmt: TLabel
+            AnchorSideTop.Control = CboShotFmt
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 277
+            Top = 263
             Width = 24
             Height = 15
             Caption = '형식'
             Transparent = True
           end
           object LblTopMost: TLabel
+            AnchorSideTop.Control = CboTopMost
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 341
+            Top = 303
             Width = 39
             Height = 15
             Caption = '항상 위'
             Transparent = True
           end
           object LblWinSize: TLabel
+            AnchorSideTop.Control = CboWinSize
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 405
+            Top = 343
             Width = 66
             Height = 15
             Caption = '재생 창 크기'
@@ -260,7 +294,7 @@ object FrmSetup: TFrmSetup
           end
           object CboRepeat: TComboBox
             Left = 473
-            Top = 28
+            Top = 19
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -274,7 +308,7 @@ object FrmSetup: TFrmSetup
           end
           object CboRandom: TComboBox
             Left = 473
-            Top = 92
+            Top = 59
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -287,7 +321,7 @@ object FrmSetup: TFrmSetup
           end
           object CboSaveList: TComboBox
             Left = 473
-            Top = 156
+            Top = 99
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -298,33 +332,63 @@ object FrmSetup: TFrmSetup
               '사용안함'
               '사용함')
           end
-          object EdtShotDir: TEdit
-            Left = 325
-            Top = 220
-            Width = 250
-            Height = 23
-            Anchors = [akTop, akRight]
-            ReadOnly = True
-            TabOrder = 3
-          end
-          object BtnShotDir: TButton
-            Left = 583
-            Top = 219
-            Width = 60
-            Height = 26
-            Anchors = [akTop, akRight]
-            Caption = '찾기'
-            TabOrder = 4
-            OnClick = BtnShotDirClick
-          end
-          object CboShotFmt: TComboBox
+          object CboFolderAdd: TComboBox
             Left = 473
-            Top = 284
+            Top = 139
             Width = 170
             Height = 23
             Style = csDropDownList
             Anchors = [akTop, akRight]
+            TabOrder = 3
+            OnChange = ControlChange
+            Items.Strings = (
+              '사용안함'
+              '관련 파일만'
+              '모든 파일')
+          end
+          object CboInstance: TComboBox
+            Left = 473
+            Top = 179
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 4
+            OnChange = ControlChange
+            Items.Strings = (
+              '여러 개 실행 허용'
+              '실행 중인 창에서 재생'
+              '실행 중인 창 목록에 추가')
+          end
+          object EdtShotDir: TEdit
+            Left = 325
+            Top = 219
+            Width = 250
+            Height = 23
+            Anchors = [akTop, akRight]
+            ReadOnly = True
             TabOrder = 5
+          end
+          object BtnShotDir: TButton
+            AnchorSideTop.Control = EdtShotDir
+            AnchorSideTop.Side = asrCenter
+            Left = 583
+            Top = 217
+            Width = 60
+            Height = 26
+            Anchors = [akTop, akRight]
+            Caption = '찾기'
+            TabOrder = 6
+            OnClick = BtnShotDirClick
+          end
+          object CboShotFmt: TComboBox
+            Left = 473
+            Top = 259
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 7
             OnChange = ControlChange
             Items.Strings = (
               'JPG'
@@ -332,12 +396,12 @@ object FrmSetup: TFrmSetup
           end
           object CboTopMost: TComboBox
             Left = 473
-            Top = 348
+            Top = 299
             Width = 170
             Height = 23
             Style = csDropDownList
             Anchors = [akTop, akRight]
-            TabOrder = 6
+            TabOrder = 8
             OnChange = ControlChange
             Items.Strings = (
               '사용안함'
@@ -345,12 +409,12 @@ object FrmSetup: TFrmSetup
           end
           object CboWinSize: TComboBox
             Left = 473
-            Top = 412
+            Top = 339
             Width = 170
             Height = 23
             Style = csDropDownList
             Anchors = [akTop, akRight]
-            TabOrder = 7
+            TabOrder = 9
             OnChange = ControlChange
             Items.Strings = (
               '마지막 크기 유지'
@@ -377,48 +441,60 @@ object FrmSetup: TFrmSetup
           BorderStyle = bsNone
           TabOrder = 0
           object LblHwdec: TLabel
+            AnchorSideTop.Control = CboHwdec
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 21
+            Top = 23
             Width = 87
             Height = 15
             Caption = '하드웨어 디코딩'
             Transparent = True
           end
           object LblVo: TLabel
+            AnchorSideTop.Control = CboVo
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 85
+            Top = 63
             Width = 75
             Height = 15
             Caption = '출력 드라이버'
             Transparent = True
           end
           object LblGpuApi: TLabel
+            AnchorSideTop.Control = CboGpuApi
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 149
+            Top = 103
             Width = 57
             Height = 15
             Caption = '그래픽 API'
             Transparent = True
           end
           object LblVideoSync: TLabel
+            AnchorSideTop.Control = CboVideoSync
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 213
+            Top = 143
             Width = 63
             Height = 15
             Caption = '화면 동기화'
             Transparent = True
           end
           object LblScale: TLabel
+            AnchorSideTop.Control = CboScale
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 277
+            Top = 183
             Width = 60
             Height = 15
             Caption = '업스케일러'
             Transparent = True
           end
           object LblDeint: TLabel
+            AnchorSideTop.Control = CboDeint
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 341
+            Top = 223
             Width = 87
             Height = 15
             Caption = '인터레이스 해제'
@@ -426,7 +502,7 @@ object FrmSetup: TFrmSetup
           end
           object CboHwdec: TComboBox
             Left = 473
-            Top = 28
+            Top = 19
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -440,7 +516,7 @@ object FrmSetup: TFrmSetup
           end
           object CboVo: TComboBox
             Left = 473
-            Top = 92
+            Top = 59
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -453,7 +529,7 @@ object FrmSetup: TFrmSetup
           end
           object CboGpuApi: TComboBox
             Left = 473
-            Top = 156
+            Top = 99
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -468,7 +544,7 @@ object FrmSetup: TFrmSetup
           end
           object CboVideoSync: TComboBox
             Left = 473
-            Top = 220
+            Top = 139
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -481,7 +557,7 @@ object FrmSetup: TFrmSetup
           end
           object CboScale: TComboBox
             Left = 473
-            Top = 284
+            Top = 179
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -496,7 +572,7 @@ object FrmSetup: TFrmSetup
           end
           object CboDeint: TComboBox
             Left = 473
-            Top = 348
+            Top = 219
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -528,16 +604,20 @@ object FrmSetup: TFrmSetup
           BorderStyle = bsNone
           TabOrder = 0
           object LblVolume: TLabel
+            AnchorSideTop.Control = TrkVolume
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 21
+            Top = 23
             Width = 51
             Height = 15
             Caption = '기본 볼륨'
             Transparent = True
           end
           object LblVolumeValue: TLabel
+            AnchorSideTop.Control = TrkVolume
+            AnchorSideTop.Side = asrCenter
             Left = 397
-            Top = 32
+            Top = 23
             Width = 48
             Height = 15
             Alignment = taRightJustify
@@ -547,16 +627,20 @@ object FrmSetup: TFrmSetup
             Transparent = True
           end
           object LblNormalize: TLabel
+            AnchorSideTop.Control = CboNormalize
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 85
+            Top = 63
             Width = 90
             Height = 15
             Caption = '음량 평준화 사용'
             Transparent = True
           end
           object LblNormLevel: TLabel
+            AnchorSideTop.Control = CboNormLevel
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 152
+            Top = 103
             Width = 63
             Height = 15
             Caption = '평준화 강도'
@@ -564,7 +648,7 @@ object FrmSetup: TFrmSetup
           end
           object TrkVolume: TTrackBar
             Left = 453
-            Top = 26
+            Top = 16
             Width = 190
             Height = 28
             Anchors = [akTop, akRight]
@@ -578,7 +662,7 @@ object FrmSetup: TFrmSetup
           end
           object CboNormalize: TComboBox
             Left = 473
-            Top = 93
+            Top = 59
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -591,7 +675,7 @@ object FrmSetup: TFrmSetup
           end
           object CboNormLevel: TComboBox
             Left = 473
-            Top = 148
+            Top = 99
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -623,24 +707,30 @@ object FrmSetup: TFrmSetup
           BorderStyle = bsNone
           TabOrder = 0
           object LblSubVisible: TLabel
+            AnchorSideTop.Control = CboSubVisible
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 21
+            Top = 23
             Width = 78
             Height = 15
             Caption = '자막 기본 표시'
             Transparent = True
           end
           object LblSubSize: TLabel
+            AnchorSideTop.Control = TrkSubSize
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 88
+            Top = 63
             Width = 51
             Height = 15
             Caption = '자막 크기'
             Transparent = True
           end
           object LblSubSizeValue: TLabel
+            AnchorSideTop.Control = TrkSubSize
+            AnchorSideTop.Side = asrCenter
             Left = 397
-            Top = 88
+            Top = 63
             Width = 48
             Height = 15
             Alignment = taRightJustify
@@ -650,48 +740,60 @@ object FrmSetup: TFrmSetup
             Transparent = True
           end
           object LblSubLang: TLabel
+            AnchorSideTop.Control = EdtSubLang
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 133
+            Top = 103
             Width = 78
             Height = 15
             Caption = '기본 자막 언어'
             Transparent = True
           end
           object LblSubFont: TLabel
+            AnchorSideTop.Control = CboSubFont
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 185
+            Top = 143
             Width = 24
             Height = 15
             Caption = '글꼴'
             Transparent = True
           end
           object LblSubBold: TLabel
+            AnchorSideTop.Control = CboSubBold
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 230
+            Top = 183
             Width = 24
             Height = 15
             Caption = '굵게'
             Transparent = True
           end
           object LblSubColor: TLabel
+            AnchorSideTop.Control = BtnSubColor
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 275
+            Top = 223
             Width = 36
             Height = 15
             Caption = '글자색'
             Transparent = True
           end
           object LblSubBorder: TLabel
+            AnchorSideTop.Control = TrkSubBorder
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 365
+            Top = 303
             Width = 63
             Height = 15
             Caption = '외곽선 두께'
             Transparent = True
           end
           object LblSubBorderValue: TLabel
+            AnchorSideTop.Control = TrkSubBorder
+            AnchorSideTop.Side = asrCenter
             Left = 397
-            Top = 365
+            Top = 303
             Width = 48
             Height = 15
             Alignment = taRightJustify
@@ -701,24 +803,30 @@ object FrmSetup: TFrmSetup
             Transparent = True
           end
           object LblSubBorderColor: TLabel
+            AnchorSideTop.Control = BtnSubBorderColor
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 320
+            Top = 263
             Width = 51
             Height = 15
             Caption = '외곽선 색'
             Transparent = True
           end
           object LblSubShadow: TLabel
+            AnchorSideTop.Control = TrkSubShadow
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 410
+            Top = 343
             Width = 36
             Height = 15
             Caption = '그림자'
             Transparent = True
           end
           object LblSubShadowValue: TLabel
+            AnchorSideTop.Control = TrkSubShadow
+            AnchorSideTop.Side = asrCenter
             Left = 397
-            Top = 410
+            Top = 343
             Width = 48
             Height = 15
             Alignment = taRightJustify
@@ -728,16 +836,20 @@ object FrmSetup: TFrmSetup
             Transparent = True
           end
           object LblSubPos: TLabel
+            AnchorSideTop.Control = TrkSubPos
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 455
+            Top = 383
             Width = 51
             Height = 15
             Caption = '세로 위치'
             Transparent = True
           end
           object LblSubPosValue: TLabel
+            AnchorSideTop.Control = TrkSubPos
+            AnchorSideTop.Side = asrCenter
             Left = 397
-            Top = 455
+            Top = 383
             Width = 48
             Height = 15
             Alignment = taRightJustify
@@ -747,32 +859,40 @@ object FrmSetup: TFrmSetup
             Transparent = True
           end
           object LblSubAlign: TLabel
+            AnchorSideTop.Control = CboSubAlign
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 500
+            Top = 423
             Width = 24
             Height = 15
             Caption = '정렬'
             Transparent = True
           end
           object LblSubAss: TLabel
+            AnchorSideTop.Control = CboSubAss
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 545
+            Top = 463
             Width = 117
             Height = 15
             Caption = '자막 파일 스타일 우선'
             Transparent = True
           end
           object ShpSubColor: TShape
+            AnchorSideTop.Control = BtnSubColor
+            AnchorSideTop.Side = asrCenter
             Left = 513
-            Top = 282
+            Top = 220
             Width = 60
             Height = 21
             Anchors = [akTop, akRight]
             Pen.Color = clGray
           end
           object ShpSubBorderColor: TShape
+            AnchorSideTop.Control = BtnSubBorderColor
+            AnchorSideTop.Side = asrCenter
             Left = 513
-            Top = 327
+            Top = 260
             Width = 60
             Height = 21
             Anchors = [akTop, akRight]
@@ -780,7 +900,7 @@ object FrmSetup: TFrmSetup
           end
           object CboSubVisible: TComboBox
             Left = 473
-            Top = 29
+            Top = 19
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -793,7 +913,7 @@ object FrmSetup: TFrmSetup
           end
           object TrkSubSize: TTrackBar
             Left = 453
-            Top = 82
+            Top = 56
             Width = 190
             Height = 28
             Anchors = [akTop, akRight]
@@ -809,7 +929,7 @@ object FrmSetup: TFrmSetup
           end
           object EdtSubLang: TEdit
             Left = 393
-            Top = 140
+            Top = 99
             Width = 250
             Height = 23
             Anchors = [akTop, akRight]
@@ -818,7 +938,7 @@ object FrmSetup: TFrmSetup
           end
           object CboSubFont: TComboBox
             Left = 393
-            Top = 192
+            Top = 139
             Width = 250
             Height = 23
             Style = csDropDownList
@@ -828,7 +948,7 @@ object FrmSetup: TFrmSetup
           end
           object CboSubBold: TComboBox
             Left = 473
-            Top = 237
+            Top = 179
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -841,7 +961,7 @@ object FrmSetup: TFrmSetup
           end
           object BtnSubColor: TButton
             Left = 583
-            Top = 281
+            Top = 219
             Width = 60
             Height = 23
             Anchors = [akTop, akRight]
@@ -851,7 +971,7 @@ object FrmSetup: TFrmSetup
           end
           object TrkSubBorder: TTrackBar
             Left = 453
-            Top = 359
+            Top = 296
             Width = 190
             Height = 28
             Anchors = [akTop, akRight]
@@ -864,7 +984,7 @@ object FrmSetup: TFrmSetup
           end
           object BtnSubBorderColor: TButton
             Left = 583
-            Top = 326
+            Top = 259
             Width = 60
             Height = 23
             Anchors = [akTop, akRight]
@@ -874,7 +994,7 @@ object FrmSetup: TFrmSetup
           end
           object TrkSubShadow: TTrackBar
             Left = 453
-            Top = 404
+            Top = 336
             Width = 190
             Height = 28
             Anchors = [akTop, akRight]
@@ -887,7 +1007,7 @@ object FrmSetup: TFrmSetup
           end
           object TrkSubPos: TTrackBar
             Left = 453
-            Top = 449
+            Top = 376
             Width = 190
             Height = 28
             Anchors = [akTop, akRight]
@@ -901,7 +1021,7 @@ object FrmSetup: TFrmSetup
           end
           object CboSubAlign: TComboBox
             Left = 473
-            Top = 507
+            Top = 419
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -915,7 +1035,7 @@ object FrmSetup: TFrmSetup
           end
           object CboSubAss: TComboBox
             Left = 473
-            Top = 552
+            Top = 459
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -1117,40 +1237,50 @@ object FrmSetup: TFrmSetup
           BorderStyle = bsNone
           TabOrder = 0
           object LblMLClick: TLabel
+            AnchorSideTop.Control = CboMLClick
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 21
+            Top = 23
             Width = 108
             Height = 15
             Caption = '왼쪽 버튼 한 번 클릭'
             Transparent = True
           end
           object LblMDblClick: TLabel
+            AnchorSideTop.Control = CboMDblClick
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 85
+            Top = 63
             Width = 108
             Height = 15
             Caption = '왼쪽 버튼 두 번 클릭'
             Transparent = True
           end
           object LblMMClick: TLabel
+            AnchorSideTop.Control = CboMMClick
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 149
+            Top = 103
             Width = 90
             Height = 15
             Caption = '가운데 버튼 클릭'
             Transparent = True
           end
           object LblMWheelUp: TLabel
+            AnchorSideTop.Control = CboMWheelUp
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 213
+            Top = 143
             Width = 39
             Height = 15
             Caption = '휠 위로'
             Transparent = True
           end
           object LblMWheelDown: TLabel
+            AnchorSideTop.Control = CboMWheelDown
+            AnchorSideTop.Side = asrCenter
             Left = 24
-            Top = 277
+            Top = 183
             Width = 51
             Height = 15
             Caption = '휠 아래로'
@@ -1158,7 +1288,7 @@ object FrmSetup: TFrmSetup
           end
           object CboMLClick: TComboBox
             Left = 473
-            Top = 28
+            Top = 19
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -1168,7 +1298,7 @@ object FrmSetup: TFrmSetup
           end
           object CboMDblClick: TComboBox
             Left = 473
-            Top = 92
+            Top = 59
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -1178,7 +1308,7 @@ object FrmSetup: TFrmSetup
           end
           object CboMMClick: TComboBox
             Left = 473
-            Top = 156
+            Top = 99
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -1188,7 +1318,7 @@ object FrmSetup: TFrmSetup
           end
           object CboMWheelUp: TComboBox
             Left = 473
-            Top = 220
+            Top = 139
             Width = 170
             Height = 23
             Style = csDropDownList
@@ -1198,7 +1328,7 @@ object FrmSetup: TFrmSetup
           end
           object CboMWheelDown: TComboBox
             Left = 473
-            Top = 284
+            Top = 179
             Width = 170
             Height = 23
             Style = csDropDownList

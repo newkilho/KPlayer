@@ -93,6 +93,14 @@ function IsMediaFile(const AFileName: string): Boolean;
 // 재생목록 파일 (.m3u/.m3u8/.pls) — 목록 추가 시 항목으로 펼쳐야 함.
 function IsPlaylistFile(const AFileName: string): Boolean;
 
+// 자연 정렬 — 숫자 구간은 값으로(2화 < 10화), ASCII 대소문자 무시. 탐색기 이름순과 같은 순서.
+// StrCmpLogicalW 대신 직접 (macOS 이식 대비). 한글은 UTF-8 바이트순 = 코드포인트순.
+function NaturalCompare(const A, B: string): Integer;
+
+// 관련 파일(연속물) 판정 — 확장자 뺀 이름이 처음 갈리는 자리에 숫자가 있으면 관련.
+// 드라마 1화/2화, S01E01 Pilot/S01E02 Return, 01 Intro/02 Outro 통과. 영화/영화 2 는 불통과(갈리는 자리 = 공백).
+function IsRelatedName(const A, B: string): Boolean;
+
 implementation
 
 function AssocIndexOf(const AExt: string): Integer;
@@ -117,6 +125,71 @@ var
 begin
   LIndex := AssocIndexOf(ExtractFileExt(AFileName));
   Result := (LIndex >= 0) and (AssocExts[LIndex].Group = agList);
+end;
+
+function NaturalCompare(const A, B: string): Integer;
+var
+  I, J, SI, SJ, EI, EJ: Integer;
+  CA, CB: Char;
+begin
+  I := 1;
+  J := 1;
+  while (I <= Length(A)) and (J <= Length(B)) do
+  begin
+    if (A[I] in ['0'..'9']) and (B[J] in ['0'..'9']) then
+    begin
+      // 선행 0 제외 자릿수 비교 → 같으면 자리별 (길이 무제한 — 정수 변환 안 함)
+      SI := I;
+      while (SI <= Length(A)) and (A[SI] = '0') do Inc(SI);
+      SJ := J;
+      while (SJ <= Length(B)) and (B[SJ] = '0') do Inc(SJ);
+      EI := SI;
+      while (EI <= Length(A)) and (A[EI] in ['0'..'9']) do Inc(EI);
+      EJ := SJ;
+      while (EJ <= Length(B)) and (B[EJ] in ['0'..'9']) do Inc(EJ);
+
+      Result := (EI - SI) - (EJ - SJ);
+      if Result <> 0 then Exit;
+      Result := CompareStr(Copy(A, SI, EI - SI), Copy(B, SJ, EJ - SJ));
+      if Result <> 0 then Exit;
+
+      I := EI;
+      J := EJ;
+    end
+    else
+    begin
+      CA := A[I];
+      CB := B[J];
+      if CA in ['A'..'Z'] then Inc(CA, 32);
+      if CB in ['A'..'Z'] then Inc(CB, 32);
+      if CA <> CB then
+        Exit(Ord(CA) - Ord(CB));
+      Inc(I);
+      Inc(J);
+    end;
+  end;
+
+  Result := (Length(A) - I) - (Length(B) - J);
+  if Result = 0 then
+    Result := CompareStr(A, B);   // 01 vs 1 등 값 같음 — 순서 고정용
+end;
+
+function IsRelatedName(const A, B: string): Boolean;
+var
+  NA, NB: string;
+  I: Integer;
+begin
+  NA := LowerCase(ChangeFileExt(ExtractFileName(A), ''));
+  NB := LowerCase(ChangeFileExt(ExtractFileName(B), ''));
+  if NA = NB then
+    Exit(True);   // 같은 이름 다른 컨테이너
+
+  I := 1;
+  while (I <= Length(NA)) and (I <= Length(NB)) and (NA[I] = NB[I]) do
+    Inc(I);
+
+  Result := ((I <= Length(NA)) and (NA[I] in ['0'..'9'])) or
+            ((I <= Length(NB)) and (NB[I] in ['0'..'9']));
 end;
 
 end.

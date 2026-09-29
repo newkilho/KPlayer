@@ -105,6 +105,7 @@ type
     procedure PruneShuffleMissing;
     procedure AddPlaylist(const AFileName: string);
     function FindNodeByName(const AFileName: string): PVirtualNode;
+    function ExpandFolder(const AFileName: string): TStringArray;
     procedure SkipMissing(const AFileName: string);
   private
     procedure EndPlayback;
@@ -118,7 +119,8 @@ type
     procedure SavePlaylist;
     procedure LoadPlaylist;
     procedure AddFile(AFileName: string; ACheckDisk: Boolean = True);
-    procedure AddFiles(const AFiles: TStringArray; APlay: Boolean);
+    // AExpand = '열기' 경로(탐색기 인자·본체 드롭·열기 대화상자) — 파일 하나면 같은 폴더 파일 자동 추가 (ExpandFolder)
+    procedure AddFiles(const AFiles: TStringArray; APlay: Boolean; AExpand: Boolean = False);
     procedure OpenFiles;   // 파일 열기 대화상자 → AddFiles+재생 ([추가] 버튼, Ctrl+O, 본체 우클릭)
     procedure OpenFolder;  // 폴더 선택 → AddFiles+재생 ([추가]▸폴더, 본체 우클릭)
     procedure ReplaceFiles(const AFiles: TStringArray);
@@ -482,7 +484,7 @@ begin
       SetLength(LFiles, Dialog.Files.Count);
       for I := 0 to Dialog.Files.Count - 1 do
         LFiles[I] := Dialog.Files[I];
-      AddFiles(LFiles, True);   // 중복 해시표·배경 존재 확인 공용, 추가 후 재생
+      AddFiles(LFiles, True, True);   // 중복 해시표·배경 존재 확인 공용, 추가 후 재생
     end;
   finally
     Dialog.Free;
@@ -1183,14 +1185,26 @@ end;
 // 셋 다 '목록에 없는 경로' 라 Play 가 SkipMissing/mpv 오류로 빠졌다 (폴더 드롭 시
 // "파일을 찾을 수 없습니다 — <폴더명>" + 재생 안 됨).
 // 그래서 추가 전 마지막 노드를 표시해 두고 그 다음(= 이번에 새로 들어간 첫) 노드부터 재생.
-procedure TFrmList.AddFiles(const AFiles: TStringArray; APlay: Boolean);
+// 폴더 자동 추가로 늘어났으면 예외 — 연 파일부터 (3화를 열었는데 1화부터 재생되면 안 됨).
+procedure TFrmList.AddFiles(const AFiles: TStringArray; APlay: Boolean; AExpand: Boolean);
 var
   Mark, Node: PVirtualNode;
   Item: PItemData;
   I: Integer;
+  LFiles: TStringArray;
+  LTarget: string;
 begin
   if Length(AFiles) = 0 then
     Exit;
+
+  LFiles := AFiles;
+  LTarget := '';
+  if AExpand and (Length(AFiles) = 1) then
+  begin
+    LFiles := ExpandFolder(AFiles[0]);
+    if Length(LFiles) > 1 then
+      LTarget := AFiles[0];
+  end;
 
   Mark := ListData.GetLast;
 
@@ -1208,8 +1222,8 @@ begin
 
     ListData.BeginUpdate;
     try
-      for I := 0 to High(AFiles) do
-        AddFile(AFiles[I]);
+      for I := 0 to High(LFiles) do
+        AddFile(LFiles[I]);
     finally
       ListData.EndUpdate;
     end;
@@ -1222,7 +1236,9 @@ begin
   if not APlay then
     Exit;
 
-  if Assigned(Mark) then
+  if LTarget <> '' then
+    Node := FindNodeByName(LTarget)
+  else if Assigned(Mark) then
     Node := ListData.GetNext(Mark)
   else
     Node := ListData.GetFirst;
@@ -1252,7 +1268,7 @@ begin
     Exit;
 
   DelFile(dmAll);              // 재생 중이던 항목도 사라짐 → 아래 AddFiles 가 새 첫 곡을 건다
-  AddFiles(AFiles, True);
+  AddFiles(AFiles, True, True);
 end;
 
 procedure TFrmList.DelFile(AMode: TDeleteMode);
@@ -1396,6 +1412,78 @@ begin
     if Assigned(Item) and SameText(Item^.FileName, AFileName) then
       Exit;
     Result := ListData.GetNext(Result);
+  end;
+end;
+
+function CompareFileNames(List: TStringList; Index1, Index2: Integer): Integer;
+begin
+  Result := NaturalCompare(ExtractFileName(List[Index1]), ExtractFileName(List[Index2]));
+end;
+
+// 같은 폴더 파일 자동 추가 (INI folder_add: 0=끔 1=관련 파일만 2=모든 파일, 기본 1 — 팟플레이어·곰 관례).
+// 대상 = 연 파일과 같은 종류(비디오/오디오) — 영상 열었는데 폴더의 mp3 가 끼지 않게. 재생목록 파일은 제외.
+// 결과는 자연 정렬(2화 < 10화), 연 파일 포함. 확장 안 하면 [AFileName] 그대로.
+// 연 파일은 인자 문자열 그대로 넣는다 — AddFiles 가 FindNodeByName(인자) 로 재생 시작점을 찾는다.
+// '.' 으로 시작하는 이름 제외 — macOS 가 USB 에 남기는 '._영상.mp4' (AppleDouble) 가 재생 실패 항목으로 끼는 것.
+function TFrmList.ExpandFolder(const AFileName: string): TStringArray;
+var
+  LMode, LIndex: Integer;
+  LGroup: TAssocGroup;
+  LDir, LName: string;
+  LList: TStringList;
+  SearchRec: TSearchRec;
+  I: Integer;
+begin
+  SetLength(Result, 1);
+  Result[0] := AFileName;
+
+  LMode := FrmKPlayer.Config.ReadInteger('folder_add', 1);
+  if LMode = 0 then
+    Exit;
+
+  LIndex := AssocIndexOf(ExtractFileExt(AFileName));
+  if LIndex < 0 then
+    Exit;
+  LGroup := AssocExts[LIndex].Group;
+  if LGroup = agList then
+    Exit;
+
+  LDir := ExtractFilePath(ExpandFileName(AFileName));
+  LName := ExtractFileName(AFileName);
+
+  LList := TStringList.Create;
+  try
+    LList.Add(AFileName);
+
+    if FindFirst(LDir + '*', faAnyFile, SearchRec) = 0 then
+    try
+      repeat
+        if (SearchRec.Attr and faDirectory) <> 0 then
+          Continue;
+        if (SearchRec.Name = '') or (SearchRec.Name[1] = '.') then
+          Continue;
+        if SameText(SearchRec.Name, LName) then
+          Continue;
+
+        LIndex := AssocIndexOf(ExtractFileExt(SearchRec.Name));
+        if (LIndex < 0) or (AssocExts[LIndex].Group <> LGroup) then
+          Continue;
+        if (LMode = 1) and not IsRelatedName(LName, SearchRec.Name) then
+          Continue;
+
+        LList.Add(LDir + SearchRec.Name);
+      until FindNext(SearchRec) <> 0;
+    finally
+      FindClose(SearchRec);
+    end;
+
+    LList.CustomSort(CompareFileNames);
+
+    SetLength(Result, LList.Count);
+    for I := 0 to LList.Count - 1 do
+      Result[I] := LList[I];
+  finally
+    LList.Free;
   end;
 end;
 

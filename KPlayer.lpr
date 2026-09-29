@@ -11,7 +11,7 @@ uses
   // 프로그램 본문보다 먼저 돌아 시작 도중의 크래시까지 잡는다. 앱 이름은 exe 이름, 버전은 버전 리소스.
   Forms, SysUtils, KExcept,
   MPVPlayer, Main, List, Setup, Assoc, Hotkey, Media, Config, OSUtil,
-  IconButton, VTScrollbar;
+  IconButton, VTScrollbar, Instance;
 
 {$R *.res}
 // 다국어 문자열 (translate.txt → RCDATA 'translate') + UI 스크립트 (KPlayer.lua → RCDATA 'script')
@@ -35,6 +35,10 @@ begin
     Exit;
   end;
 
+  // 단일 실행 — 떠 있는 KPlayer 에 파일을 넘겼으면 창 없이 끝 (Instance.pas, INI instance_mode).
+  if ForwardToRunning then
+    Exit;
+
   RequireDerivedFormResource := True;
   Application.Scaled := True;
   {$PUSH}{$WARN 5044 OFF}
@@ -44,5 +48,8 @@ begin
   Application.CreateForm(TFrmKPlayer, FrmKPlayer);
   Application.CreateForm(TFrmList, FrmList);
   Application.CreateForm(TFrmSetup, FrmSetup);
+  // 시작 인자 처리(TFrmList.FormCreate → HandleStartupParams) 뒤에 표시 — 먼저 붙이면 다중 선택의 나머지가
+  // 첫 파일보다 먼저 처리돼 재생을 가로챈다.
+  MarkReady(FrmKPlayer.Handle, True);
   Application.Run;
 end.

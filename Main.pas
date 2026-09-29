@@ -18,6 +18,12 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 히스토리:
 ========
   1.1.0.0
+  [+] 단일 실행 - 이미 떠 있으면 새 창 대신 그 창에 파일을 넘긴다. 환경설정 일반 '실행 중일 때 파일 열기' = 여러 개 실행 허용 /
+      실행 중인 창에서 재생(기본) / 실행 중인 창 목록에 추가. 탐색기 다중 선택은 첫 파일 재생 + 나머지 추가
+      (Instance.pas / Main.pas: WndHook WM_COPYDATA, ForwardTimerTick / KPlayer.lpr / Setup: CboInstance)
+  [+] 폴더 내 파일 자동 추가 - 파일 하나를 열면(탐색기·본체 드롭·열기 대화상자) 같은 폴더의 같은 종류 파일을 자연 정렬로 추가, 연 파일부터 재생.
+      환경설정 일반 '폴더 내 파일 자동 추가' = 사용안함 / 관련 파일만(이름이 처음 갈리는 자리가 숫자 = 1화·2화) / 모든 파일, 기본 관련 파일만
+      (List.pas: ExpandFolder, AddFiles / Media.pas: NaturalCompare, IsRelatedName / Setup: CboFolderAdd)
   [*] Delphi → Lazarus 변환 - 명령줄 빌드(lazbuild), klib(KTheme/KTranslate/KUpdate/KExcept) 로 교체, madExcept 제거,
       SVG 아이콘은 PNG 마스크 착색(IconButton / Tools\MakeListIcons.py), OS 의존 코드 분리(OSUtil, Assoc 비-Windows 빈 구현, Config.AppDataDir)
   [*] 재생목록 스크롤바 떨림 수정 - 바를 트리 DC 에 직접 그리던 것을 형제 창(HTTRANSPARENT)으로, 트리 WS_CLIPSIBLINGS. laz VT 가 ScrollWindowEx 로 바까지 밀어 다음 WM_PAINT 까지 튀던 것 (VTScrollbar.pas)
@@ -191,6 +197,10 @@ type
     FFullOnce: Boolean;     // 재생 창 크기 '전체 화면' 은 세션당 1회 (ESC 로 풀면 다음 곡에 다시 안 감)
     FStretch: Boolean;      // 꽉찬 화면 (keepaspect=no) 중 — 전체화면 해제 시 keepaspect 복원 판단
     FClickTimer: TTimer;    // 왼쪽 클릭 기능 지연 — 더블클릭이면 취소 (FormMouseDown / ClickTimerTick)
+    FForwardTimer: TTimer;  // 다른 실행이 넘긴 파일 묶기 (WndHook WM_COPYDATA → ForwardTimerTick, Instance.pas)
+    FForwardFiles: TStringArray;
+    FForwardAny: Boolean;   // 넘겨받은 것 있음 (빈 인자 실행 = 창만 앞으로)
+    FLastOpenTick: QWord;   // 마지막 '열기' 처리 시각 (시작 인자·넘겨받은 묶음) — 다중 선택 판정
 
     procedure SendLeftButton(ADown: Boolean);
     procedure KeyDownBefore(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -215,6 +225,7 @@ type
 
     procedure DeviceChanged;
     procedure VerifyTimerTick(Sender: TObject);
+    procedure ForwardTimerTick(Sender: TObject);
 
     procedure StartUpdateCheck;
     procedure UpdateResult(Quit: Boolean; const Data: string);
@@ -262,7 +273,7 @@ implementation
 
 uses
   {$IFDEF WINDOWS}Windows,{$ENDIF}
-  List, Setup, Assoc, Media, KTranslate, KTheme, KUpdate, OSUtil;
+  List, Setup, Assoc, Media, KTranslate, KTheme, KUpdate, OSUtil, Instance;
 
 {$I Const.inc}
 
@@ -398,6 +409,12 @@ begin
   FVerifyTimer.Interval := 2000;
   FVerifyTimer.OnTimer := VerifyTimerTick;
 
+  // 다중 선택은 파일마다 따로 넘어온다 → 마지막 도착 후 300ms 에 한 번에.
+  FForwardTimer := TTimer.Create(Self);
+  FForwardTimer.Enabled := False;
+  FForwardTimer.Interval := 300;
+  FForwardTimer.OnTimer := ForwardTimerTick;
+
   // 설치 직후 (인스톨러 [Run] 이 /inst 로 실행, 칼무리 동일) — 주요 확장자 등록 후 평소처럼 계속 실행.
   // 포터블은 스위치가 없으니 등록 안 됨. 이후 실행은 아래 SyncFileAssoc 이 소유 목록만 유지.
   if FindCmdLineSwitch('inst', ['/'], True) then
@@ -412,6 +429,7 @@ end;
 procedure TFrmKPlayer.FormDestroy(Sender: TObject);
 begin
   Application.RemoveOnKeyDownBeforeHandler(KeyDownBefore);
+  MarkReady(Handle, False);   // 창 속성은 파괴 전에 떼야 한다 (Win32 규칙)
   FreeAndNil(FHook);
 
   SaveWindow;
@@ -641,6 +659,7 @@ end;
 // 창 프로시저 가로채기 (OSUtil.HookWindowMessages).
 //   WM_NCHITTEST   가장자리 8px = 리사이즈 (테두리 없는 창). 전체화면(최대화) 중엔 안 함.
 //   WM_DEVICECHANGE USB·네트워크 드라이브가 붙거나 빠지면 목록의 '없는 파일' 판정이 통째로 뒤집힌다.
+//   WM_COPYDATA    다른 실행이 넘긴 파일 (Instance.pas). 보낸 쪽이 SendMessage 로 기다리므로 여기선 모으기만.
 function TFrmKPlayer.WndHook(AMsg: Cardinal; AW: PtrUInt; AL: PtrInt;
   var AHandled: Boolean): PtrInt;
 {$IFDEF WINDOWS}
@@ -652,6 +671,8 @@ const
 var
   P: TPoint;
   IsLeft, IsRight, IsTop, IsBottom: Boolean;
+  LFiles: TStringArray;
+  I, N: Integer;
 {$ENDIF}
 begin
   Result := 0;
@@ -686,8 +707,53 @@ begin
       if (AW = DBT_DEVICEARRIVAL) or (AW = DBT_DEVICEREMOVECOMPLETE) or
          (AW = DBT_DEVNODES_CHANGED) then
         DeviceChanged;
+
+    WM_COPYDATA:
+      if DecodeForwarded(AL, LFiles) then
+      begin
+        N := Length(FForwardFiles);
+        SetLength(FForwardFiles, N + Length(LFiles));
+        for I := 0 to High(LFiles) do
+          FForwardFiles[N + I] := LFiles[I];
+        FForwardAny := True;
+        FForwardTimer.Enabled := False;
+        FForwardTimer.Enabled := True;
+        Result := 1;   // 받음 — 보낸 쪽은 이걸 보고 끝낸다 (아니면 새로 실행)
+        AHandled := True;
+      end;
   end;
   {$ENDIF}
+end;
+
+// 넘겨받은 파일 처리 (instance_mode, Instance.pas).
+// 직전 '열기'(시작 인자·이전 묶음)에서 ForwardBurstMs 안이면 같은 다중 선택의 나머지 — 재생을 뺏지 않고 추가만.
+// 안 그러면 탐색기에서 A·B·C 를 함께 열 때 A 가 재생되다 B·C 가 차례로 가로챈다.
+// 목록에 추가 모드도 멈춰 있으면 재생 (HandleStartupParams 와 같은 not IsPlay). 창은 재생 모드·빈 인자일 때만 앞으로.
+procedure TFrmKPlayer.ForwardTimerTick(Sender: TObject);
+const
+  ForwardBurstMs = 1500;
+var
+  LFiles: TStringArray;
+  LMode: Integer;
+  LBurst: Boolean;
+begin
+  FForwardTimer.Enabled := False;
+  if not FForwardAny then Exit;
+  FForwardAny := False;
+  LFiles := FForwardFiles;
+  SetLength(FForwardFiles, 0);
+
+  LMode := FConfig.ReadInteger('instance_mode', imPlay);
+  if (LMode <> imEnqueue) or (Length(LFiles) = 0) then
+    ActivateWindow(Handle);
+  if Length(LFiles) = 0 then Exit;
+
+  LBurst := GetTickCount64 - FLastOpenTick < ForwardBurstMs;
+  FLastOpenTick := GetTickCount64;
+  if (LMode <> imEnqueue) and not LBurst then
+    FrmList.AddFiles(LFiles, True, True)
+  else
+    FrmList.AddFiles(LFiles, not IsPlay);
 end;
 
 // 검사 자체는 배경 스레드(TFileCheckThread) 라 여기선 타이머만 다시 건다.
@@ -1093,36 +1159,16 @@ end;
 // FileExists 로 거르지 않는다 — 폴더 인자가 통째로 무시됐다. 존재 확인은 AddFiles 의 배경 검사.
 procedure TFrmKPlayer.HandleStartupParams;
 var
-  I, N: Integer;
-  FileName: string;
   Files: TStringArray;
+  LSwitch: Boolean;
 begin
-  SetLength(Files, ParamCount);
-  N := 0;
-  for I := 1 to ParamCount do
-  begin
-    FileName := ParamStr(I);
-
-    // 스위치(/uninst, /inst 등)는 여기서 거른다 — 경로만. '/' 는 Windows 스위치 표기라 Windows 에서만
-    // (유닉스 절대경로가 '/' 로 시작).
-    if FileName = '' then
-      Continue;
-    if FileName[1] = '-' then
-      Continue;
-    {$IFDEF WINDOWS}
-    if FileName[1] = '/' then
-      Continue;
-    {$ENDIF}
-
-    Files[N] := FileName;
-    Inc(N);
-  end;
-  SetLength(Files, N);
-
-  if N = 0 then
+  // 스위치(/inst 등)는 StartupFiles 가 거른다. 넘겨받는 경로(Instance)와 같은 함수.
+  Files := StartupFiles(LSwitch);
+  if Length(Files) = 0 then
     Exit;
 
-  FrmList.AddFiles(Files, not IsPlay);
+  FLastOpenTick := GetTickCount64;
+  FrmList.AddFiles(Files, not IsPlay, True);
 end;
 
 procedure TFrmKPlayer.HandleSettings;

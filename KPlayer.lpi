@@ -145,6 +145,10 @@
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
+        <Filename Value="Instance.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
         <Filename Value="Const.inc"/>
         <IsPartOfProject Value="True"/>
       </Unit>

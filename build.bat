@@ -103,6 +103,14 @@ REM ==========================================================================
 :build
 echo.
 echo === %~1 build ===
+REM lazbuild does not recompile a unit when only its .lfm changed - the form resource
+REM is baked into the .o at unit compile time, and the stale form ships silently
+REM (2026-09-29: three Setup.lfm edits never reached the exe). The compiler leaves a
+REM copy of each .lfm in the unit output folder; a source .lfm newer than that copy
+REM means the unit is stale - drop its .ppu so it gets recompiled.
+set "UDIR=lib\x86_64-win64"
+if /i "%~1"=="Debug" set "UDIR=lib\x86_64-win64-debug"
+powershell -NoProfile -Command "$d='!UDIR!'; foreach($f in (Get-ChildItem '*.lfm')){ $c=Join-Path $d $f.Name; $u=Join-Path $d ($f.BaseName+'.ppu'); if((Test-Path $u) -and ((-not (Test-Path $c)) -or ($f.LastWriteTime -gt (Get-Item $c).LastWriteTime))){ Remove-Item $u; '[lfm] '+$f.Name+' changed - recompiling '+$f.BaseName } }"
 "%LAZBUILD%" --build-mode=%~1 %ALL% "%PROJ%"
 if errorlevel 1 (
   echo.

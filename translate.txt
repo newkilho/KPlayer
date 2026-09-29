@@ -1767,3 +1767,63 @@ it=Apri cartella
 fr=Ouvrir un dossier
 es=Abrir carpeta
 ar=فتح مجلد
+
+ko=폴더 내 파일 자동 추가
+en=Auto-add files in folder
+ja=フォルダー内のファイルを自動追加
+zh=自动添加文件夹中的文件
+ru=Автодобавление файлов из папки
+it=Aggiungi file della cartella
+fr=Ajouter les fichiers du dossier
+es=Añadir archivos de la carpeta
+ar=إضافة ملفات المجلد تلقائيًا
+
+ko=관련 파일만
+en=Related files only
+ja=関連ファイルのみ
+zh=仅相关文件
+ru=Только связанные файлы
+it=Solo file correlati
+fr=Fichiers associés uniquement
+es=Solo archivos relacionados
+ar=الملفات ذات الصلة فقط
+
+ko=이미 실행 중일 때
+en=If already running
+ja=既に実行中の場合
+zh=已在运行时
+ru=Если уже запущен
+it=Se già in esecuzione
+fr=Si déjà en cours
+es=Si ya se está ejecutando
+ar=إذا كان قيد التشغيل
+
+ko=여러 개 실행 허용
+en=Allow multiple
+ja=複数起動を許可
+zh=允许多个实例
+ru=Разрешить несколько
+it=Consenti più istanze
+fr=Autoriser plusieurs
+es=Permitir varias
+ar=السماح بعدة نسخ
+
+ko=실행 중인 창에서 재생
+en=Play in running player
+ja=実行中のウィンドウで再生
+zh=在运行中的窗口播放
+ru=Играть в запущенном
+it=Riproduci nell'istanza attiva
+fr=Lire dans l'instance ouverte
+es=Reproducir en la instancia abierta
+ar=التشغيل في النافذة المفتوحة
+
+ko=실행 중인 창 목록에 추가
+en=Add to running playlist
+ja=実行中のプレイリストに追加
+zh=添加到运行中的播放列表
+ru=Добавить в плейлист запущенного
+it=Aggiungi alla playlist attiva
+fr=Ajouter à la liste ouverte
+es=Añadir a la lista abierta
+ar=إضافة إلى قائمة النافذة المفتوحة
