@@ -110,4 +110,4 @@ GNU GPL v2 以降 · オープンソース · 自由に再配布可能。
 
 ## 作者
 
-**Kilho.net** · https://v2.kilho.net
+**Kilho.net** · https://kilho.net

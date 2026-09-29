@@ -110,4 +110,4 @@ GNU GPL v2 이상 · 오픈 소스 · 자유롭게 재배포 가능.
 
 ## 만든 이
 
-**Kilho.net** · https://v2.kilho.net
+**Kilho.net** · https://kilho.net

@@ -110,4 +110,4 @@ Third-party components are listed in `THIRD-PARTY-NOTICES.txt`.
 
 ## Author
 
-**Kilho.net** · https://v2.kilho.net
+**Kilho.net** · https://kilho.net
