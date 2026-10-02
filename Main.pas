@@ -17,6 +17,10 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
+  1.1.5.0
+  [*] 자막 전환(cycle sub) 등 mpv 명령 중 EInvalidOp 크래시 - FPC 는 FPU 예외를 풀어 두고 libmpv 는 가려진 상태 전제(NaN 진행).
+      시작 시 메인 스레드에서 전부 가림 (KPlayer.lpr)
+
   1.1.4.0
   [*] 창 가장자리 끌어도 크기 안 바뀌던 문제 - bsNone(WS_POPUP)은 WS_THICKFRAME 없으면 HTRIGHT 등을 줘도 크기 조절 안 함.
       가장자리 누르는 동안만 WS_THICKFRAME 켬 + WM_NCCALCSIZE 로 테두리 숨김, 끝나면 LCL 크기 재동기 (OSUtil.pas: RunSizingLoop / Main.pas: WndHook)

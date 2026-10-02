@@ -9,7 +9,7 @@ uses
   Interfaces, // this includes the LCL widgetset
   // KExcept 는 uses 만으로 설치된다 (klib\kexcept.pas, madExcept 대체). 유닛 initialization 이
   // 프로그램 본문보다 먼저 돌아 시작 도중의 크래시까지 잡는다. 앱 이름은 exe 이름, 버전은 버전 리소스.
-  Forms, SysUtils, KExcept,
+  Forms, SysUtils, Math, KExcept,
   MPVPlayer, Main, List, Setup, Assoc, Hotkey, Media, Config, OSUtil,
   IconButton, VTScrollbar, Instance;
 
@@ -27,6 +27,11 @@ begin
   {$IFDEF DEBUG}
   SetHeapTraceOutput(GetTempDir + 'kplayer-heap.log');
   {$ENDIF}
+
+  // FPU 예외 전부 가림 — libmpv(C)는 가려진 상태 전제(NaN 돌려주고 진행). FPC 기본은 InvalidOp 등을 풀어 둬
+  // mpv 가 호출 스레드에서 낸 NaN 이 EInvalidOp 로 터졌다 (1.1.4.0 'cycle sub', CommandList → mpv_command).
+  // MXCSR 은 스레드별이나 FPC 새 TThread 는 이미 가려진 채 시작 (실측 2026-10-03) — 메인 스레드만 문제.
+  SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
 
   // 제거 프로그램이 부른다 (KPlayer.iss RunAsShellUser). 창 없이 연결 원복만 하고 끝 — 화면 반응 없는 것이 정상.
   if FindCmdLineSwitch('uninst', ['/'], True) then
