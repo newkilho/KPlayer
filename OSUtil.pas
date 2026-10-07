@@ -8,7 +8,7 @@ unit OSUtil;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls;
+  Classes, SysUtils, Forms, Controls, Menus;
 
 // 항상 위. fsStayOnTop 금지 — 핸들 재생성 시 mpv wid 무효 → 영상 사라짐. 그래서 창 핸들에 직접.
 procedure SetWindowTopMost(AForm: TCustomForm; AState: Boolean);
@@ -48,6 +48,17 @@ function HookWindowMessages(AHandle: THandle; AEvent: TWndHookEvent): TObject;
 // 이라 실제 창이 14px 커진다 (SetBounds·ResizeWindow 어긋남). 그래서 루프 동안만 켠다.
 // 켜진 동안 테두리 안 보이게 창 쪽에서 WM_NCCALCSIZE(wParam≠0) → 0. 비-Windows 는 아무 일 없음.
 procedure RunSizingLoop(AHandle: THandle; AHit: PtrUInt; APos: PtrInt);
+
+// AParent 의 직계 자식 중 창 클래스가 AClass 인 것, 없으면 0. KilhoUI 뷰의 실제 창(KilhoUIView)에 훅을 걸 때.
+function FindChildWindow(AParent: THandle; const AClass: string): THandle;
+
+// AChild 가 형제 중 맨 위인가. mpv 는 영상 창을 자기 스레드에서 (다시) 만들고 WS_EX_NOPARENTNOTIFY 라
+// 부모에 통지가 없다 → 확인해서 올린다 (Main.RaiseTimerTick). 비-Windows 는 True.
+function IsTopChild(AParent, AChild: THandle): Boolean;
+
+// 팝업을 OS 기본 메뉴로. LCL win32 는 항목을 전부 MFT_OWNERDRAW 로 직접 그려(win32wsmenus.pp) Win11 기본 메뉴 모양이
+// 안 나온다 → 같은 항목(캡션·사용·체크·하위·구분선)을 Win32 메뉴로 복제해 띄우고 고른 항목을 Click. 비-Windows 는 AMenu.PopUp.
+procedure PopupNativeMenu(AMenu: TPopupMenu; AOwner: THandle);
 
 implementation
 
@@ -238,7 +249,9 @@ begin
   else if Assigned(H.FEvent) then
   begin
     Handled := False;
-    Result := H.FEvent(uMsg, wParam, lParam, Handled);
+    // WPARAM 은 FPC 에서 부호 있는 형 — 암묵 변환은 Debug(-Cr)에서 범위 오류. WM_ERASEBKGND 의 HDC 처럼
+    // 최상위 비트 켜진 값이 온다 (KilhoUI 창 BeginPaint 중 실측 2026-10-08, 콜백 밖으로 새어 0xC000041D)
+    Result := H.FEvent(uMsg, PtrUInt(wParam), lParam, Handled);
     if Handled then Exit;
   end;
   Result := DefSubclassProc(hWnd, uMsg, wParam, lParam);
@@ -283,6 +296,73 @@ begin
     SetSizingFrame(AHandle, False);
   end;
 end;
+
+function FindChildWindow(AParent: THandle; const AClass: string): THandle;
+begin
+  Result := FindWindowExW(AParent, 0, PWideChar(UTF8Decode(AClass)), nil);
+end;
+
+function IsTopChild(AParent, AChild: THandle): Boolean;
+begin
+  Result := GetWindow(AParent, GW_CHILD) = AChild;
+end;
+
+// AItem 의 자식을 H 에 복제. 끝 항목은 AList 에 넣고 명령 ID = 순번 + 1 (0 = 취소)
+procedure AppendNativeItems(H: HMENU; AItem: TMenuItem; AList: TList);
+var
+  I: Integer;
+  C: TMenuItem;
+  Flags: UINT;
+  Sub: HMENU;
+begin
+  for I := 0 to AItem.Count - 1 do
+  begin
+    C := AItem[I];
+    if not C.Visible then Continue;
+    if C.IsLine then
+    begin
+      AppendMenuW(H, MF_SEPARATOR, 0, nil);
+      Continue;
+    end;
+    Flags := MF_STRING;
+    if not C.Enabled then Flags := Flags or MF_GRAYED;
+    if C.Checked then Flags := Flags or MF_CHECKED;
+    if C.Count > 0 then
+    begin
+      Sub := CreatePopupMenu;
+      AppendNativeItems(Sub, C, AList);
+      AppendMenuW(H, Flags or MF_POPUP, UINT_PTR(Sub), PWideChar(UTF8Decode(C.Caption)));
+    end
+    else
+    begin
+      AList.Add(C);
+      AppendMenuW(H, Flags, AList.Count, PWideChar(UTF8Decode(C.Caption)));
+    end;
+  end;
+end;
+
+procedure PopupNativeMenu(AMenu: TPopupMenu; AOwner: THandle);
+var
+  H: HMENU;
+  L: TList;
+  P: TPoint;
+  Cmd: Integer;
+begin
+  if Assigned(AMenu.OnPopup) then AMenu.OnPopup(AMenu);   // 항목 상태 갱신 (LCL PopUp 과 같은 순서)
+  L := TList.Create;
+  H := CreatePopupMenu;
+  try
+    AppendNativeItems(H, AMenu.Items, L);
+    GetCursorPos(P);
+    Cmd := Integer(TrackPopupMenuEx(H, TPM_RETURNCMD or TPM_RIGHTBUTTON, P.X, P.Y, AOwner, nil));
+    DestroyMenu(H);   // 하위 메뉴도 같이 해제
+    H := 0;
+    if (Cmd > 0) and (Cmd <= L.Count) then TMenuItem(L[Cmd - 1]).Click;
+  finally
+    if H <> 0 then DestroyMenu(H);
+    L.Free;
+  end;
+end;
 {$ELSE}
 function HookWindowMessages(AHandle: THandle; AEvent: TWndHookEvent): TObject;
 begin
@@ -291,6 +371,21 @@ end;
 
 procedure RunSizingLoop(AHandle: THandle; AHit: PtrUInt; APos: PtrInt);
 begin
+end;
+
+function FindChildWindow(AParent: THandle; const AClass: string): THandle;
+begin
+  Result := 0;
+end;
+
+function IsTopChild(AParent, AChild: THandle): Boolean;
+begin
+  Result := True;
+end;
+
+procedure PopupNativeMenu(AMenu: TPopupMenu; AOwner: THandle);
+begin
+  AMenu.PopUp;
 end;
 {$ENDIF}
 

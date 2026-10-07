@@ -504,7 +504,10 @@ procedure TFrmSetup.HookCardWheel;
     begin
       C := ABox.Controls[I];
       if C is TWinControl then   // 콤보·트랙바·에디트·버튼 (라벨·도형은 휠을 안 받는다)
+        // Debug(-CR) 는 이 파생 형변환을 실행 때 Invalid type cast 로 막는다 → 여기만 검사 끔
+        {$PUSH}{$OBJECTCHECKS OFF}
         TControlAccess(C).OnMouseWheel := CardMouseWheel;
+        {$POP}
     end;
   end;
 

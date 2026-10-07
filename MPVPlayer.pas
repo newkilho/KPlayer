@@ -1,9 +1,6 @@
 unit MPVPlayer;
 
-// MPV Player - KPlayer.lua 통신
-//
-// [Lua] mp.commandv("script-message", "<cmd>", [인자...])
-//   → MPV_EVENT_CLIENT_MESSAGE → DoEventClientMsg → OnScriptMessage (UI 스레드)
+// MPV Player — 속성 변경·영상 크기를 UI 스레드 이벤트로 (예전 KPlayer.lua 의 observe_property → script-message 대체)
 //
 // 이벤트 스레드 → UI 스레드는 Synchronize(메서드). FPC 3.2 는 익명 메서드가 없어 넘길 값을
 // 필드(FPend*)에 두고 부른다 — Synchronize 는 블로킹이고 이벤트 스레드는 하나라 필드 경합 없음.
@@ -20,9 +17,8 @@ uses
   MPVBasePlayer, MPVClient;
 
 type
-  // script-message 이벤트. sCmd=명령 식별자, sArgs=추가 인자(없으면 빈 TStringList).
-  TMPVScriptMessageEvent = procedure(cSender: TObject;
-    const sCmd: string; sArgs: TStrings) of object;
+  TMPVBoolEvent = procedure(cSender: TObject; bValue: Boolean) of object;
+  TMPVDoubleEvent = procedure(cSender: TObject; fValue: Double) of object;
 
   // 파일별 첫 영상 크기 확정 (dwidth×dheight — 회전·화면비 반영값). 오디오 전용은 안 옴.
   TMPVVideoSizeEvent = procedure(cSender: TObject; nWidth, nHeight: Integer) of object;
@@ -30,27 +26,33 @@ type
   { TMPVPlayer }
   TMPVPlayer = class(TMPVBasePlayer)
   private
-    m_eOnScriptMessage: TMPVScriptMessageEvent;
     m_eOnVideoSize: TMPVVideoSizeEvent;
+    m_eOnFullScreen: TMPVBoolEvent;
+    m_eOnEndReached: TNotifyEvent;
+    m_eOnVolume: TMPVDoubleEvent;
     m_bSized: Boolean;   // 이번 파일에서 OnVideoSize 발행 여부 (reconfig 는 파일당 여러 번)
 
     // Synchronize 로 넘길 값 (이벤트 스레드가 채우고 UI 스레드가 읽음)
-    FPendCmd: string;
-    FPendArgs: TStrings;
-    FPendMsg: TMPVScriptMessageEvent;
     FPendSize: TMPVVideoSizeEvent;
     FPendW, FPendH: Integer;
+    FPendBool: TMPVBoolEvent;
+    FPendFlag: Boolean;
+    FPendNotify: TNotifyEvent;
+    FPendDouble: TMPVDoubleEvent;
+    FPendValue: Double;
 
     FPreOpts: TStringList;   // InitPlayer 전 SetOptionString 값 (이름=값) → ProcessCmdLine(True) 에서 적용
 
-    procedure SyncScriptMessage;
     procedure SyncVideoSize;
+    procedure SyncBool;
+    procedure SyncNotify;
+    procedure SyncDouble;
 
   protected
-    // MPV_EVENT_CLIENT_MESSAGE 오버라이드. args[0]=명령, args[1..N]=추가 인자.
-    function DoEventClientMsg(pCM: P_mpv_event_client_message): TMPVErrorCode; override;
+    // fullscreen / eof-reached / volume → On* (UI 스레드). 나머지는 기반 처리 그대로.
+    function DoEventPropertyChange(nID: MPVUInt64; pEP: P_mpv_event_property): TMPVErrorCode; override;
 
-    // mpv 로그 → 디버거. 기반 Log() 는 빈 메서드. 임베드라 터미널 없음. KPlayer.lua 의 msg.info 포함.
+    // mpv 로그 → 디버거. 기반 Log() 는 빈 메서드. 임베드라 터미널 없음.
     procedure Log(const sMsg: string; bError: Boolean); override;
 
     // dwidth 는 file-loaded 시점엔 아직 없다 (첫 프레임 디코드 뒤 VIDEO_RECONFIG 에서 확정)
@@ -74,13 +76,16 @@ type
     // 핸들 전이면 모아 뒀다 init 직전, 이후면 바로 — 둘 다 SetPropertyString (init 전에도 옵션 설정과 같다).
     // 비가상 메서드 가림 — TMPVPlayer 형 변수로 불러야 이 판이 탄다.
     function SetOptionString(const sName, sValue: string): TMPVErrorCode;
-    // InitPlayer 가 mpv_initialize 직전에 부르는 훅 (기반에서 public) — 모아 둔 FPreOpts 적용
+    // InitPlayer 가 부르는 훅 (기반에서 public) — mpv_initialize 직전: 모아 둔 FPreOpts 적용 / 직후: 속성 관찰 등록
     procedure ProcessCmdLine(bBeforeInit: Boolean); override;
 
-    // script-message 수신 이벤트 (UI 스레드에서 호출됨)
-    property OnScriptMessage: TMPVScriptMessageEvent
-      read  m_eOnScriptMessage
-      write m_eOnScriptMessage;
+    // 아래 셋 다 UI 스레드에서 호출됨.
+    // 전체화면 속성 = 단일 상태원 (Main.HandleFullScreen). 'cycle fullscreen' 등 어디서 바꿔도 여기로 온다.
+    property OnFullScreen: TMPVBoolEvent read m_eOnFullScreen write m_eOnFullScreen;
+    // 곡 끝 (eof-reached 가 참이 됨, keep-open 이라 마지막 프레임에 정지) — List.TrackFinished
+    property OnEndReached: TNotifyEvent read m_eOnEndReached write m_eOnEndReached;
+    // 음량 변경 (키·휠·슬라이더 어디서든) — INI 저장용
+    property OnVolume: TMPVDoubleEvent read m_eOnVolume write m_eOnVolume;
 
     // 파일별 첫 영상 크기 (UI 스레드에서 호출됨). Main.HandleVideoSize — 재생 창 크기 옵션.
     property OnVideoSize: TMPVVideoSizeEvent
@@ -97,6 +102,9 @@ type
 function SamiLoadPath(const AFile: string): string;
 
 implementation
+
+uses
+  MPVConst;
 
 function IsSamiExt(const AFile: string): Boolean;
 var
@@ -213,15 +221,83 @@ begin
   Result := MPV_ERROR_SUCCESS;
 end;
 
+const
+  ID_EOF = 1001;   // MPVConst 표 밖 — 기반이 쓰는 ID(1~36)와 안 겹치게
+
 procedure TMPVPlayer.ProcessCmdLine(bBeforeInit: Boolean);
 var
   I: Integer;
 begin
   inherited;
-  if not bBeforeInit or (FPreOpts = nil) then Exit;
+  if not bBeforeInit then
+  begin
+    ObservePropertyBool('fullscreen', ID_FULL_SCREEN);   // volume 은 기반이 이미 관찰 (ID_VOLUME)
+    ObservePropertyBool('eof-reached', ID_EOF);
+    Exit;
+  end;
+  if FPreOpts = nil then Exit;
   for I := 0 to FPreOpts.Count - 1 do
     SetPropertyString(FPreOpts.Names[I], FPreOpts.ValueFromIndex[I]);
   FreeAndNil(FPreOpts);
+end;
+
+procedure TMPVPlayer.SyncBool;
+begin
+  FPendBool(Self, FPendFlag);
+end;
+
+procedure TMPVPlayer.SyncNotify;
+begin
+  FPendNotify(Self);
+end;
+
+procedure TMPVPlayer.SyncDouble;
+begin
+  FPendDouble(Self, FPendValue);
+end;
+
+// Synchronize — Queue 는 종료 중 폼 해제 뒤 실행될 수 있다. 핸들러는 Lock 안에서 읽는다 (UI 스레드가 바꿀 수 있음).
+function TMPVPlayer.DoEventPropertyChange(nID: MPVUInt64; pEP: P_mpv_event_property): TMPVErrorCode;
+var
+  Flag: Boolean;
+begin
+  Result := inherited DoEventPropertyChange(nID, pEP);
+  // 파일 없음·속성 없음이면 format = NONE (data 없음) → 거짓/0 으로
+  Flag := (pEP^.format = MPV_FORMAT_FLAG) and (PMPVFlag(pEP^.data)^ <> 0);
+  case nID of
+    ID_FULL_SCREEN:
+      begin
+        Lock;
+        FPendBool := m_eOnFullScreen;
+        Unlock;
+        if Assigned(FPendBool) then
+        begin
+          FPendFlag := Flag;
+          TThread.Synchronize(nil, SyncBool);
+        end;
+      end;
+    ID_EOF:
+      if Flag then
+      begin
+        Lock;
+        FPendNotify := m_eOnEndReached;
+        Unlock;
+        if Assigned(FPendNotify) then
+          TThread.Synchronize(nil, SyncNotify);
+      end;
+    ID_VOLUME:
+      if pEP^.format = MPV_FORMAT_DOUBLE then
+      begin
+        Lock;
+        FPendDouble := m_eOnVolume;
+        Unlock;
+        if Assigned(FPendDouble) then
+        begin
+          FPendValue := PDouble(pEP^.data)^;
+          TThread.Synchronize(nil, SyncDouble);
+        end;
+      end;
+  end;
 end;
 
 function TMPVPlayer.FindExtSub(const AFile: string; out Id: string; out Sel: Boolean): Boolean;
@@ -273,6 +349,8 @@ var
   Match, Selected, WasSel: Boolean;
 begin
   Result := inherited DoEventFileLoaded;
+  // 새 파일은 재생으로 시작 (EOF·일시정지 상태에서 다음 곡이 와도). 예전 KPlayer.lua file-loaded 와 동일.
+  SetPropertyBool('pause', False);
   Path := '';
   Mode := '';
   GetPropertyString('path', Path);
@@ -338,59 +416,7 @@ begin
   begin
     FPendW := m_nX;
     FPendH := m_nY;
-    // Synchronize — Queue 는 종료 중 폼 해제 뒤 실행될 수 있다 (OnScriptMessage 와 동일 이유).
-    TThread.Synchronize(nil, SyncVideoSize);
-  end;
-end;
-
-procedure TMPVPlayer.SyncScriptMessage;
-begin
-  FPendMsg(Self, FPendCmd, FPendArgs);
-end;
-
-function TMPVPlayer.DoEventClientMsg(pCM: P_mpv_event_client_message): TMPVErrorCode;
-var
-  ppc: PPMPVChar;
-  i: Integer;
-  cArgs: TStringList;
-begin
-  Result := MPV_ERROR_SUCCESS;
-
-  // 인자가 없으면 무시
-  if pCM^.num_args < 1 then
-    Exit;
-
-  ppc := pCM^.args;
-
-  FPendCmd := string(ppc^);   // mpv 문자열 = UTF-8 = Lazarus string, 변환 불필요
-  Inc(ppc);
-
-  cArgs := TStringList.Create;
-  try
-    for i := 1 to pCM^.num_args - 1 do
-    begin
-      cArgs.Add(string(ppc^));
-      Inc(ppc);
-    end;
-
-    // OnScriptMessage 핸들러를 스레드 안전하게 읽기
-    Lock;
-    FPendMsg := m_eOnScriptMessage;
-    Unlock;
-
-    if Assigned(FPendMsg) then
-    begin
-      // Synchronize 는 블로킹이라 리턴 후 finally 의 cArgs.Free 가 안전하다.
-      FPendArgs := cArgs;
-      try
-        TThread.Synchronize(nil, SyncScriptMessage);
-      finally
-        FPendArgs := nil;
-      end;
-    end;
-
-  finally
-    cArgs.Free;
+    TThread.Synchronize(nil, SyncVideoSize);   // Queue 아님 — DoEventPropertyChange 주석
   end;
 end;
 

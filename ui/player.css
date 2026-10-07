@@ -1,0 +1,127 @@
+/* 영상 위 UI — 디자인 원본은 KPlayer.lua (치수·색·전환 시간 그대로, 단위 CSS px).
+   글꼴은 지정하지 않는다 = 엔진 기본(Segoe UI + DirectWrite 대체 글꼴 = Windows 셸과 같음). 크기 12px (사용자 결정).
+   상태는 Main 이 #ui 의 클래스로 준다: hidden idle fs pinned playing muted hassub subon seeking voldrag nodur nocursor */
+
+html, body { margin: 0; width: 100%; height: 100%; background: transparent; }
+
+/* 텍스트 선택 금지 — 엔진 기본은 선택 가능 (마우스 이동에 제목·시간이 선택됐다) */
+#ui { position: absolute; left: 0; top: 0; right: 0; bottom: 0; font-size: 12px; color: #fff; user-select: none; }
+#ui.nocursor { cursor: none; }
+
+/* 컨트롤 페이드 .2s. 숨김 중엔 클릭이 영상 영역(창 끌기·클릭 기능)으로 가야 한다 */
+#top, #bottom { transition: opacity .2s; }
+#ui.hidden #top, #ui.hidden #bottom { opacity: 0; pointer-events: none; }
+
+.ico { width: 24px; height: 24px; color: #fff; background-repeat: no-repeat; background-size: 100% 100%; }
+.i-play  { background-image: url(play.svg); }
+.i-prev  { background-image: url(prev.svg); }
+.i-next  { background-image: url(next.svg); }
+.i-vol   { background-image: url(vol-on.svg); }
+.i-sub   { background-image: url(sub.svg); }
+.i-set   { background-image: url(set.svg); }
+.i-list  { background-image: url(list.svg); }
+#ui.playing #btn-play .ico { background-image: url(pause.svg); }
+#ui.muted #btn-mute .ico { background-image: url(vol-off.svg); }
+
+/* 시작 화면 (idle) — 기운 워드마크 위 반투명 원 + 재생 삼각형. 원·삼각형은 Lua bezel 과 같은 크기(지름 100, 46) */
+#logo { display: none; position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+#ui.idle #logo { display: block; }
+/* Lua \fs = 줄높이 기준 → Arial Black em 은 ×0.709 (upem 2048 / win 2254+634). fs = min(W×1.6/3.8, H×0.45) */
+#logo-mark { position: absolute; left: 50%; top: 50%; white-space: nowrap;
+             transform: translate(-50%, -50%) translateY(-45px) rotate(-18deg);
+             font-family: "Arial Black"; font-weight: bold; font-size: min(29.9vw, 31.9vh); letter-spacing: .03em;
+             color: rgba(34, 34, 34, .5); }
+#logo-disc { position: absolute; left: 50%; top: 50%; width: 100px; height: 100px; margin: -50px 0 0 -50px;
+             border-radius: 50px; background: rgba(255, 255, 255, .12);
+             display: flex; align-items: center; justify-content: center; }
+#logo-disc:hover { background: rgba(255, 255, 255, .25); }
+#logo-play { width: 46px; height: 46px; color: rgba(255, 255, 255, .33); }
+#logo-disc:hover #logo-play { color: rgba(255, 255, 255, .62); }
+
+/* 상단바 32 + 스크림 꼬리 24 = 한 요소 56. 알파: 바 .92→.72 선형(0~57.1%), 꼬리 .72×(1-u)² (u=.25/.5/.75) */
+#top { position: absolute; left: 0; top: 0; right: 0; height: 32px; }
+#scrim { position: absolute; left: 0; top: 0; right: 0; height: 56px;
+         background: linear-gradient(to bottom, rgba(10, 10, 10, .92) 0%, rgba(10, 10, 10, .72) 57.1%,
+                     rgba(10, 10, 10, .405) 67.9%, rgba(10, 10, 10, .18) 78.6%, rgba(10, 10, 10, .045) 89.3%,
+                     rgba(10, 10, 10, 0) 100%); }
+/* 제목: 좌측 14, 캡션 4슬롯(184) 앞 190 에서 잘림 (말줄임 없음 — Lua 와 같음) */
+#title { position: absolute; left: 14px; right: 190px; top: 0; height: 32px; line-height: 32px;
+         white-space: nowrap; overflow: hidden; }
+
+/* 캡션 슬롯 46×32 (Windows 기본). 글리프만 밝아지고 닫기만 슬롯 전체 붉게. 글리프 중심 (23, 16), 반경 5, 선 1px */
+.cap { position: absolute; top: 0; width: 46px; height: 32px; color: #ccc; }
+.cap:hover { color: #fff; }
+#cap-close { right: 0; }
+#cap-max   { right: 46px; }
+#cap-min   { right: 92px; }
+#cap-pin   { right: 138px; }
+#cap-close:hover { background: #c42b1c; }   /* Win11 닫기 색. Win10 #e81123 은 너무 빨감 */
+#ui.pinned #cap-pin { color: #fff; }
+.g-min   { position: absolute; left: 18px; top: 16px; width: 10px; height: 1px; background: currentColor; }
+.g-max   { position: absolute; left: 18px; top: 11px; width: 9px; height: 9px; border: 1px solid currentColor; }
+/* 복원: 0.8배 상자 둘을 0.42배 어긋나게 겹침 */
+.g-res   { display: none; position: absolute; width: 7px; height: 7px; border: 1px solid currentColor; }
+.g-res1  { left: 21px; top: 9px; }
+.g-res2  { left: 16px; top: 14px; }
+#ui.fs .g-max { display: none; }
+#ui.fs .g-res { display: block; }
+.g-close { position: absolute; left: 18px; top: 11px; width: 10px; height: 10px;
+           background-image: url(cap-close.svg); background-size: 100% 100%; }
+/* 압정 12.5px (반경 ×2.5), 도형 세로 중심 13.5/24 를 슬롯 중심에. 꺼짐 = 사선 */
+.g-pin   { position: absolute; left: 16.75px; top: 9px; width: 12.5px; height: 12.5px;
+           background-image: url(pin-off.svg); background-size: 100% 100%; }
+#ui.pinned .g-pin { background-image: url(pin.svg); }
+
+/* 하단 74 = 진행바 16 + 간격 2 + 버튼줄 48 + 아래 8. 칩 스타일 (유튜브 2024+) */
+#bottom { position: absolute; left: 0; right: 0; bottom: 0; height: 74px; }
+
+/* 진행바: hit 16, 트랙 2px (hover 4px .1s), thumb 13px (hover 에 나타나고 누르는 동안 1.25배) */
+#progress { position: absolute; left: 12px; right: 12px; top: 0; height: 16px; }
+#track { position: absolute; left: 0; right: 0; top: 7px; height: 2px; border-radius: 1px;
+         background: rgba(255, 255, 255, .25); transition: top .1s, height .1s; }
+#progress:hover #track, #ui.seeking #track { top: 6px; height: 4px; border-radius: 2px; }
+#played { position: absolute; left: 0; top: 0; bottom: 0; width: 0; min-width: 2px; border-radius: 2px; background: #f00; }
+/* 챕터 표시: 트랙보다 위아래 1px 큼 */
+#chapters { position: absolute; left: 0; right: 0; top: -1px; bottom: -1px; }
+.chap { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: rgba(255, 255, 255, .73); }
+#thumb { position: absolute; top: 1.5px; left: 0; width: 13px; height: 13px; margin-left: -6.5px; border-radius: 6.5px;
+         background: #f00; transform: scale(0); transition: transform .1s; }
+#progress:hover #thumb { transform: scale(1); }
+#ui.seeking #thumb { transform: scale(1.25); }
+#tip { display: none; position: absolute; top: -24px; left: 0; height: 20px; line-height: 20px; padding: 0 6px;
+       border-radius: 4px; background: rgba(0, 0, 0, .85); font-size: 11px; white-space: nowrap;
+       transform: translateX(-50%); }
+#progress:hover #tip, #ui.seeking #tip { display: block; }
+#ui.nodur #tip { display: none; }
+
+/* 버튼줄: 버튼 40×40 원, 칩 사이 8 */
+#row { position: absolute; left: 12px; right: 12px; top: 22px; height: 40px; display: flex; align-items: center; gap: 8px; }
+.chip { height: 40px; border-radius: 20px; background: rgba(0, 0, 0, .35); flex: none; }
+.btn { width: 40px; height: 40px; border-radius: 20px; flex: none; display: flex; align-items: center; justify-content: center;
+       transition: background-color .15s, transform .1s; }
+.btn:hover { background-color: rgba(255, 255, 255, .25); }
+.btn:active { transform: scale(.92); }
+/* 단독 칩 버튼: 칩 배경 위에 hover 흰 .25 를 겹친 색 (.35 검정 + .25 흰 = rgba(124,124,124,.51)) */
+.chip.btn { background-color: rgba(0, 0, 0, .35); }
+.chip.btn:hover { background-color: rgba(124, 124, 124, .51); }
+
+/* prev/play/next 한 알약 (안쪽 여백 2, 버튼 간격 2) */
+#group { display: flex; padding: 0 2px; gap: 2px; }
+
+/* 음량: 스피커 위에서 펼침(.2s), 펼친 뒤엔 영역 전체가 hover — Lua 의 히스테리시스와 같다. 40 + 8 + 60 + 8 */
+#vol { position: relative; width: 40px; overflow: hidden; transition: width .2s; }
+#vol:hover, #ui.voldrag #vol { width: 116px; }
+#btn-mute { position: absolute; left: 0; top: 0; }
+#vol-slider { position: absolute; left: 48px; top: 10px; width: 60px; height: 20px; }
+#vol-track { position: absolute; left: 0; right: 0; top: 9px; height: 2px; border-radius: 1px; background: rgba(255, 255, 255, .35); }
+#vol-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; border-radius: 1px; background: #fff; }
+#vol-thumb { position: absolute; top: 4px; left: 100%; width: 12px; height: 12px; margin-left: -6px; border-radius: 6px; background: #fff; }
+
+#time { padding: 0 14px; display: flex; align-items: center; white-space: nowrap; }
+.spacer { flex: 1; }
+
+/* 자막 버튼: 트랙 있을 때만, 켜짐 흰색 / 꺼짐 회색. 아이콘만 28 (viewBox 확대 반영) */
+#btn-sub { display: none; }
+#ui.hassub #btn-sub { display: flex; }
+#btn-sub .ico { width: 28px; height: 28px; color: #888; }
+#ui.subon #btn-sub .ico { color: #fff; }

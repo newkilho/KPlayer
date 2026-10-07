@@ -227,7 +227,9 @@ end;
 
 function TVTDarkScrollbar.MaxScrollPos: Integer;
 begin
+  {$PUSH}{$OBJECTCHECKS OFF}   // Debug(-CR) 는 파생 형변환을 Invalid type cast 로 막는다 (Setup.HookCardWheel 동일)
   Result := Max(0, Integer(TVTAccess(FTree).RangeY) - FTree.ClientHeight);
+  {$POP}
 end;
 
 procedure TVTDarkScrollbar.ScrollTo(NewPos: Integer);

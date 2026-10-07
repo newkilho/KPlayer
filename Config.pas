@@ -13,7 +13,7 @@ uses
   Classes, SysUtils, IniFiles;
 
 const
-  // 디버그 빌드 전용 기능 (연결 로그·정보 카드, n:\Release lua) 판정. Delphi 판의 ReportMemoryLeaksOnShutDown 자리.
+  // 디버그 빌드 전용 기능 (연결 로그·정보 카드)판정. Delphi 판의 ReportMemoryLeaksOnShutDown 자리.
   IsDebugBuild = {$IFDEF DEBUG}True{$ELSE}False{$ENDIF};
 
 type

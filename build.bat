@@ -12,7 +12,7 @@ REM  Options
 REM    /b      full rebuild (lazbuild -B)
 REM    /nogen  skip resource regeneration (KPlayerResource.res)
 REM
-REM  KPlayerResource.res (translate.txt, KPlayer.lua, Res\*.png) is rebuilt by
+REM  KPlayerResource.res (translate.txt, Res\*.png, ui\*) is rebuilt by
 REM  Tools\MakeRes.py when a source is newer - windres is not used, the copy that
 REM  ships with Lazarus has no C preprocessor and dies with "preprocessing failed".
 REM  KPlayerIcons.res (Icon\*.ico) and Res\*.png are NOT rebuilt here - run
@@ -199,7 +199,7 @@ REM :res  - rebuild KPlayerResource.res when the .rc or a file it lists is newer
 :res
 set "NEED=0"
 REM No pipes in here: a caret does not escape "|" inside the quoted command, powershell gets "^|".
-for /f %%R in ('powershell -NoProfile -Command "$t='KPlayerResource.res'; $s=@('KPlayerResource.rc','translate.txt','KPlayer.lua') + (Get-ChildItem 'Res' -File).FullName; if(-not (Test-Path $t)){'1'}else{$tt=(Get-Item $t).LastWriteTime; if(@($s.Where({(Test-Path $_) -and ((Get-Item $_).LastWriteTime -gt $tt)})).Count -gt 0){'1'}else{'0'}}"') do set "NEED=%%R"
+for /f %%R in ('powershell -NoProfile -Command "$t='KPlayerResource.res'; $s=@('KPlayerResource.rc','translate.txt') + (Get-ChildItem 'Res' -File).FullName + (Get-ChildItem 'ui' -File -Recurse).FullName; if(-not (Test-Path $t)){'1'}else{$tt=(Get-Item $t).LastWriteTime; if(@($s.Where({(Test-Path $_) -and ((Get-Item $_).LastWriteTime -gt $tt)})).Count -gt 0){'1'}else{'0'}}"') do set "NEED=%%R"
 if not "!NEED!"=="1" exit /b 0
 where python >nul 2>&1
 if errorlevel 1 (

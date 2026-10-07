@@ -85,6 +85,8 @@ type
     FShufflePos: Integer;             // 현재 곡 이력 인덱스 (-1=없음)
     FCyclePlayed: TStringList;        // 이번 사이클 재생 완료 파일
 
+    FPlaced: Boolean;   // 창 자리 잡음 (첫 표시). 안 띄운 채 종료면 위치 저장 안 함 (LFM 0,0 이 남으면 안 됨)
+
     function MakeButton(ATag, AImage, ALeft: Integer): TIconButton;
     procedure BtnMouseEnter(Sender: TObject);
     procedure BtnMouseLeave(Sender: TObject);
@@ -115,6 +117,7 @@ type
     ListData: TLazVirtualStringTree;
 
     procedure StartVerify(AMissingOnly: Boolean = False);   // 외부 사건(드라이브 재연결·목록 창 표시) 뒤 재검사
+    procedure ShowPlaced(AMonitor: TMonitor);
     procedure UpdateModeIcons;
     procedure SavePlaylist;
     procedure LoadPlaylist;
@@ -358,9 +361,43 @@ begin
 
   // 이 폼이 FrmKPlayer 보다 먼저 파괴(lpr 생성 역순) — 여기서 저장해야 Config 생존.
   SavePlaylist;
+  if FPlaced and (FrmKPlayer <> nil) and (FrmKPlayer.Config <> nil) then
+  begin
+    FrmKPlayer.Config.WriteInteger('list_left', Left);
+    FrmKPlayer.Config.WriteInteger('list_top', Top);
+  end;
 
   FDarkSB.Free;
   FCyclePlayed.Free;
+end;
+
+// 목록 창 표시. 첫 표시만 자리 잡기 — INI list_left/top (모니터 빠짐·해상도 축소 대비 작업 영역 안으로),
+// 없으면 AMonitor(본체 창 모니터) 우하단. 이후엔 사용자가 옮긴 자리 그대로.
+procedure TFrmList.ShowPlaced(AMonitor: TMonitor);
+var
+  R: TRect;
+  L, T: Integer;
+begin
+  if not FPlaced then
+  begin
+    L := FrmKPlayer.Config.ReadInteger('list_left', MaxInt);
+    T := FrmKPlayer.Config.ReadInteger('list_top', MaxInt);
+    if (L = MaxInt) or (T = MaxInt) then
+    begin
+      R := AMonitor.WorkareaRect;
+      L := R.Right - Width;
+      T := R.Bottom - Height;
+    end
+    else
+    begin
+      R := Screen.MonitorFromPoint(Types.Point(L + Width div 2, T + Height div 2)).WorkareaRect;
+      L := EnsureRange(L, R.Left, R.Right - Width);
+      T := EnsureRange(T, R.Top, R.Bottom - Height);
+    end;
+    SetBounds(L, T, Width, Height);
+    FPlaced := True;
+  end;
+  Show;
 end;
 
 // 목록 창 드롭도 추가한 첫 항목부터 재생 (본체 창 드롭과 달리 기존 목록은 유지).

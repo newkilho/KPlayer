@@ -32,7 +32,8 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="D:\Component\Lazarus\klib;D:\Component\Delphi\LibMPVDelphi"/>
+            <OtherUnitFiles Value="D:\Component\Lazarus\klib;D:\Component\Delphi\LibMPVDelphi;D:\Component\C\KilhoUI\bindings\lazarus"/>
+            <Libraries Value="D:\Component\C\KilhoUI\build\static-msvc"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)-debug"/>
           </SearchPaths>
           <Parsing>
@@ -67,7 +68,7 @@
             </Options>
           </Linking>
           <Other>
-            <CustomOptions Value="-dDEBUG -dMPV_DYNAMIC_LOAD"/>
+            <CustomOptions Value="-dDEBUG -dMPV_DYNAMIC_LOAD -dKILHO_STATIC_MSVC"/>
           </Other>
         </CompilerOptions>
       </Item>
@@ -163,7 +164,8 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="D:\Component\Lazarus\klib;D:\Component\Delphi\LibMPVDelphi"/>
+      <OtherUnitFiles Value="D:\Component\Lazarus\klib;D:\Component\Delphi\LibMPVDelphi;D:\Component\C\KilhoUI\bindings\lazarus"/>
+      <Libraries Value="D:\Component\C\KilhoUI\build\static-msvc"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>
@@ -190,7 +192,7 @@
       </Options>
     </Linking>
     <Other>
-      <CustomOptions Value="-dMPV_DYNAMIC_LOAD"/>
+      <CustomOptions Value="-dMPV_DYNAMIC_LOAD -dKILHO_STATIC_MSVC"/>
     </Other>
   </CompilerOptions>
   <Debugging>

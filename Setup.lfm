@@ -1063,6 +1063,7 @@ object FrmSetup: TFrmSetup
             Top = 499
             Width = 170
             Height = 23
+            BorderSpacing.Bottom = 19
             Style = csDropDownList
             Anchors = [akTop, akRight]
             TabOrder = 12

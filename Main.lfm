@@ -19,9 +19,6 @@ object FrmKPlayer: TFrmKPlayer
   OnDestroy = FormDestroy
   OnDropFiles = FormDropFiles
   OnKeyDown = FormKeyDown
-  OnMouseDown = FormMouseDown
-  OnMouseMove = FormMouseMove
-  OnMouseUp = FormMouseUp
   OnMouseWheel = FormMouseWheel
   object PopMenu: TPopupMenu
     OnPopup = MenuPopup
