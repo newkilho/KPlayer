@@ -14,9 +14,18 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 해야할일:
 =========
+  - 환경설정 단축키: 다른 동작이 쓰는 키를 빼앗지 말고 거절한다 (지금은 AssignKey 가 그 동작의 키를 비운다 —
+    어느 쪽이 비었는지 화면에서 알 수 없다). 이유는 목록 아래에 빨간 글 '이미 …에 쓰입니다', 계속 키를 기다린다.
+    SecretVideo 1.3.4.0 · WorldView 와 같은 규칙 (2026-10-03)
 
 히스토리:
 ========
+  1.1.6.0
+  [*] 재생 중 CPU 과다 - Main 의 mpv 옵션(vo/hwdec/scale 등)이 전부 무시돼 소프트웨어 디코딩. 바인딩 SetOptionString 이
+      InitPlayer 전엔 버리고 이후엔 @p 를 넘겨 실패 → init 전 모아 뒀다 SetPropertyString 으로 적용 (MPVPlayer.pas: SetOptionString, ProcessCmdLine)
+      4K HEVC CPU 140% → 20%, 작업 집합 879 → 559MB
+  [*] 상단 제목 18 → 20, 하단 시간 글자 14 → 16 (KPlayer.lua: topbar_font_size, font_size)
+
   1.1.5.0
   [*] 자막 전환(cycle sub) 등 mpv 명령 중 EInvalidOp 크래시 - FPC 는 FPU 예외를 풀어 두고 libmpv 는 가려진 상태 전제(NaN 진행).
       시작 시 메인 스레드에서 전부 가림 (KPlayer.lpr)

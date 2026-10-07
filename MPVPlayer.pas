@@ -41,6 +41,8 @@ type
     FPendSize: TMPVVideoSizeEvent;
     FPendW, FPendH: Integer;
 
+    FPreOpts: TStringList;   // InitPlayer 전 SetOptionString 값 (이름=값) → ProcessCmdLine(True) 에서 적용
+
     procedure SyncScriptMessage;
     procedure SyncVideoSize;
 
@@ -63,6 +65,18 @@ type
     function FindExtSub(const AFile: string; out Id: string; out Sel: Boolean): Boolean;
 
   public
+    destructor Destroy; override;
+
+    // 기반 SetOptionString 은 두 겹으로 고장 — ① m_hMPV=nil(InitPlayer 전)이면 MPV_ERROR_UNINITIALIZED 로 버림
+    // ② 핸들이 있어도 mpv_set_option_string 에 문자열 대신 @p(포인터의 주소)를 넘김 → 쓰레기 값으로 실패.
+    // 그래서 Main 의 vo/hwdec/scale 등이 전부 무시돼 mpv 기본값(hwdec=no=소프트웨어 디코딩, vo=gpu-next)으로
+    // 돌았다 (4K HEVC CPU 130~150%, 1.1.5.0 실측 2026-10-07. Delphi 판부터). 공유 바인딩은 안 고치고 여기서:
+    // 핸들 전이면 모아 뒀다 init 직전, 이후면 바로 — 둘 다 SetPropertyString (init 전에도 옵션 설정과 같다).
+    // 비가상 메서드 가림 — TMPVPlayer 형 변수로 불러야 이 판이 탄다.
+    function SetOptionString(const sName, sValue: string): TMPVErrorCode;
+    // InitPlayer 가 mpv_initialize 직전에 부르는 훅 (기반에서 public) — 모아 둔 FPreOpts 적용
+    procedure ProcessCmdLine(bBeforeInit: Boolean); override;
+
     // script-message 수신 이벤트 (UI 스레드에서 호출됨)
     property OnScriptMessage: TMPVScriptMessageEvent
       read  m_eOnScriptMessage
@@ -182,6 +196,33 @@ begin
 end;
 
 { TMPVPlayer }
+
+destructor TMPVPlayer.Destroy;
+begin
+  inherited;
+  FPreOpts.Free;
+end;
+
+function TMPVPlayer.SetOptionString(const sName, sValue: string): TMPVErrorCode;
+begin
+  if m_hMPV <> nil then
+    Exit(SetPropertyString(sName, sValue));
+  if FPreOpts = nil then
+    FPreOpts := TStringList.Create;
+  FPreOpts.Values[sName] := sValue;
+  Result := MPV_ERROR_SUCCESS;
+end;
+
+procedure TMPVPlayer.ProcessCmdLine(bBeforeInit: Boolean);
+var
+  I: Integer;
+begin
+  inherited;
+  if not bBeforeInit or (FPreOpts = nil) then Exit;
+  for I := 0 to FPreOpts.Count - 1 do
+    SetPropertyString(FPreOpts.Names[I], FPreOpts.ValueFromIndex[I]);
+  FreeAndNil(FPreOpts);
+end;
 
 function TMPVPlayer.FindExtSub(const AFile: string; out Id: string; out Sel: Boolean): Boolean;
 var

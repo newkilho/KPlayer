@@ -20,7 +20,7 @@ local options = {
     seekbar_padding = 12,
     volume_width = 60,
     thumbnail_enabled = false,
-    font_size = 14,
+    font_size = 16,   -- 하단 시간·진행바 툴팁. 14 는 칩 위에서 연해 보임 (1.1.6.0)
     bg_alpha = 0.55,
     -- 하단 컨트롤 배경. 0=버튼·시간 칩 배경만으로 대비(유튜브 2024+), >0=그 알파로 아래가 짙어지는 그라데이션.
     bottom_scrim_alpha = 0,
@@ -31,8 +31,8 @@ local options = {
     -- 숫자(시간·볼륨·배속)용. approx_text_w() 근사가 Arial 숫자 기준(0.56em) — 바꾸면 시간 칩·툴팁 폭 어긋남.
     num_font = "Arial",
     -- \fs 는 em 아닌 줄높이(ascent+descent) 기준 — 맑은 고딕 upem 2048/줄높이 2724,
-    -- \fs 20 = em 13px(100% DPI). 캡션바와 나란히 맞춘 값 — 폰트 바꾸면 재측정.
-    topbar_font_size = 18,
+    -- \fs 20 = em 13px(100% DPI). 18 은 작다는 요청으로 20 (1.1.6.0) — 폰트 바꾸면 재측정.
+    topbar_font_size = 20,
     -- 상단바 배율. 0=display-hidpi-scale 따름 — 임베드(--wid) 시 1.0 으로 보고되는 경우가 있어 그때만 실제 배율 기입.
     topbar_scale = 0,
 }
