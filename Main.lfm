@@ -66,12 +66,27 @@ object FrmKPlayer: TFrmKPlayer
         OnClick = MnuStretchClick
       end
     end
+    object N3: TMenuItem
+      Caption = '-'
+    end
+    object MnuPlayList: TMenuItem
+      Caption = '재생목록'
+      OnClick = MnuPlayListClick
+    end
+    object MnuSettings: TMenuItem
+      Caption = '환경설정'
+      OnClick = MnuSettingsClick
+    end
     object N1: TMenuItem
       Caption = '-'
     end
     object BtnAbout: TMenuItem
       Caption = '만든이 오길호'
       OnClick = BtnAboutClick
+    end
+    object MnuExit: TMenuItem
+      Caption = '종료하기'
+      OnClick = MnuExitClick
     end
   end
 end

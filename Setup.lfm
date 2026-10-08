@@ -1257,6 +1257,21 @@ object FrmSetup: TFrmSetup
           TabOrder = 2
           OnClick = BtnKeyClearClick
         end
+        object LblKeyNote: TLabel
+          Left = 444
+          Top = 176
+          Width = 200
+          Height = 45
+          Anchors = [akTop, akRight]
+          AutoSize = False
+          Font.Color = 2105536
+          Font.Height = -12
+          Font.Name = 'Segoe UI'
+          ParentFont = False
+          Transparent = True
+          Visible = False
+          WordWrap = True
+        end
         object BtnKeyDefault: TButton
           Left = 444
           Top = 462

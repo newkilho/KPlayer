@@ -32,6 +32,7 @@ type
     m_eOnVolume: TMPVDoubleEvent;
     m_eOnRestart: TNotifyEvent;
     m_bSized: Boolean;   // 이번 파일에서 OnVideoSize 발행 여부 (reconfig 는 파일당 여러 번)
+    m_bSubDefault: Boolean;   // 환경설정 '자막 기본 표시' — 파일마다 시작 때 sub-visibility 로 (DoEventStartFile)
 
     // Synchronize 로 넘길 값 (이벤트 스레드가 채우고 UI 스레드가 읽음)
     FPendSize: TMPVVideoSizeEvent;
@@ -91,6 +92,9 @@ type
     property OnVolume: TMPVDoubleEvent read m_eOnVolume write m_eOnVolume;
     // 탐색 끝 (PLAYBACK_RESTART) — 진행바 끌기가 다음 탐색을 보낼 때를 안다 (Main.MpvRestart)
     property OnRestart: TNotifyEvent read m_eOnRestart write m_eOnRestart;
+    // '자막 기본 표시'. sub-visibility 는 전역 속성이라 재생 중 자막 버튼으로 끈 상태가 다음 파일까지 남아 설정이 안 먹었다
+    // (2026-10-08 문의) → 새 파일마다 이 값으로 되돌린다. 자막 버튼은 그 파일에만.
+    property SubVisibleDefault: Boolean read m_bSubDefault write m_bSubDefault;
 
     // 파일별 첫 영상 크기 (UI 스레드에서 호출됨). Main.HandleVideoSize — 재생 창 크기 옵션.
     property OnVideoSize: TMPVVideoSizeEvent
@@ -344,6 +348,7 @@ end;
 function TMPVPlayer.DoEventStartFile(pSF: P_mpv_event_start_file): TMPVErrorCode;
 begin
   m_bSized := False;
+  SetPropertyBool('sub-visibility', m_bSubDefault);   // 이벤트 스레드 — mpv API 는 스레드 안전
   Result := inherited DoEventStartFile(pSF);
 end;
 

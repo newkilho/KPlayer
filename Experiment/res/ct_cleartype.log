@@ -1,0 +1,17 @@
+mpv_initialize = 0
+loadfile = 0
+gfx ok: composition swapchain 960x540 premultiplied, dcomp target hwnd=0000000000490916 topmost=0
+EndDraw 0x00000000 mode=cleartype
+mpv window class=mpv style=58000000 exstyle=00000004 clipsiblings=0
+top child = overlay
+A opaque chip  : chroma pixels=1333 max chroma=186
+B 55% bar      : chroma pixels=1116 max chroma=205
+C transparent  : chroma pixels=878 max chroma=144
+center pixel (240,270) = #707070
+center pixel (480,270) = #707070
+center pixel (720,270) = #707070
+WindowFromPoint(588,401) = overlay
+WindowFromPoint(144,643) = overlay
+overlay WM_LBUTTONDOWN
+overlay WM_LBUTTONDOWN
+clicks: overlay=2 main=0

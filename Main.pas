@@ -12,12 +12,6 @@ source code must be made available under the GPL.
 
 Icon: https://www.flaticon.com/free-icon/play_2377793
 
-해야할일:
-=========
-  - 환경설정 단축키: 다른 동작이 쓰는 키를 빼앗지 말고 거절한다 (지금은 AssignKey 가 그 동작의 키를 비운다 —
-    어느 쪽이 비었는지 화면에서 알 수 없다). 이유는 목록 아래에 빨간 글 '이미 …에 쓰입니다', 계속 키를 기다린다.
-    SecretVideo 1.3.4.0 · WorldView 와 같은 규칙 (2026-10-03)
-
 히스토리:
 ========
   1.1.6.0
@@ -29,22 +23,26 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
       글자 12px. KPlayer.lua·script 리소스 삭제 (Main.pas: 컨트롤 UI / ui\player.html, player.css / KPlayerResource.rc)
   [*] 배속 토스트·음량/재생 베젤·중앙 알림·TAB 정보 패널도 HTML 로 - Lua 와 같은 치수·색·페이드, 상태 변화는 100ms 폴링으로 감지
       (Main.pas: CheckOsd, ShowBezel, ShowToast, Alert, ToggleInfo, RefreshInfo / player.css: #toast #bezel #alert #info)
-  [*] 키보드 무반응 - TKilhoView TabStop=True 라 LCL 이 뷰에 포커스 → 엔진 창이 키를 먹어 FormKeyDown 안 옴.
-      TabStop False + 엔진 창 WM_SETFOCUS 를 폼으로 되돌림 (Main.pas: ViewHook, RestoreFocus)
-  [*] 창을 끈 뒤 마우스만 움직여도 글자가 선택되던 문제 - 창 이동 루프가 버튼 뗌을 먹음 → 뗌을 엔진 창에 대신 보냄,
-      UI 전체 user-select: none (Main.pas: ViewMouseDown / player.css: #ui)
   [*] 환경설정 '자막' 카드 맨 아래 여백 없음 (Setup.lfm: CboSubAss BorderSpacing.Bottom 19)
   [*] 닫기 버튼 hover 색 Win10 #E81123 → Win11 #C42B1C (player.css: #cap-close)
   [*] 우클릭 메뉴가 예전 모양 - LCL win32 는 항목을 전부 직접 그림(MFT_OWNERDRAW) → Win32 기본 메뉴로 복제해 띄움
-      (OSUtil.pas: PopupNativeMenu / Main.pas: ViewContextMenu)
+      재생목록 창 우클릭·[추가]·[삭제] 메뉴도 (OSUtil.pas: PopupNativeMenu / Main.pas: ViewContextMenu / List.pas: ListDataContextPopup, BtnMouseUp)
+  [+] 우클릭 메뉴에 '재생목록'(목록 창 보이면 체크)·'환경설정'·'종료하기' (Main.lfm: MnuPlayList, MnuSettings, MnuExit / Main.pas: MenuPopup)
   [+] 진행바 미리보기 - 마우스 위치 시점의 프레임을 말풍선 위에, 환경설정 '일반' 에서 켜고 끔 (INI seek_preview, 기본 켬).
       두 번째 mpv(소리 없음·일시정지)를 스레드에서 돌려 키프레임 탐색 + 소프트웨어 렌더 → BMP (Thumb.pas / Main.pas: SetSeekPreview, ThumbReady)
   [*] 진행바를 끌면 버벅임 - 탐색 명령이 쌓여 지나간 위치를 전부 밟았다. 탐색은 한 번에 하나만(비동기), 끝나면
       (PLAYBACK_RESTART) 그동안의 마지막 위치 하나만 다시 → 디코더가 감당하는 만큼만 따라감. 놓을 때 1회 정확 탐색.
       끄는 동안 진행바·시간은 mpv 에 묻지 않고 손끝 위치로 그림 (MPVPlayer.pas: OnRestart / Main.pas: DragTo, MpvRestart)
   [*] 하단 시간 표시를 7세그먼트 숫자로 (5×9, 꺼진 획 어둡게) (Tools\MakeDigits.py / player.css: #time / Main.pas: SetTimeDigits)
+  [*] 환경설정 '자막 기본 표시' 가 다음 재생에 안 먹던 문제 - sub-visibility 는 전역이라 자막 버튼으로 끈 상태가 다음 파일까지 남음.
+      새 파일마다 설정값으로 되돌림, 자막 버튼은 그 파일에만 (MPVPlayer.pas: SubVisibleDefault, DoEventStartFile)
+  [*] 환경설정 단축키: 다른 동작이 쓰는 키를 말없이 빼앗던 것 → 거절하고 [지우기] 아래 빨간 글 '이미 …에 쓰입니다',
+      계속 키를 기다림. SecretVideo 1.3.4.0 · WorldView 와 같은 규칙 (Setup.pas: AssignKey / Setup.lfm: LblKeyNote)
   [*] 재생목록 창이 열 때마다 우하단으로 이동 - 첫 표시만 자리 잡고, 위치는 종료 시 INI list_left/list_top 에 저장
       (List.pas: ShowPlaced, FormDestroy)
+  [*] 재생목록 하단 아이콘(반복·랜덤·추가·삭제)이 안 보이던 문제 (1.1.0.0 Lazarus 변환부터) - 그림 버퍼가 0×0 으로 만들어져
+      그리기 예외가 삼켜짐 (IconButton.pas: RenderTinted). 또 폼 Width/Height 는 테두리·제목줄 제외라 창이 작업 영역 아래로
+      39px 삐져 아이콘 줄이 작업 표시줄 뒤에 숨음 → 바깥 크기로 배치, 배율 다른 모니터로 옮겨 크기가 바뀌면 한 번 더 (List.pas: ShowPlaced)
 
   1.1.5.0
   [*] 자막 전환(cycle sub) 등 mpv 명령 중 EInvalidOp 크래시 - FPC 는 FPU 예외를 풀어 두고 libmpv 는 가려진 상태 전제(NaN 진행).
@@ -219,7 +217,11 @@ type
     MnuOrig200: TMenuItem;
     MnuFull: TMenuItem;
     MnuStretch: TMenuItem;
+    N3: TMenuItem;
+    MnuPlayList: TMenuItem;
+    MnuSettings: TMenuItem;
     N1: TMenuItem;
+    MnuExit: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormDropFiles(Sender: TObject; const FileNames: array of string);
@@ -233,6 +235,9 @@ type
     procedure MnuOriginalClick(Sender: TObject);
     procedure MnuFullClick(Sender: TObject);
     procedure MnuStretchClick(Sender: TObject);
+    procedure MnuPlayListClick(Sender: TObject);
+    procedure MnuSettingsClick(Sender: TObject);
+    procedure MnuExitClick(Sender: TObject);
   private
     FConfig: TConfig;
     FHook: TObject;         // Win32 서브클래스 (WM_NCHITTEST 가장자리 리사이즈, WM_DEVICECHANGE) — OSUtil
@@ -256,9 +261,7 @@ type
     FDragPos: Double;       // 진행바 드래그 중 표시 위치(초) — 탐색이 따라오기 전에도 손끝을 따른다
     FSeekBusy: Boolean;     // 진행바 끌기 탐색이 진행 중 (보냄 → PLAYBACK_RESTART 전) — 그동안은 쌓지 않는다
     FSeekPending: Boolean;  // 진행 중에 손끝이 또 움직임 → 끝나면 FDragPos 로 한 번 더
-    FSeekSent: Double;      // 마지막으로 보낸 끌기 탐색 위치(초)
     FDragResume: Boolean;   // 끌기 전에 재생 중이었다 → 놓을 때 재생 재개 (끄는 동안 일시정지)
-    FSeekStep: Double;      // 이보다 작은 움직임은 탐색 안 함 (DragTo 가 1초·진행바 3px 중 큰 쪽으로)
     FSeekGuard: TTimer;     // 탐색 끝 알림이 안 오는 경우(같은 위치 등) 대비 — 1초 뒤 진행 중 해제
     FMoveX, FMoveY: Single; // 컨트롤 표시 1px 임계 기준점
     FLastPath, FLastTitle, FLastTime: string;
@@ -469,7 +472,8 @@ begin
   MPVPlayer.SetOptionString('volume-max', '100');     // 100 초과 금지 (lua 는 넘으면 되돌렸다)
 
   // 자막 기본 켬 (1.1.0.0 까지 끔 — 'smi 미지원' 문의로 오인, 2026-09-29)
-  if FConfig.ReadInteger('sub_visible', 1) <> 0 then
+  MPVPlayer.SubVisibleDefault := FConfig.ReadInteger('sub_visible', 1) <> 0;   // 파일마다 시작 때 적용 (MPVPlayer)
+  if MPVPlayer.SubVisibleDefault then
     MPVPlayer.SetOptionString('sub-visibility', 'yes')
   else
     MPVPlayer.SetOptionString('sub-visibility', 'no');
@@ -1029,6 +1033,23 @@ begin
   MnuOrig100.Enabled := HasVideo;
   MnuOrig150.Enabled := HasVideo;
   MnuOrig200.Enabled := HasVideo;
+  MnuPlayList.Checked := FrmList.Visible;
+end;
+
+// 우클릭 '재생목록'(체크 = 목록 창 보임)/'환경설정'/'종료하기' — 하단 버튼·닫기 버튼과 같은 경로
+procedure TFrmKPlayer.MnuPlayListClick(Sender: TObject);
+begin
+  HandlePlayList;
+end;
+
+procedure TFrmKPlayer.MnuSettingsClick(Sender: TObject);
+begin
+  HandleSettings;
+end;
+
+procedure TFrmKPlayer.MnuExitClick(Sender: TObject);
+begin
+  HandleClose;
 end;
 
 // 우클릭 '만든이' → 홈페이지 (Const.inc AppHome)
@@ -2153,7 +2174,6 @@ begin
   FSeekPending := False;
   FSeekGuard.Enabled := False;
   FSeekGuard.Enabled := True;
-  FSeekSent := FDragPos;
   MPVPlayer.Command(['seek', FormatFloat('0.000', FDragPos, InvFmt), 'absolute+keyframes'], SeekReplyId);
 end;
 
@@ -2162,7 +2182,7 @@ procedure TFrmKPlayer.MpvRestart(Sender: TObject);
 begin
   FSeekBusy := False;
   FSeekGuard.Enabled := False;
-  if FSeekPending and (FDrag = 1) and (Abs(FDragPos - FSeekSent) >= FSeekStep) then SendDragSeek;
+  if FSeekPending and (FDrag = 1) then SendDragSeek;
   FSeekPending := False;
 end;
 
@@ -2190,7 +2210,6 @@ begin
   AEvent.StopPropagation;
   if (AEvent.MouseButton <> 0) or FUi.ClassContains('nodur') then Exit;
   FDrag := 1;
-  FSeekSent := -1E9;   // 누른 순간은 항상 탐색
   // 끄는 동안 일시정지 — 재생 중이면 탐색 사이사이 영상이 앞으로 갔다가 다음 탐색에 되돌아가며 떨렸다 (2026-10-08 문의).
   // 베젤은 안 띄움 (FBzPause 를 새 값으로 맞춰 CheckOsd 가 변화로 안 봄)
   FDragResume := IsPlay;
@@ -2294,7 +2313,6 @@ begin
     if (R.W <= 0) or (Dur <= 0) then Exit;
     Ratio := EnsureRange((AX - R.X) / R.W, 0, 1);
     FDragPos := Ratio * Dur;
-    FSeekStep := Math.Max(1.0, Dur / R.W * 3);
     if AExact then
     begin
       FSeekPending := False;
@@ -2302,9 +2320,7 @@ begin
     end
     else
     begin
-      // 작은 움직임은 버림 — 키프레임 탐색이라 근처 위치는 앞뒤 키프레임으로 튀며 떨렸다 (2026-10-08 문의)
-      if Abs(FDragPos - FSeekSent) >= FSeekStep then
-        if FSeekBusy then FSeekPending := True else SendDragSeek;
+      if FSeekBusy then FSeekPending := True else SendDragSeek;
       UpdateHover(AX);
       DragPaint;
       Exit;

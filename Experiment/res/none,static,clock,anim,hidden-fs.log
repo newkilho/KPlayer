@@ -1,0 +1,2 @@
+scenario=none,static,clock,anim,hidden fs=1 client=1280x1080 display=1280x1080@75Hz pid=2788
+done

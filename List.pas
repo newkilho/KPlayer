@@ -55,6 +55,7 @@ type
     procedure ListDataPaintText(Sender: TBaseVirtualTree;
       const TargetCanvas: TCanvas; Node: PVirtualNode; Column: TColumnIndex;
       TextType: TVSTTextType);
+    procedure ListDataContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
     procedure ListDataNodeDblClick(Sender: TBaseVirtualTree;
       const HitInfo: THitInfo);
     procedure ListDataKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -303,7 +304,7 @@ begin
   ListData := TLazVirtualStringTree.Create(Self);
   ListData.Parent := Self;
   ListData.Align := alClient;
-  ListData.PopupMenu := PopMenu;
+  ListData.OnContextPopup := ListDataContextPopup;   // PopupMenu 속성 대신 — LCL 메뉴는 예전 모양 (OSUtil.PopupNativeMenu)
   ListData.ScrollBarOptions.ScrollBars := ssNone;
   ListData.OnFreeNode := ListDataFreeNode;
   ListData.OnGetText := ListDataGetText;
@@ -375,8 +376,8 @@ end;
 // 없으면 AMonitor(본체 창 모니터) 우하단. 이후엔 사용자가 옮긴 자리 그대로.
 procedure TFrmList.ShowPlaced(AMonitor: TMonitor);
 var
-  R: TRect;
-  L, T: Integer;
+  R, WR: TRect;
+  L, T, I: Integer;
 begin
   if not FPlaced then
   begin
@@ -385,16 +386,21 @@ begin
     if (L = MaxInt) or (T = MaxInt) then
     begin
       R := AMonitor.WorkareaRect;
-      L := R.Right - Width;
-      T := R.Bottom - Height;
+      L := R.Right;    // 아래에서 바깥 크기만큼 당김
+      T := R.Bottom;
     end
     else
+      R := Screen.MonitorFromPoint(Types.Point(L, T)).WorkareaRect;
+    // Width/Height 는 테두리·제목줄 뺀 크기 (LCL win32) → 바깥 크기(GetWindowRect)로 맞춘다. 안 그러면 아래 39px(하단
+    // 아이콘 줄)가 작업 표시줄 뒤로 (2026-10-08 실측). 두 번 = 배율 다른 모니터로 옮기면 WM_DPICHANGED 가 크기를
+    // 바꿔 화면 밖으로 넘침 → 바뀐 크기로 다시.
+    for I := 1 to 2 do
     begin
-      R := Screen.MonitorFromPoint(Types.Point(L + Width div 2, T + Height div 2)).WorkareaRect;
-      L := EnsureRange(L, R.Left, R.Right - Width);
-      T := EnsureRange(T, R.Top, R.Bottom - Height);
+      GetWindowRect(Handle, WR);
+      L := EnsureRange(L, R.Left, R.Right - (WR.Right - WR.Left));
+      T := EnsureRange(T, R.Top, R.Bottom - (WR.Bottom - WR.Top));
+      SetBounds(L, T, Width, Height);
     end;
-    SetBounds(L, T, Width, Height);
     FPlaced := True;
   end;
   Show;
@@ -457,21 +463,24 @@ end;
 
 procedure TFrmList.BtnMouseUp(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
-var
-  P: TPoint;
 begin
   if Button = mbLeft then
   begin
     UpdateButtonColor(TIconButton(Sender), False);
 
-    P := Mouse.CursorPos;
     case TIconButton(Sender).Tag of
       1: SetRepeat;
       2: SetRandom;
-      3: PopAdd.PopUp(P.X, P.Y);
-      4: PopDel.PopUp(P.X, P.Y);
+      3: PopupNativeMenu(PopAdd, Handle);
+      4: PopupNativeMenu(PopDel, Handle);
     end;
   end;
+end;
+
+procedure TFrmList.ListDataContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
+begin
+  Handled := True;
+  PopupNativeMenu(PopMenu, Handle);
 end;
 
 procedure TFrmList.BtnDelPopupClick(Sender: TObject);

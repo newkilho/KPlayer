@@ -1,0 +1,2 @@
+scenario=anim fs=1 client=1280x1080 display=1280x1080@75Hz pid=12420
+done

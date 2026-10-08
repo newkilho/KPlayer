@@ -138,6 +138,7 @@ type
     LblKeyAction: TLabel;
     EdtKey: TEdit;
     BtnKeyClear: TButton;
+    LblKeyNote: TLabel;     // 거절 이유 (빨간 글, AssignKey)
     BtnKeyDefault: TButton;
     CardMouse: TPage;
     BoxMouse: TScrollBox;
@@ -1809,8 +1810,8 @@ begin
   else
     MPV.SetPropertyString('af', '');
 
-  // sub-visibility 는 여기서 안 보낸다 — '자막 기본 표시' 는 시작값이고, 재생 중엔 자막 버튼이 상태를
-  // 바꾼다. 글꼴 등 다른 항목을 만질 때마다 덮어쓰면 켜 둔 자막이 꺼진다 (2026-09-11 문의).
+  // sub-visibility 는 여기서 안 보낸다 — '자막 기본 표시' 는 파일마다의 시작값이고(MPVPlayer.SubVisibleDefault),
+  // 재생 중엔 자막 버튼이 상태를 바꾼다. 글꼴 등 다른 항목을 만질 때마다 덮어쓰면 켜 둔 자막이 꺼진다 (2026-09-11 문의).
   // 그 콤보 자체를 바꿨을 때만 ControlChange 가 보낸다.
   MPV.Command(['set', 'sub-font-size', IntToStr(TrkSubSize.Position)]);
   if Trim(EdtSubLang.Text) = '' then
@@ -1830,7 +1831,8 @@ begin
 
   if (Sender = CboSubVisible) and (FrmKPlayer <> nil) and (FrmKPlayer.MPVPlayer <> nil) then
   begin
-    if CboOn(CboSubVisible) then
+    FrmKPlayer.MPVPlayer.SubVisibleDefault := CboOn(CboSubVisible);   // 다음 파일부터 (MPVPlayer.DoEventStartFile)
+    if CboOn(CboSubVisible) then   // 지금 파일에도 바로
       FrmKPlayer.MPVPlayer.Command(['set', 'sub-visibility', 'yes'])
     else
       FrmKPlayer.MPVPlayer.Command(['set', 'sub-visibility', 'no']);
@@ -1980,11 +1982,14 @@ end;
 procedure TFrmSetup.LvKeysSelectItem(Sender: TObject; Item: TListItem; Selected: Boolean);
 begin
   if not Selected then Exit;
+  LblKeyNote.Visible := False;
   LblKeyAction.Caption := Item.Caption;
   EdtKey.Text := Item.SubItems[0];
 end;
 
-// 같은 키를 쓰던 다른 동작은 해제 (한 키 = 한 동작). 0 = 지우기.
+// 다른 동작이 쓰는 키는 거절 — 빼앗지 않는다 (말없이 빼앗으면 어느 쪽이 비었는지 화면에서 알 수 없었다).
+// 이유를 [지우기] 아래 빨간 글로, 입력 칸은 그대로 다음 키를 기다린다. SecretVideo 1.3.4.0 · WorldView 와 같은 규칙.
+// 0 = 지우기. 자기 키를 다시 누르면 그대로 (B <> A).
 procedure TFrmSetup.AssignKey(AKey: TShortCut);
 var
   A, B: TKeyAction;
@@ -1995,8 +2000,13 @@ begin
   if AKey <> 0 then
     for B := Low(TKeyAction) to High(TKeyAction) do
       if (B <> A) and (KeyMap[B] = AKey) then
-        SaveKey(Config, B, 0);
+      begin
+        LblKeyNote.Caption := Format(_('이미 ''%s''에 쓰입니다.'), [LvKeys.Items[Ord(B)].Caption]);
+        LblKeyNote.Visible := True;
+        Exit;
+      end;
 
+  LblKeyNote.Visible := False;
   SaveKey(Config, A, AKey);
   RefreshKeyRows;
 end;
@@ -2033,6 +2043,7 @@ procedure TFrmSetup.BtnKeyDefaultClick(Sender: TObject);
 begin
   if Config = nil then Exit;
   ResetKeys(Config);
+  LblKeyNote.Visible := False;
   RefreshKeyRows;
 end;
 

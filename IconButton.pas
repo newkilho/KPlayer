@@ -84,14 +84,18 @@ var
   Sum, Cnt: Int64;
   RGB: LongInt;
   C: TFPColor;
+  Desc: TRawImageDescription;
 begin
   SW := AMask.Width;
   SH := AMask.Height;
   RGB := ColorToRGB(AColor);
 
+  // DataDescription 은 속성(레코드 사본) — Dst.DataDescription.Init_… 은 사본만 고쳐 0×0 그대로, Colors[] 가
+  // 'Invalid horizontal pixel index' 로 Paint 의 except 에 삼켜져 아이콘이 안 그려졌다 (1.1.0.0 변환부터, 2026-10-08)
+  Desc.Init_BPP32_B8G8R8A8_BIO_TTB(ASize, ASize);
   Dst := TLazIntfImage.Create(0, 0);
   try
-    Dst.DataDescription.Init_BPP32_B8G8R8A8_BIO_TTB(ASize, ASize);
+    Dst.DataDescription := Desc;
     Dst.CreateData;
     for Y := 0 to ASize - 1 do
     begin

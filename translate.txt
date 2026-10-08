@@ -1897,3 +1897,23 @@ it=Sottotitoli caricati
 fr=Sous-titres chargés
 es=Subtítulos cargados
 ar=تم تحميل الترجمة
+
+ko=이미 '%s'에 쓰입니다.
+en=Already used by '%s'.
+ja=すでに「%s」に使われています。
+zh=已被“%s”使用。
+ru=Уже используется: «%s».
+it=Già usato da «%s».
+fr=Déjà utilisé par « %s ».
+es=Ya se usa en «%s».
+ar=مستخدم بالفعل في «%s».
+
+ko=종료하기
+en=Exit
+ja=終了
+zh=退出
+ru=Выход
+it=Esci
+fr=Quitter
+es=Salir
+ar=خروج
