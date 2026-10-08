@@ -14,6 +14,11 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
+  1.1.7.0
+  [*] 다음 영상으로 넘어가도 메모리가 안 줄던 문제 - 진행바 미리보기 mpv 가 옛 파일을 계속 열어 둠 (4K AV1 → 1080p 전환 뒤 741 → 425MB).
+      파일이 바뀌면 닫고 다음 호버 때 새로 엶 (Main.pas: RefreshUI)
+  [*] 진행바 미리보기 디코딩 스레드 2개로 - 4K AV1 호버 메모리 +390 → +276MB (Thumb.pas: Open)
+
   1.1.6.0
   [*] 재생 중 CPU 과다 - Main 의 mpv 옵션(vo/hwdec/scale 등)이 전부 무시돼 소프트웨어 디코딩. 바인딩 SetOptionString 이
       InitPlayer 전엔 버리고 이후엔 @p 를 넘겨 실패 → init 전 모아 뒀다 SetPropertyString 으로 적용 (MPVPlayer.pas: SetOptionString, ProcessCmdLine)
@@ -1937,6 +1942,8 @@ begin
     end;
     FLastDur := -1;   // 챕터 다시
     FUi.ClassSet('haspv', False);   // 옛 파일 미리보기 안 보이게 — 새 프레임이 오면 다시
+    // 미리보기 mpv 가 옛 파일을 쥐고 있으면 그 디코더 메모리가 남는다 (4K AV1 → 1080p 전환 뒤 +340MB 실측) → 닫음, 다음 호버 때 새로 연다
+    if FThumb <> nil then FThumb.Request('', 0);
     if FLastPath <> '' then ShowControls;   // 새 파일 = 컨트롤 잠깐 표시 (Lua file-loaded)
   end;
 

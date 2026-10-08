@@ -125,13 +125,15 @@ end;
 
 procedure TThumbnailer.Open;
 const
-  // 디코드만 가볍게: 소리·자막·스크립트·설정 파일·캐시 없음, 키프레임 탐색, 루프 필터 생략
-  Opts: array[0..19, 0..1] of string = (
+  // 디코드만 가볍게: 소리·자막·스크립트·설정 파일·캐시 없음, 키프레임 탐색, 루프 필터 생략.
+  // 스레드 2 — 기본(코어 수)은 프레임 스레드마다 버퍼라 4K AV1(소프트웨어) 호버에 +390MB 실측
+  Opts: array[0..20, 0..1] of string = (
     ('vo', 'libmpv'), ('ao', 'null'), ('audio', 'no'), ('sid', 'no'), ('sub-auto', 'no'),
     ('audio-file-auto', 'no'), ('pause', 'yes'), ('keep-open', 'always'), ('idle', 'yes'),
     ('config', 'no'), ('load-scripts', 'no'), ('ytdl', 'no'), ('terminal', 'no'),
     ('input-default-bindings', 'no'), ('osd-level', '0'), ('cache', 'no'),
-    ('hr-seek', 'no'), ('hwdec', 'no'), ('vd-lavc-skiploopfilter', 'all'), ('vd-lavc-fast', 'yes'));
+    ('hr-seek', 'no'), ('hwdec', 'no'), ('vd-lavc-skiploopfilter', 'all'), ('vd-lavc-fast', 'yes'),
+    ('vd-lavc-threads', '2'));
 var
   I: Integer;
   Api: UTF8String;
