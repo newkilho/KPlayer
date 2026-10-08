@@ -18,7 +18,6 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
   [*] 재생 중 CPU 과다 - Main 의 mpv 옵션(vo/hwdec/scale 등)이 전부 무시돼 소프트웨어 디코딩. 바인딩 SetOptionString 이
       InitPlayer 전엔 버리고 이후엔 @p 를 넘겨 실패 → init 전 모아 뒀다 SetPropertyString 으로 적용 (MPVPlayer.pas: SetOptionString, ProcessCmdLine)
       4K HEVC CPU 140% → 20%, 작업 집합 879 → 559MB
-  [*] 상단 제목 18 → 20, 하단 시간 글자 14 → 16 (KPlayer.lua: topbar_font_size, font_size)
   [*] 컨트롤 UI 를 KPlayer.lua(mpv ASS 오버레이) → KilhoUI(HTML/CSS, 정적 링크 -dKILHO_STATIC_MSVC) 로 교체 - 상단바·컨트롤바 디자인 동일,
       글자 12px. KPlayer.lua·script 리소스 삭제 (Main.pas: 컨트롤 UI / ui\player.html, player.css / KPlayerResource.rc)
   [*] 배속 토스트·음량/재생 베젤·중앙 알림·TAB 정보 패널도 HTML 로 - Lua 와 같은 치수·색·페이드, 상태 변화는 100ms 폴링으로 감지
@@ -32,16 +31,11 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
   [+] 우클릭 메뉴에 '재생목록'(목록 창 보이면 체크)·'환경설정'·'종료하기' (Main.lfm: MnuPlayList, MnuSettings, MnuExit / Main.pas: MenuPopup)
   [+] 진행바 미리보기 - 마우스 위치 시점의 프레임을 말풍선 위에, 환경설정 '일반' 에서 켜고 끔 (INI seek_preview, 기본 켬).
       두 번째 mpv(소리 없음·일시정지)를 스레드에서 돌려 키프레임 탐색 + 소프트웨어 렌더 → BMP (Thumb.pas / Main.pas: SetSeekPreview, ThumbReady)
-  [*] 진행바를 끌면 버벅임 - 탐색 명령이 쌓여 지나간 위치를 전부 밟았다. 탐색은 한 번에 하나만(비동기), 끝나면
-      (PLAYBACK_RESTART) 그동안의 마지막 위치 하나만 다시 → 디코더가 감당하는 만큼만 따라감. 놓을 때 1회 정확 탐색.
-      끄는 동안 진행바·시간은 mpv 에 묻지 않고 손끝 위치로 그림 (MPVPlayer.pas: OnRestart / Main.pas: DragTo, MpvRestart)
   [*] 하단 시간 표시를 7세그먼트 숫자로 (5×9, 꺼진 획 어둡게) (Tools\MakeDigits.py / player.css: #time / Main.pas: SetTimeDigits)
   [*] 환경설정 '자막 기본 표시' 가 다음 재생에 안 먹던 문제 - sub-visibility 는 전역이라 자막 버튼으로 끈 상태가 다음 파일까지 남음.
       새 파일마다 설정값으로 되돌림, 자막 버튼은 그 파일에만 (MPVPlayer.pas: SubVisibleDefault, DoEventStartFile)
   [*] 환경설정 단축키: 다른 동작이 쓰는 키를 말없이 빼앗던 것 → 거절하고 [지우기] 아래 빨간 글 '이미 …에 쓰입니다',
       계속 키를 기다림. SecretVideo 1.3.4.0 · WorldView 와 같은 규칙 (Setup.pas: AssignKey / Setup.lfm: LblKeyNote)
-  [*] 재생목록 창이 열 때마다 우하단으로 이동 - 첫 표시만 자리 잡고, 위치는 종료 시 INI list_left/list_top 에 저장
-      (List.pas: ShowPlaced, FormDestroy)
   [*] 재생목록 하단 아이콘(반복·랜덤·추가·삭제)이 안 보이던 문제 (1.1.0.0 Lazarus 변환부터) - 그림 버퍼가 0×0 으로 만들어져
       그리기 예외가 삼켜짐 (IconButton.pas: RenderTinted). 또 폼 Width/Height 는 테두리·제목줄 제외라 창이 작업 영역 아래로
       39px 삐져 아이콘 줄이 작업 표시줄 뒤에 숨음 → 바깥 크기로 배치, 배율 다른 모니터로 옮겨 크기가 바뀌면 한 번 더 (List.pas: ShowPlaced)
