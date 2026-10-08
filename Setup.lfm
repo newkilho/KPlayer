@@ -202,6 +202,16 @@ object FrmSetup: TFrmSetup
           Align = alClient
           BorderStyle = bsNone
           TabOrder = 0
+          object LblLang: TLabel
+            AnchorSideTop.Control = CboLang
+            AnchorSideTop.Side = asrCenter
+            Left = 24
+            Top = 423
+            Width = 24
+            Height = 15
+            Caption = '언어'
+            Transparent = True
+          end
           object LblRepeat: TLabel
             AnchorSideTop.Control = CboRepeat
             AnchorSideTop.Side = asrCenter
@@ -301,6 +311,16 @@ object FrmSetup: TFrmSetup
             Height = 15
             Caption = '진행바 미리보기'
             Transparent = True
+          end
+          object CboLang: TComboBox
+            Left = 473
+            Top = 419
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 11
+            OnChange = ControlChange
           end
           object CboRepeat: TComboBox
             Left = 473

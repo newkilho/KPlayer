@@ -9,7 +9,7 @@ uses
   ExtCtrls, StdCtrls, ComCtrls, Buttons, LCLType, LCLIntf, LMessages,
   laz.VirtualTrees, KTheme, KTranslate, Config, Media, Assoc, MPVPlayer, Hotkey;
 
-// 기본 자막 언어 = OS 언어(KTranslate.Lang) + 영어 폴백. 2자(외부 자막 파일명 .ko.srt) + 3자(MKV 트랙 ISO 639-2)
+// 기본 자막 언어 = 화면 언어(KTranslate.Lang — 설정 '언어', 자동이면 OS) + 영어 폴백. 2자(외부 자막 파일명 .ko.srt) + 3자(MKV 트랙 ISO 639-2)
 // 둘 다. zh/fr 은 B/T 코드가 둘. INI sub_lang 은 사용자가 직접 고친 값만 담고 '' = 이 함수 (shot_dir 과 같은 이유:
 // 기본값을 써 버리면 OS 언어를 바꿔도 옛 값이 남는다).
 function DefaultSubLang: string;
@@ -68,6 +68,8 @@ type
     CboWinSize: TComboBox;
     LblSeekPreview: TLabel;
     CboSeekPreview: TComboBox;
+    LblLang: TLabel;
+    CboLang: TComboBox;
     CardVideo: TPage;
     BoxVideo: TScrollBox;
     LblHwdec: TLabel;
@@ -271,6 +273,8 @@ type
     procedure ApplyLive;
     procedure UpdateTrackLabels;
     procedure FillFonts;
+    procedure FillLang;
+    procedure ApplyLanguage;
     procedure FillKeys;
     procedure FillMouse;
     procedure RefreshKeyRows;
@@ -296,7 +300,7 @@ implementation
 
 uses
   {$IFDEF WINDOWS}Windows, ShellApi,{$ENDIF}
-  Menus, Main, OSUtil;
+  Menus, StrUtils, Main, List, OSUtil;
 
 const
   // 아이콘 캐시 미조회 표시 (-1 = 셸이 못 줌)
@@ -325,6 +329,12 @@ const
   // 글자는 '할 일' 아닌 '상태' — 체크로 등록 완료라 적용 요구 문구는 혼동.
   // 클릭 가능 신호 = 호버 테두리 + 손 커서.
   BadgeTextNormal = '적용안됨';
+
+  // '일반 - 언어' 콤보 = 순번. INI language 엔 코드 문자열 ('auto' = OS). 9개 = translate.txt 언어 순서.
+  // 이름은 각 언어 자기 표기 — 번역 안 함 (Translate 가 훑지 않게 Translate 뒤에 FillLang 이 채운다).
+  LangCodes: array[0..9] of string = ('auto', 'ko', 'en', 'ja', 'zh', 'ru', 'it', 'fr', 'es', 'ar');
+  LangNames: array[1..9] of string = ('한국어', 'English', '日本語', '中文', 'Русский', 'Italiano', 'Français',
+    'Español', 'العربية');
 
 {$I Const.inc}
 
@@ -417,6 +427,7 @@ begin
 
   Translate(Self);
   FillFonts;
+  FillLang;
 
   // 트리에 그릴 문구는 미리 캐시 — SetupAssocTree 의 열 폭 계산이 뱃지 번역문을 잰다.
   for LGroup := Low(TAssocGroup) to High(TAssocGroup) do
@@ -1682,6 +1693,7 @@ begin
     SetCboOn(CboTopMost, CfgInt('topmost', 0) <> 0);
     CboWinSize.ItemIndex := EnsureRange(CfgInt('win_mode', 0), 0, CboWinSize.Items.Count - 1);
     SetCboOn(CboSeekPreview, CfgInt('seek_preview', 1) <> 0);
+    CboLang.ItemIndex := Max(AnsiIndexText(CfgStr('language', 'auto'), LangCodes), 0);   // 모르는 값 → 자동
 
     CboHwdec.ItemIndex := EnsureRange(CfgInt('hwdec', 0), 0, CboHwdec.Items.Count - 1);
     CboVo.ItemIndex := EnsureRange(CfgInt('vo', 0), 0, CboVo.Items.Count - 1);
@@ -1747,6 +1759,7 @@ begin
 
   Config.WriteInteger('win_mode', CboWinSize.ItemIndex);   // 재생 창 크기 (Main.RestoreWindow / HandleVideoSize)
   Config.WriteInteger('seek_preview', B2I(CboOn(CboSeekPreview)));   // 진행바 미리보기 (Main.SetSeekPreview)
+  Config.WriteString('language', LangCodes[Max(CboLang.ItemIndex, 0)]);   // 시작 때 Main.FormCreate 가 읽는다
 
   for E := Low(TMouseEvent) to High(TMouseEvent) do
     if FMouseCbo[E].ItemIndex >= 0 then
@@ -1846,6 +1859,67 @@ begin
   // 미리보기 켜기/끄기 = 두 번째 mpv 를 만들거나 없앤다 — 그 콤보를 바꿨을 때만
   if (FrmKPlayer <> nil) and (Sender = CboSeekPreview) then
     FrmKPlayer.SetSeekPreview(CboOn(CboSeekPreview));
+
+  if Sender = CboLang then
+    ApplyLanguage;
+end;
+
+// '일반 - 언어' 콤보. 0 = 자동(번역), 뒤는 자기 표기.
+procedure TFrmSetup.FillLang;
+var
+  I, Idx: Integer;
+begin
+  Idx := CboLang.ItemIndex;
+  CboLang.Items.BeginUpdate;
+  try
+    CboLang.Items.Clear;
+    CboLang.Items.Add(_('자동'));
+    for I := Low(LangNames) to High(LangNames) do
+      CboLang.Items.Add(LangNames[I]);
+  finally
+    CboLang.Items.EndUpdate;
+  end;
+  CboLang.ItemIndex := Idx;
+end;
+
+// 고른 언어를 지금 바로 — 고른 것이 --lang 보다 앞선다 (INIT.md 언어 결정 규칙). 폼(LFM 캡션·콤보·메뉴)은
+// Translate 가 다시 훑고(어느 언어 문장이든 키라 재번역 가능), 코드로 넣은 문구는 여기서 다시 채운다.
+// LoadValues 마지막 = Translate/채우기가 건드린 콤보 선택 복원 + 자막 언어 칸(DefaultSubLang 이 Lang 을 따름).
+procedure TFrmSetup.ApplyLanguage;
+var
+  LGroup: TAssocGroup;
+  A: TKeyAction;
+begin
+  Lang := ResolveLang(LangCodes[Max(CboLang.ItemIndex, 0)], False);
+
+  if FrmKPlayer <> nil then
+  begin
+    Translate(FrmKPlayer);
+    Application.Title := FrmKPlayer.Caption;
+  end;
+  if FrmList <> nil then
+  begin
+    Translate(FrmList);
+    FrmList.ApplyTexts;
+  end;
+
+  Translate(Self);
+  FillLang;
+  FillFonts;
+  FillMouse;
+  for LGroup := Low(TAssocGroup) to High(TAssocGroup) do
+    FGroupText[LGroup] := _(AssocGroupNames[LGroup]);
+  FBadgeText := _(BadgeTextNormal);
+  FNoneText := _('없음');
+  for A := Low(TKeyAction) to High(TKeyAction) do
+    LvKeys.Items[Ord(A)].Caption := _(KeyDefs[A].Name);
+  LblKeyNote.Visible := False;
+  if BtnAbout.Visible then
+    FillAbout;
+  FillAssoc;
+
+  LoadValues;
+  ApplyLive;   // slang — 자막 언어 기본값이 새 언어로
 end;
 
 procedure TFrmSetup.TrackChange(Sender: TObject);

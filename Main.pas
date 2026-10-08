@@ -27,6 +27,8 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
   [*] 닫기 버튼 hover 색 Win10 #E81123 → Win11 #C42B1C (player.css: #cap-close)
   [*] 우클릭 메뉴가 예전 모양 - LCL win32 는 항목을 전부 직접 그림(MFT_OWNERDRAW) → Win32 기본 메뉴로 복제해 띄움
       재생목록 창 우클릭·[추가]·[삭제] 메뉴도 (OSUtil.pas: PopupNativeMenu / Main.pas: ViewContextMenu / List.pas: ListDataContextPopup, BtnMouseUp)
+  [+] 환경설정 '일반 - 언어' - 자동(OS) / 9개 언어, 고르면 열린 창 모두 바로 바뀜 (INI language, --lang > 설정 > OS).
+      자막 언어 기본값도 화면 언어를 따름 (Setup.pas: CboLang, FillLang, ApplyLanguage / Main.pas: FormCreate / List.pas: ApplyTexts)
   [+] 우클릭 메뉴에 '재생목록'(목록 창 보이면 체크)·'환경설정'·'종료하기' (Main.lfm: MnuPlayList, MnuSettings, MnuExit / Main.pas: MenuPopup)
   [+] 진행바 미리보기 - 마우스 위치 시점의 프레임을 말풍선 위에, 환경설정 '일반' 에서 켜고 끔 (INI seek_preview, 기본 켬).
       두 번째 mpv(소리 없음·일시정지)를 스레드에서 돌려 키프레임 탐색 + 소프트웨어 렌더 → BMP (Thumb.pas / Main.pas: SetSeekPreview, ThumbReady)
@@ -416,13 +418,16 @@ var
   LLogFile, LSubLang: string;
 begin
   //Lang := 'en';
+  // 언어: --lang > 설정 '일반 - 언어'(auto = 건너뜀) > OS (INIT.md 언어 결정 규칙). 화면 번역 전에 → INI 를 먼저 연다.
+  // 업데이트 대화상자(KUpdate)도 이 Lang — 앱이 번역 안 한 언어로도 뜨는 것은 의도 (INIT.md).
+  FConfig := TConfig.Create(AppName);
+  Lang := ResolveLang(FConfig.ReadString('language', 'auto'));
   Translate(Self);
   Application.Title := Caption;
 
   // BorderStyle = bsNone 은 LFM 에서 — 여기서 바꾸면 핸들 재생성 (mpv wid 무효·SetFormCorners 소실)
   SetFormCorners(Handle, True);
 
-  FConfig := TConfig.Create(AppName);
   LoadKeys(FConfig);   // 단축키 표 (Hotkey.pas) — FormKeyDown 이 본다
   LoadMouse(FConfig);
 

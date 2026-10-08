@@ -120,6 +120,7 @@ type
     procedure StartVerify(AMissingOnly: Boolean = False);   // 외부 사건(드라이브 재연결·목록 창 표시) 뒤 재검사
     procedure ShowPlaced(AMonitor: TMonitor);
     procedure UpdateModeIcons;
+    procedure ApplyTexts;
     procedure SavePlaylist;
     procedure LoadPlaylist;
     procedure AddFile(AFileName: string; ACheckDisk: Boolean = True);
@@ -337,8 +338,7 @@ begin
   Translate(Self);
 
   // Translate 는 Caption 계열만 훑는다 — Hint 는 직접 (반복/랜덤 힌트는 UpdateButtonColor 가 만듦).
-  BtnAdd.Hint := _('추가 — 파일 / 폴더');
-  BtnDel.Hint := _('삭제 — 선택 / 선택 외 / 전체 / 없는 파일 (Del 키: 선택 항목)');
+  ApplyTexts;
 
   // 오버레이 스크롤바 (Windows). 그 밖의 OS 는 기본 스크롤바.
   if DarkScrollbarSupported then
@@ -1451,6 +1451,14 @@ procedure TFrmList.EndPlayback;
 begin
   ResetShuffle;              // 다음 랜덤 = 새 사이클
   FrmKPlayer.SetPause(True);
+end;
+
+// 코드로 넣는 문구 (Hint 는 Translate 가 안 훑는다). 설정에서 언어를 바꾸면 Setup.ApplyLanguage 가 다시 부른다.
+procedure TFrmList.ApplyTexts;
+begin
+  BtnAdd.Hint := _('추가 — 파일 / 폴더');
+  BtnDel.Hint := _('삭제 — 선택 / 선택 외 / 전체 / 없는 파일 (Del 키: 선택 항목)');
+  UpdateModeIcons;   // 반복·랜덤 힌트
 end;
 
 procedure TFrmList.UpdateModeIcons;
