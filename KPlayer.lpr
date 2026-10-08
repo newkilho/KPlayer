@@ -11,7 +11,7 @@ uses
   // 프로그램 본문보다 먼저 돌아 시작 도중의 크래시까지 잡는다. 앱 이름은 exe 이름, 버전은 버전 리소스.
   Forms, SysUtils, Math, KExcept,
   MPVPlayer, Main, List, Setup, Assoc, Hotkey, Media, Config, OSUtil,
-  IconButton, VTScrollbar, Instance;
+  IconButton, VTScrollbar, Instance, Thumb;
 
 {$R *.res}
 // 다국어 문자열 (translate.txt → RCDATA 'translate')

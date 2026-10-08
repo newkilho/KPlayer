@@ -30,6 +30,7 @@ type
     m_eOnFullScreen: TMPVBoolEvent;
     m_eOnEndReached: TNotifyEvent;
     m_eOnVolume: TMPVDoubleEvent;
+    m_eOnRestart: TNotifyEvent;
     m_bSized: Boolean;   // 이번 파일에서 OnVideoSize 발행 여부 (reconfig 는 파일당 여러 번)
 
     // Synchronize 로 넘길 값 (이벤트 스레드가 채우고 UI 스레드가 읽음)
@@ -59,6 +60,8 @@ type
     // → reconfig 에서 파일당 1회만 OnVideoSize. START_FILE 에서 플래그 리셋.
     function DoEventStartFile(pSF: P_mpv_event_start_file): TMPVErrorCode; override;
     function DoEventVideoReconfig: TMPVErrorCode; override;
+    // PLAYBACK_RESTART (탐색 끝·재생 시작) → OnRestart
+    function DoEventRestart: TMPVErrorCode; override;
 
     // 머리말 깨진·<P> 없는 SMI 자동 로드 — mpv sub-auto 는 probe 실패로 건너뛰거나 빈 트랙 (SamiLoadPath).
     // 규칙은 sub-auto 값 따라: exact=같은 이름(·이름.언어) fuzzy=이름 포함 all=전부. 이벤트 스레드.
@@ -79,13 +82,15 @@ type
     // InitPlayer 가 부르는 훅 (기반에서 public) — mpv_initialize 직전: 모아 둔 FPreOpts 적용 / 직후: 속성 관찰 등록
     procedure ProcessCmdLine(bBeforeInit: Boolean); override;
 
-    // 아래 셋 다 UI 스레드에서 호출됨.
+    // 아래 넷 다 UI 스레드에서 호출됨.
     // 전체화면 속성 = 단일 상태원 (Main.HandleFullScreen). 'cycle fullscreen' 등 어디서 바꿔도 여기로 온다.
     property OnFullScreen: TMPVBoolEvent read m_eOnFullScreen write m_eOnFullScreen;
     // 곡 끝 (eof-reached 가 참이 됨, keep-open 이라 마지막 프레임에 정지) — List.TrackFinished
     property OnEndReached: TNotifyEvent read m_eOnEndReached write m_eOnEndReached;
     // 음량 변경 (키·휠·슬라이더 어디서든) — INI 저장용
     property OnVolume: TMPVDoubleEvent read m_eOnVolume write m_eOnVolume;
+    // 탐색 끝 (PLAYBACK_RESTART) — 진행바 끌기가 다음 탐색을 보낼 때를 안다 (Main.MpvRestart)
+    property OnRestart: TNotifyEvent read m_eOnRestart write m_eOnRestart;
 
     // 파일별 첫 영상 크기 (UI 스레드에서 호출됨). Main.HandleVideoSize — 재생 창 크기 옵션.
     property OnVideoSize: TMPVVideoSizeEvent
@@ -394,6 +399,16 @@ begin
   finally
     FindClose(SR);
   end;
+end;
+
+function TMPVPlayer.DoEventRestart: TMPVErrorCode;
+begin
+  Result := inherited DoEventRestart;
+  Lock;
+  FPendNotify := m_eOnRestart;
+  Unlock;
+  if Assigned(FPendNotify) then
+    TThread.Synchronize(nil, SyncNotify);
 end;
 
 procedure TMPVPlayer.SyncVideoSize;

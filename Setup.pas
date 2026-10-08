@@ -66,6 +66,8 @@ type
     CboTopMost: TComboBox;
     LblWinSize: TLabel;
     CboWinSize: TComboBox;
+    LblSeekPreview: TLabel;
+    CboSeekPreview: TComboBox;
     CardVideo: TPage;
     BoxVideo: TScrollBox;
     LblHwdec: TLabel;
@@ -437,7 +439,7 @@ begin
   FWatchTimer.Interval := 300;
   FWatchTimer.OnTimer := WatchTimerTick;
 
-  // 로그·정보 카드는 디버그 빌드 전용 (Main.pas 의 lua 경로 분기와 같은 기준).
+  // 로그·정보 카드는 디버그 빌드 전용 (Config.IsDebugBuild).
   // 훅 없으면 Assoc.pas 는 문자열도 안 만듦.
   MemoAssocLog.Visible := IsDebugBuild;
   BtnAbout.Visible := IsDebugBuild;
@@ -1678,6 +1680,7 @@ begin
     CboShotFmt.ItemIndex := EnsureRange(CfgInt('shot_format', 0), 0, CboShotFmt.Items.Count - 1);
     SetCboOn(CboTopMost, CfgInt('topmost', 0) <> 0);
     CboWinSize.ItemIndex := EnsureRange(CfgInt('win_mode', 0), 0, CboWinSize.Items.Count - 1);
+    SetCboOn(CboSeekPreview, CfgInt('seek_preview', 1) <> 0);
 
     CboHwdec.ItemIndex := EnsureRange(CfgInt('hwdec', 0), 0, CboHwdec.Items.Count - 1);
     CboVo.ItemIndex := EnsureRange(CfgInt('vo', 0), 0, CboVo.Items.Count - 1);
@@ -1742,6 +1745,7 @@ begin
   Config.WriteInteger('topmost', B2I(CboOn(CboTopMost)));
 
   Config.WriteInteger('win_mode', CboWinSize.ItemIndex);   // 재생 창 크기 (Main.RestoreWindow / HandleVideoSize)
+  Config.WriteInteger('seek_preview', B2I(CboOn(CboSeekPreview)));   // 진행바 미리보기 (Main.SetSeekPreview)
 
   for E := Low(TMouseEvent) to High(TMouseEvent) do
     if FMouseCbo[E].ItemIndex >= 0 then
@@ -1836,6 +1840,10 @@ begin
   // 건드릴 때마다 사용자가 손으로 늘린 창이 되돌아간다.
   if (FrmKPlayer <> nil) and (Sender = CboWinSize) then
     FrmKPlayer.ApplyWindowMode;
+
+  // 미리보기 켜기/끄기 = 두 번째 mpv 를 만들거나 없앤다 — 그 콤보를 바꿨을 때만
+  if (FrmKPlayer <> nil) and (Sender = CboSeekPreview) then
+    FrmKPlayer.SetSeekPreview(CboOn(CboSeekPreview));
 end;
 
 procedure TFrmSetup.TrackChange(Sender: TObject);

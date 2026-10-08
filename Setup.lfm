@@ -292,6 +292,16 @@ object FrmSetup: TFrmSetup
             Caption = '재생 창 크기'
             Transparent = True
           end
+          object LblSeekPreview: TLabel
+            AnchorSideTop.Control = CboSeekPreview
+            AnchorSideTop.Side = asrCenter
+            Left = 24
+            Top = 383
+            Width = 90
+            Height = 15
+            Caption = '진행바 미리보기'
+            Transparent = True
+          end
           object CboRepeat: TComboBox
             Left = 473
             Top = 19
@@ -420,6 +430,19 @@ object FrmSetup: TFrmSetup
               '마지막 크기 유지'
               '영상 크기에 맞춤'
               '전체 화면')
+          end
+          object CboSeekPreview: TComboBox
+            Left = 473
+            Top = 379
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 10
+            OnChange = ControlChange
+            Items.Strings = (
+              '사용안함'
+              '사용함')
           end
         end
       end

@@ -1078,6 +1078,16 @@ fr=Taille de la fenêtre à la lecture
 es=Tamaño de ventana al reproducir
 ar=حجم النافذة عند التشغيل
 
+ko=진행바 미리보기
+en=Seek bar preview
+ja=シークバーのプレビュー
+zh=进度条预览
+ru=Превью на полосе перемотки
+it=Anteprima sulla barra di avanzamento
+fr=Aperçu sur la barre de lecture
+es=Vista previa en la barra de progreso
+ar=معاينة شريط التقدم
+
 ko=마지막 크기 유지
 en=Keep last size
 ja=前回のサイズを維持

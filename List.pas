@@ -1925,7 +1925,7 @@ begin
   Play(Pick);
 end;
 
-// 곡 종료 시 (script-message 'finished') 다음 재생 결정. mpv keep-open=yes 라
+// 곡 종료 시 (MPVPlayer.OnEndReached → Main.MpvEndReached) 다음 재생 결정. mpv keep-open=yes 라
 // 파일 끝나도 자체 언로드 없음 → 재생할 것 없으면 직접 정지 (안 하면 OSD 만 재생 중 표시 잔존).
 procedure TFrmList.TrackFinished;
 var

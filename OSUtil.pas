@@ -17,9 +17,6 @@ procedure SetWindowTopMost(AForm: TCustomForm; AState: Boolean);
 // False = 이 OS 는 미지원 (호출부가 클릭 처리만).
 function StartWindowDrag(AForm: TCustomForm): Boolean;
 
-// OS UI 기본 글꼴 이름 — OSD 글꼴 (KPlayer.lua ui-font). LCL Screen 에는 VCL 의 MessageFont 가 없다.
-function UIFontName: string;
-
 // 관리자 ↔ 일반 프로세스 간 파일 드롭 허용 (UIPI). Delphi K.DragFile 이 하던 것.
 procedure AllowDropFromLowerIntegrity(AHandle: THandle);
 
@@ -70,19 +67,6 @@ uses
 const
   WM_COPYGLOBALDATA = $0049;
   MSGFLT_ALLOW = 1;
-
-type
-  // FPC windows 유닛에 W 판이 없다
-  TNonClientMetricsW = record
-    cbSize: UINT;
-    iBorderWidth, iScrollWidth, iScrollHeight, iCaptionWidth, iCaptionHeight: Integer;
-    lfCaptionFont: LOGFONTW;
-    iSmCaptionWidth, iSmCaptionHeight: Integer;
-    lfSmCaptionFont: LOGFONTW;
-    iMenuWidth, iMenuHeight: Integer;
-    lfMenuFont, lfStatusFont, lfMessageFont: LOGFONTW;
-    iPaddedBorderWidth: Integer;
-  end;
 {$ENDIF}
 
 procedure SetWindowTopMost(AForm: TCustomForm; AState: Boolean);
@@ -116,25 +100,6 @@ begin
   Result := False;
   {$ENDIF}
 end;
-
-function UIFontName: string;
-{$IFDEF WINDOWS}
-var
-  NCM: TNonClientMetricsW;
-begin
-  Result := '';
-  FillChar(NCM, SizeOf(NCM), 0);
-  NCM.cbSize := SizeOf(NCM);
-  if SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, SizeOf(NCM), @NCM, 0) then
-    Result := UTF8Encode(UnicodeString(PWideChar(@NCM.lfMessageFont.lfFaceName[0])));
-  if Result = '' then
-    Result := 'Segoe UI';
-end;
-{$ELSE}
-begin
-  Result := 'sans-serif';
-end;
-{$ENDIF}
 
 procedure AllowDropFromLowerIntegrity(AHandle: THandle);
 {$IFDEF WINDOWS}

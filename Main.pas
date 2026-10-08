@@ -27,6 +27,8 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
   [*] 상단 제목 18 → 20, 하단 시간 글자 14 → 16 (KPlayer.lua: topbar_font_size, font_size)
   [*] 컨트롤 UI 를 KPlayer.lua(mpv ASS 오버레이) → KilhoUI(HTML/CSS, 정적 링크 -dKILHO_STATIC_MSVC) 로 교체 - 상단바·컨트롤바 디자인 동일,
       글자 12px. KPlayer.lua·script 리소스 삭제 (Main.pas: 컨트롤 UI / ui\player.html, player.css / KPlayerResource.rc)
+  [*] 배속 토스트·음량/재생 베젤·중앙 알림·TAB 정보 패널도 HTML 로 - Lua 와 같은 치수·색·페이드, 상태 변화는 100ms 폴링으로 감지
+      (Main.pas: CheckOsd, ShowBezel, ShowToast, Alert, ToggleInfo, RefreshInfo / player.css: #toast #bezel #alert #info)
   [*] 키보드 무반응 - TKilhoView TabStop=True 라 LCL 이 뷰에 포커스 → 엔진 창이 키를 먹어 FormKeyDown 안 옴.
       TabStop False + 엔진 창 WM_SETFOCUS 를 폼으로 되돌림 (Main.pas: ViewHook, RestoreFocus)
   [*] 창을 끈 뒤 마우스만 움직여도 글자가 선택되던 문제 - 창 이동 루프가 버튼 뗌을 먹음 → 뗌을 엔진 창에 대신 보냄,
@@ -35,6 +37,12 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
   [*] 닫기 버튼 hover 색 Win10 #E81123 → Win11 #C42B1C (player.css: #cap-close)
   [*] 우클릭 메뉴가 예전 모양 - LCL win32 는 항목을 전부 직접 그림(MFT_OWNERDRAW) → Win32 기본 메뉴로 복제해 띄움
       (OSUtil.pas: PopupNativeMenu / Main.pas: ViewContextMenu)
+  [+] 진행바 미리보기 - 마우스 위치 시점의 프레임을 말풍선 위에, 환경설정 '일반' 에서 켜고 끔 (INI seek_preview, 기본 켬).
+      두 번째 mpv(소리 없음·일시정지)를 스레드에서 돌려 키프레임 탐색 + 소프트웨어 렌더 → BMP (Thumb.pas / Main.pas: SetSeekPreview, ThumbReady)
+  [*] 진행바를 끌면 버벅임 - 탐색 명령이 쌓여 지나간 위치를 전부 밟았다. 탐색은 한 번에 하나만(비동기), 끝나면
+      (PLAYBACK_RESTART) 그동안의 마지막 위치 하나만 다시 → 디코더가 감당하는 만큼만 따라감. 놓을 때 1회 정확 탐색.
+      끄는 동안 진행바·시간은 mpv 에 묻지 않고 손끝 위치로 그림 (MPVPlayer.pas: OnRestart / Main.pas: DragTo, MpvRestart)
+  [*] 하단 시간 표시를 7세그먼트 숫자로 (5×9, 꺼진 획 어둡게) (Tools\MakeDigits.py / player.css: #time / Main.pas: SetTimeDigits)
   [*] 재생목록 창이 열 때마다 우하단으로 이동 - 첫 표시만 자리 잡고, 위치는 종료 시 INI list_left/list_top 에 저장
       (List.pas: ShowPlaced, FormDestroy)
 
@@ -186,7 +194,7 @@ interface
 uses
   Classes, SysUtils, Types, Math, Graphics, Controls, Forms, Dialogs,
   StdCtrls, ExtCtrls, Menus, LCLType, LCLIntf,
-  MPVBasePlayer, MPVPlayer, Config, Hotkey, KilhoView;
+  MPVBasePlayer, MPVPlayer, Config, Hotkey, KilhoView, Thumb;
 
 const
   // 중앙 알림 색 (RGB hex). 기본 파라미터에 쓰여 클래스 선언보다 앞 필수.
@@ -246,11 +254,32 @@ type
     FCtlHidden: Boolean;
     FDrag: Integer;        // 0 없음 / 1 진행바 / 2 음량 — 누른 채 끄는 중
     FDragPos: Double;       // 진행바 드래그 중 표시 위치(초) — 탐색이 따라오기 전에도 손끝을 따른다
+    FSeekBusy: Boolean;     // 진행바 끌기 탐색이 진행 중 (보냄 → PLAYBACK_RESTART 전) — 그동안은 쌓지 않는다
+    FSeekPending: Boolean;  // 진행 중에 손끝이 또 움직임 → 끝나면 FDragPos 로 한 번 더
+    FSeekSent: Double;      // 마지막으로 보낸 끌기 탐색 위치(초)
+    FDragResume: Boolean;   // 끌기 전에 재생 중이었다 → 놓을 때 재생 재개 (끄는 동안 일시정지)
+    FSeekStep: Double;      // 이보다 작은 움직임은 탐색 안 함 (DragTo 가 1초·진행바 3px 중 큰 쪽으로)
+    FSeekGuard: TTimer;     // 탐색 끝 알림이 안 오는 경우(같은 위치 등) 대비 — 1초 뒤 진행 중 해제
     FMoveX, FMoveY: Single; // 컨트롤 표시 1px 임계 기준점
     FLastPath, FLastTitle, FLastTime: string;
+    FTimeShape: string;               // FLastTime 의 숫자를 '0' 으로 — 바뀌면(자리수·시간 단위) 칸을 다시 만든다
+    FTimeDigit: array of TKElement;   // 글자 자리별 켜진 획 요소 (숫자 아닌 자리는 nil)
     FLastPlayed, FLastVol: Integer;
     FLastDur: Double;
-    FVerifyTimer: TTimer;   // 드라이브 변경 통지 뭉침 방지 (WndHook WM_DEVICECHANGE)
+    // 화면 위 알림 (3단계) — 배속 토스트·베젤·중앙 알림·TAB 정보. 표시는 FUi 클래스, 끄는 건 1회 타이머 (Tag 로 구분)
+    FElToast, FElBezelIco, FElPill, FElAlert: TKElement;
+    FElInfo: array[0..8] of TKElement;
+    FInfoText: array[0..8] of string;   // 바뀐 줄만 쓴다
+    FToastTimer, FBezelTimer, FAlertTimer, FInfoTimer: TTimer;
+    FInfoOn: Boolean;
+    FBzPause, FBzVol: Integer;   // 직전 값 — 바뀌면 베젤. -1 = 아직 모름 (첫 값은 표시 안 함)
+    FBzSpeed: Double;            // 0 = 아직 모름
+    // 진행바 미리보기 (환경설정 '진행바 미리보기', INI seek_preview) — nil = 끔
+    FThumb: TThumbnailer;
+    FElPreview, FElPreviewImg: TKElement;
+    FPvAlt: Boolean;             // 이미지 이름 번갈아 (pv-a / pv-b) — 같은 이름이면 엔진이 새 그림을 안 볼 수 있다
+    FPvH: Integer;               // 상자 높이 (폭 160 기준, 영상 비율)
+    FVerifyTimer: TTimer;  // 드라이브 변경 통지 뭉침 방지 (WndHook WM_DEVICECHANGE)
     FFullOnce: Boolean;     // 재생 창 크기 '전체 화면' 은 세션당 1회 (ESC 로 풀면 다음 곡에 다시 안 감)
     FStretch: Boolean;      // 꽉찬 화면 (keepaspect=no) 중 — 전체화면 해제 시 keepaspect 복원 판단
     FClickTimer: TTimer;    // 왼쪽 클릭 기능 지연 — 더블클릭이면 취소 (ViewMouseDown / ClickTimerTick)
@@ -280,6 +309,12 @@ type
     procedure CtlAction(Data: PtrInt);
     procedure ProgressMouseDown(Sender: TObject; AEvent: TKEvent);
     procedure ProgressMouseMove(Sender: TObject; AEvent: TKEvent);
+    procedure UpdateHover(AX: Single);
+    function PreviewUsable: Boolean;
+    procedure SendDragSeek;
+    procedure SeekGuardTick(Sender: TObject);
+    procedure MpvRestart(Sender: TObject);
+    procedure DragPaint;
     procedure VolMouseDown(Sender: TObject; AEvent: TKEvent);
     procedure DragTo(AX: Single; AExact: Boolean);
     procedure RestoreFocus(Data: PtrInt);
@@ -288,6 +323,16 @@ type
     procedure UiTimerTick(Sender: TObject);
     procedure RefreshUI;
     procedure RebuildChapters;
+    procedure SetTimeDigits(const S: string);
+    function OneShot(AInterval: Integer): TTimer;
+    procedure OsdTimerTick(Sender: TObject);
+    procedure CheckOsd(AIdle: Boolean);
+    procedure ShowBezel(const AIcon, AText: string);
+    procedure ShowToast(const AText: string);
+    procedure ToggleInfo;
+    procedure RefreshInfo;
+    procedure InfoTimerTick(Sender: TObject);
+    procedure ThumbReady(const ABytes: TBytes; AW, AH: Integer);
     procedure UpdateCursor;
 
     procedure MpvFullScreen(Sender: TObject; AValue: Boolean);
@@ -342,6 +387,7 @@ type
     procedure HandleStartupParams;
     procedure SetTopMost(AState: Boolean);
     procedure ApplyWindowMode;
+    procedure SetSeekPreview(AOn: Boolean);
 
     property Config: TConfig read FConfig;
     property Volume: Double read FVolume write SetVolume;
@@ -411,6 +457,7 @@ begin
   MPVPlayer.OnFullScreen := MpvFullScreen;
   MPVPlayer.OnEndReached := MpvEndReached;
   MPVPlayer.OnVolume := MpvVolume;
+  MPVPlayer.OnRestart := MpvRestart;
 
   // 파일 없어도 플레이어 종료 방지
   MPVPlayer.SetOptionString('idle', 'yes');
@@ -459,6 +506,8 @@ begin
 
   // 자막 스타일 ('자막' 카드) — 글꼴·색·외곽선·위치·ASS 덮어쓰기. 즉시 반영도 같은 함수 (Setup.ApplyLive).
   ApplySubStyle(FConfig, MPVPlayer);
+
+  SetSeekPreview(FConfig.ReadInteger('seek_preview', 1) <> 0);
 
   // EOF 시 마지막 프레임 정지 — 래퍼의 keep-open-pause=no 는 EOF 에도 pause=false → OSD 가 재생 중처럼 보임
   MPVPlayer.Command(['set', 'keep-open-pause', 'yes']);
@@ -519,6 +568,7 @@ begin
   FreeAndNil(FViewHook);
 
   SaveWindow;
+  FreeAndNil(FThumb);   // 두 번째 mpv — DLL 이 살아 있을 때
   FreeAndNil(MPVPlayer);
   FreeAndNil(FConfig);
 end;
@@ -1069,9 +1119,18 @@ begin
   Result := SameText(LEOF, 'yes');
 end;
 
-// 화면 중앙 일시 알림. 색 = RGB hex (ALERT_* 상수). 3단계(HTML 알림) 전까지 표시 없음.
+// 화면 중앙 일시 알림 4.5초 (#alert). 색 = RGB hex (ALERT_* 상수), 6자리 아니면 흰색. 다시 오면 글만 바꾸고 시간 연장.
 procedure TFrmKPlayer.Alert(const AMsg: string; const AColor: string);
 begin
+  if FUi = nil then Exit;
+  FElAlert.Text := AMsg;
+  if Length(AColor) = 6 then
+    FElAlert.Attr['style'] := 'color:#' + AColor
+  else
+    FElAlert.Attr['style'] := '';
+  FUi.ClassSet('alert', True);
+  FAlertTimer.Enabled := False;
+  FAlertTimer.Enabled := True;
 end;
 
 procedure TFrmKPlayer.SetPause(AState: Boolean);
@@ -1369,7 +1428,7 @@ begin
   ExecMouse(meLClick);
 end;
 
-// TAB = 재생/파일 정보 패널 토글 (3단계 — 지금은 키만 먹는다).
+// TAB = 재생/파일 정보 패널 토글 (ToggleInfo).
 // FormKeyDown 이 아닌 여기서 받는다 — TAB 은 포커스 이동 키라 거기까지 안 올 수 있다 (FormCreate 주석).
 // 본체 창이 활성일 때만 (환경설정·목록 창의 탭 이동은 그대로 둔다). Ctrl+Tab 은 창 전환이라 제외.
 procedure TFrmKPlayer.KeyDownBefore(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -1380,6 +1439,7 @@ begin
   if ssCtrl in Shift then Exit;
 
   Key := 0;
+  ToggleInfo;
 end;
 
 // 영상 영역 누름 (KilhoUI 뷰 — 창 전체를 덮어 폼 OnMouseDown 은 안 온다).
@@ -1463,12 +1523,13 @@ begin
   PopupNativeMenu(PopMenu, Handle);
 end;
 
-// ---- 컨트롤 UI (2단계). 디자인 원본 KPlayer.lua — 마크업·치수는 ui\player.html / player.css.
+// ---- 컨트롤 UI·화면 알림. 디자인 원본 KPlayer.lua (git 에만, 1.1.6.0 에서 삭제) — 마크업·치수는 ui\player.html / player.css.
 
 const
   // 버튼 id ↔ CtlAction 번호 (클릭은 지연 실행 — 리스너 안에서 모달 창·창 닫기를 하면 엔진 이벤트 처리 중에 재진입)
   CtlIds: array[0..11] of string = ('cap-pin', 'cap-min', 'cap-max', 'cap-close', 'btn-prev', 'btn-play',
     'btn-next', 'btn-mute', 'btn-sub', 'btn-set', 'btn-list', 'logo-disc');
+  SeekReplyId = 9001;   // 탐색 명령 ID — 응답은 안 본다, 0 이 아니면 비동기 (mpv_command_async, DragTo)
 
 var
   InvFmt: TFormatSettings;   // CSS·mpv 숫자는 소수점 '.' 고정
@@ -1543,6 +1604,15 @@ begin
   FElVolFill := FView.GetElementById('vol-fill');
   FElVolThumb := FView.GetElementById('vol-thumb');
   FElChapters := FView.GetElementById('chapters');
+  FElToast := FView.GetElementById('toast');
+  FElBezelIco := FView.GetElementById('bezel-ico');
+  FElPill := FView.GetElementById('bezel-pill');
+  FElAlert := FView.GetElementById('alert');
+  FElPreview := FView.GetElementById('preview');
+  FElPreviewImg := FView.GetElementById('preview-img');
+  FPvH := 90;
+  for I := 0 to High(FElInfo) do
+    FElInfo[I] := FView.GetElementById('iv' + IntToStr(I));
 
   // 영상 영역(버튼 밖) — 창 끌기·클릭·휠·우클릭은 1단계 처리 그대로
   FView.Root.Listen('mousedown', ViewMouseDown);
@@ -1574,6 +1644,210 @@ begin
   FUiTimer := TTimer.Create(Self);
   FUiTimer.Interval := 100;
   FUiTimer.OnTimer := UiTimerTick;
+
+  // 끄는 시점 = 총 표시 시간 − 페이드아웃 (player.css 의 transition 과 짝)
+  FBzPause := -1;
+  FBzVol := -1;
+  FBzSpeed := 0;
+  FToastTimer := OneShot(1000);         // 토스트 1초, 페이드 없음
+  FBezelTimer := OneShot(1000 - 250);   // 베젤 1초, 나갈 때 .25
+  FAlertTimer := OneShot(4500 - 600);   // 알림 4.5초, 나갈 때 .6
+  FSeekGuard := TTimer.Create(Self);
+  FSeekGuard.Enabled := False;
+  FSeekGuard.Interval := 1000;
+  FSeekGuard.OnTimer := SeekGuardTick;
+  FInfoTimer := TTimer.Create(Self);
+  FInfoTimer.Enabled := False;
+  FInfoTimer.Interval := 1000;          // 시간·비트레이트·드롭 수가 계속 변한다
+  FInfoTimer.OnTimer := InfoTimerTick;
+end;
+
+function TFrmKPlayer.OneShot(AInterval: Integer): TTimer;
+begin
+  Result := TTimer.Create(Self);
+  Result.Enabled := False;
+  Result.Interval := AInterval;
+  Result.OnTimer := OsdTimerTick;
+end;
+
+procedure TFrmKPlayer.OsdTimerTick(Sender: TObject);
+begin
+  TTimer(Sender).Enabled := False;
+  if Sender = FToastTimer then
+    FUi.ClassSet('toast', False)
+  else if Sender = FBezelTimer then
+    FUi.ClassSet('bezel', False)
+  else if Sender = FAlertTimer then
+    FUi.ClassSet('alert', False);
+end;
+
+// 일시정지·음량·배속이 바뀌면 베젤/토스트 (Lua 속성 감시와 같은 규칙). 어디서 바꿨든 — 키·휠·버튼·메뉴.
+//   첫 값은 기준만 잡는다 (시작 때 INI 음량 적용 등). 음량 슬라이더를 끄는 중엔 슬라이더가 값을 보여 준다.
+//   시작 화면(idle)엔 베젤 없음 (CSS 도 숨김) — 기준만 따라간다.
+procedure TFrmKPlayer.CheckOsd(AIdle: Boolean);
+var
+  B: Boolean;
+  V: Double;
+  N: Integer;
+begin
+  B := False;
+  MPVPlayer.GetPropertyBool('pause', B, False);
+  if (FBzPause >= 0) and (Ord(B) <> FBzPause) and not AIdle then
+    if B then ShowBezel('i-pause', '') else ShowBezel('i-play', '');
+  FBzPause := Ord(B);
+
+  V := 0;
+  MPVPlayer.GetPropertyDouble('volume', V, False);
+  N := EnsureRange(Round(V), 0, 100);
+  if (FBzVol >= 0) and (N <> FBzVol) and (FDrag <> 2) and not AIdle then
+  begin
+    B := False;
+    MPVPlayer.GetPropertyBool('mute', B, False);
+    if B then ShowBezel('i-mute', IntToStr(N) + '%') else ShowBezel('i-vol', IntToStr(N) + '%');
+  end;
+  FBzVol := N;
+
+  V := 1;
+  MPVPlayer.GetPropertyDouble('speed', V, False);
+  if (FBzSpeed > 0) and not SameValue(V, FBzSpeed, 1e-6) then
+    ShowToast(FormatFloat('0.##', V, InvFmt) + 'x');   // 꼬리 0 제거 — '1.5x', '1x'
+  FBzSpeed := V;
+end;
+
+// 베젤 표시 중 다시 오면 아이콘·숫자만 바꾸고 시간 연장 (페이드인 재시작 안 함 — 연타 깜빡임). AText = '' 면 알약 없음.
+procedure TFrmKPlayer.ShowBezel(const AIcon, AText: string);
+const
+  Icons: array[0..3] of string = ('i-play', 'i-pause', 'i-vol', 'i-mute');
+var
+  I: Integer;
+begin
+  for I := 0 to High(Icons) do
+    FElBezelIco.ClassSet(Icons[I], Icons[I] = AIcon);
+  if AText <> '' then FElPill.Text := AText;
+  FUi.ClassSet('bzvol', AText <> '');
+  FUi.ClassSet('bezel', True);
+  FBezelTimer.Enabled := False;
+  FBezelTimer.Enabled := True;
+end;
+
+procedure TFrmKPlayer.ShowToast(const AText: string);
+begin
+  FElToast.Text := AText;
+  FUi.ClassSet('toast', True);
+  FToastTimer.Enabled := False;
+  FToastTimer.Enabled := True;
+end;
+
+procedure TFrmKPlayer.ToggleInfo;
+begin
+  if FUi = nil then Exit;
+  FInfoOn := not FInfoOn;
+  FUi.ClassSet('info', FInfoOn);
+  FInfoTimer.Enabled := FInfoOn;
+  if FInfoOn then RefreshInfo;
+end;
+
+procedure TFrmKPlayer.InfoTimerTick(Sender: TObject);
+begin
+  RefreshInfo;
+end;
+
+// TAB 정보 패널 값 (Lua info_rows 와 같은 항목·형식, 영어 고정). 값 없으면 '-' — 재생 전에도 패널은 뜬다.
+procedure TFrmKPlayer.RefreshInfo;
+var
+  R: array[0..8] of string;
+  I: Integer;
+  N: Int64;
+  D, Fps: Double;
+  B: Boolean;
+  S: string;
+  W: UnicodeString;
+
+  function P(const AName: string; const ADef: string = '-'): string;
+  begin
+    Result := '';
+    MPVPlayer.GetPropertyString(AName, Result, False);
+    if Result = '' then Result := ADef;
+  end;
+
+  function Num(const AName: string): Double;
+  begin
+    Result := 0;
+    MPVPlayer.GetPropertyDouble(AName, Result, False);
+  end;
+
+  function Kbps(const AName: string): string;
+  var
+    V: Double;
+  begin
+    V := Num(AName);
+    if V <= 0 then Result := '-' else Result := Format('%d kbps', [Round(V / 1000)]);
+  end;
+
+  function Size: string;
+  var
+    V: Int64;
+  begin
+    V := 0;
+    MPVPlayer.GetPropertyInt64('file-size', V, False);
+    if V <= 0 then Result := '-'
+    else if V >= 1073741824 then Result := FormatFloat('0.00', V / 1073741824, InvFmt) + ' GB'
+    else if V >= 1048576 then Result := FormatFloat('0.0', V / 1048576, InvFmt) + ' MB'
+    else Result := FormatFloat('0', V / 1024, InvFmt) + ' KB';
+  end;
+
+  function Dim(const AName: string): string;
+  var
+    V: Int64;
+  begin
+    V := 0;
+    if (MPVPlayer.GetPropertyInt64(AName, V, False) <> 0) or (V <= 0) then Result := '-' else Result := IntToStr(V);
+  end;
+
+begin
+  if (MPVPlayer = nil) or not FInfoOn then Exit;
+
+  // 긴 파일명은 60자(바이트 아님)에서 자름 — 화면을 넘지 않게
+  W := UTF8Decode(P('filename'));
+  if Length(W) > 60 then S := UTF8Encode(Copy(W, 1, 60)) + '...' else S := UTF8Encode(W);
+  R[0] := S;
+  R[1] := P('file-format') + '   ' + Size;
+  R[2] := FormatTime(Num('time-pos')) + ' / ' + FormatTime(Num('duration')) + '   x' +
+          FormatFloat('0.##', Math.Max(Num('speed'), 0.0), InvFmt);
+
+  Fps := Num('container-fps');
+  if Fps <= 0 then Fps := Num('estimated-vf-fps');
+  if Fps > 0 then S := FormatFloat('0.000', Fps, InvFmt) + ' fps' else S := '-';
+  R[3] := P('video-format') + '   ' + Dim('width') + 'x' + Dim('height') + '   ' + S + '   ' + Kbps('video-bitrate');
+  R[4] := P('current-tracks/video/decoder-desc') + '   hwdec: ' + P('hwdec-current', 'no');
+  R[5] := P('audio-codec-name') + '   ' + P('audio-params/channel-count') + 'ch   ' +
+          P('audio-params/samplerate') + ' Hz   ' + Kbps('audio-bitrate');
+
+  S := P('sid', '');
+  if (S <> '') and (S <> 'no') then
+    R[6] := '#' + S + '   ' + P('current-tracks/sub/title', P('current-tracks/sub/lang', ''))
+  else
+    R[6] := 'off';
+
+  D := 0;
+  if MPVPlayer.GetPropertyDouble('avsync', D, False) = 0 then
+    S := FormatFloat('+0.000;-0.000;+0.000', D, InvFmt)
+  else
+    S := '-';
+  R[7] := 'A/V ' + S + '   drop ' + P('frame-drop-count', '0') + ' / ' + P('decoder-frame-drop-count', '0');
+
+  N := Round(Num('volume'));
+  B := False;
+  MPVPlayer.GetPropertyBool('mute', B, False);
+  R[8] := IntToStr(N) + '%';
+  if B then R[8] := R[8] + '   (muted)';
+
+  for I := 0 to High(R) do
+    if R[I] <> FInfoText[I] then
+    begin
+      FInfoText[I] := R[I];
+      FElInfo[I].Text := R[I];
+    end;
 end;
 
 // 컨트롤 표시 + 자동 숨김 재시작
@@ -1609,6 +1883,7 @@ end;
 
 procedure TFrmKPlayer.UiTimerTick(Sender: TObject);
 begin
+  if FDrag = 1 then Exit;   // 끄는 중 — 진행바·시간은 DragPaint, 동기 조회로 탐색 중인 코어를 기다리지 않게
   RefreshUI;
 end;
 
@@ -1626,6 +1901,7 @@ begin
   MPVPlayer.GetPropertyBool('idle-active', Idle, False);
   FUi.ClassSet('idle', Idle);
   if Idle and FCtlHidden then ShowControls;
+  CheckOsd(Idle);   // 컨트롤 숨김과 무관하게 본다
 
   S := '';
   MPVPlayer.GetPropertyString('path', S, False);
@@ -1640,6 +1916,7 @@ begin
       FElTitle.Text := S;
     end;
     FLastDur := -1;   // 챕터 다시
+    FUi.ClassSet('haspv', False);   // 옛 파일 미리보기 안 보이게 — 새 프레임이 오면 다시
     if FLastPath <> '' then ShowControls;   // 새 파일 = 컨트롤 잠깐 표시 (Lua file-loaded)
   end;
 
@@ -1684,11 +1961,7 @@ begin
   end;
 
   S := FormatTime(Pos) + ' / ' + FormatTime(Dur);
-  if S <> FLastTime then
-  begin
-    FLastTime := S;
-    FElTime.Text := S;
-  end;
+  if S <> FLastTime then SetTimeDigits(S);
 
   if Dur > 0 then N := EnsureRange(Round(Pos / Dur * 10000), 0, 10000) else N := 0;
   if N <> FLastPlayed then
@@ -1698,6 +1971,51 @@ begin
     FElPlayed.Attr['style'] := 'width:' + S;
     FElThumb.Attr['style'] := 'left:' + S;
   end;
+end;
+
+// 시간 칩 = 7세그먼트 칸 (player.css .dg/.dc/.ds). 숫자 칸 = 어두운 전 획 위에 켜진 획 자식(.d0~.d9).
+// 모양(자리수·':' 위치)이 같으면 바뀐 숫자의 클래스만 바꾼다 — 1초마다 끝자리 하나.
+procedure TFrmKPlayer.SetTimeDigits(const S: string);
+var
+  I: Integer;
+  Shape, Last: string;
+  E: TKElement;
+begin
+  Shape := S;
+  for I := 1 to Length(Shape) do
+    if Shape[I] in ['0'..'9'] then Shape[I] := '0';
+  Last := FLastTime;
+  if Shape <> FTimeShape then
+  begin
+    FTimeShape := Shape;
+    while FElTime.FirstChild <> nil do
+      FElTime.FirstChild.Remove;
+    SetLength(FTimeDigit, Length(S));
+    for I := 1 to Length(S) do
+    begin
+      FTimeDigit[I - 1] := nil;
+      if S[I] = ' ' then Continue;   // ' / ' 간격은 .ds 의 margin
+      E := FView.CreateElement('div');
+      case S[I] of
+        ':': E.ClassAdd('dc');
+        '/': E.ClassAdd('ds');
+      else
+        E.ClassAdd('dg');
+        FTimeDigit[I - 1] := FView.CreateElement('div');
+        E.AppendChild(FTimeDigit[I - 1]);
+      end;
+      FElTime.AppendChild(E);
+    end;
+    Last := '';   // 새 칸 — 전부 씀
+  end;
+  for I := 1 to Length(S) do
+    if (FTimeDigit[I - 1] <> nil) and ((I > Length(Last)) or (S[I] <> Last[I])) then
+    begin
+      if (I <= Length(Last)) and (Last[I] in ['0'..'9']) then
+        FTimeDigit[I - 1].ClassSet('d' + Last[I], False);
+      FTimeDigit[I - 1].ClassSet('d' + S[I], True);
+    end;
+  FLastTime := S;
 end;
 
 procedure TFrmKPlayer.RebuildChapters;
@@ -1746,7 +2064,13 @@ begin
     DragTo(AEvent.MouseX, True);   // 놓은 지점으로 정확히
   if FDrag <> 0 then
   begin
+    if (FDrag = 1) and FDragResume then
+    begin
+      MPVPlayer.SetPropertyBool('pause', False);   // 끌기 전 상태로 (ProgressMouseDown)
+      FBzPause := 0;
+    end;
     FDrag := 0;
+    FSeekPending := False;
     FUi.ClassSet('seeking', False);
     FUi.ClassSet('voldrag', False);
     ShowControls;
@@ -1823,31 +2147,122 @@ begin
 end;
 
 // 진행바: 누른 순간 그 위치로, 뗄 때까지 끌기
+procedure TFrmKPlayer.SendDragSeek;
+begin
+  FSeekBusy := True;
+  FSeekPending := False;
+  FSeekGuard.Enabled := False;
+  FSeekGuard.Enabled := True;
+  FSeekSent := FDragPos;
+  MPVPlayer.Command(['seek', FormatFloat('0.000', FDragPos, InvFmt), 'absolute+keyframes'], SeekReplyId);
+end;
+
+// 탐색 끝 (MPVPlayer.OnRestart, 재생 시작 때도 온다) — 끄는 중 밀린 위치가 있으면 그것 하나만
+procedure TFrmKPlayer.MpvRestart(Sender: TObject);
+begin
+  FSeekBusy := False;
+  FSeekGuard.Enabled := False;
+  if FSeekPending and (FDrag = 1) and (Abs(FDragPos - FSeekSent) >= FSeekStep) then SendDragSeek;
+  FSeekPending := False;
+end;
+
+procedure TFrmKPlayer.SeekGuardTick(Sender: TObject);
+begin
+  MpvRestart(nil);
+end;
+
+// 끄는 중 진행바·시간 = 손끝 위치 (FDragPos, 길이는 RefreshUI 가 둔 FLastDur)
+procedure TFrmKPlayer.DragPaint;
+var
+  S: string;
+begin
+  if FLastDur <= 0 then Exit;
+  S := FormatFloat('0.00', EnsureRange(FDragPos / FLastDur * 100, 0, 100), InvFmt) + '%';
+  FElPlayed.Attr['style'] := 'width:' + S;
+  FElThumb.Attr['style'] := 'left:' + S;
+  FLastPlayed := -1;   // 끝나면 RefreshUI 가 다시 씀
+  S := FormatTime(FDragPos) + ' / ' + FormatTime(FLastDur);
+  if S <> FLastTime then SetTimeDigits(S);
+end;
+
 procedure TFrmKPlayer.ProgressMouseDown(Sender: TObject; AEvent: TKEvent);
 begin
   AEvent.StopPropagation;
   if (AEvent.MouseButton <> 0) or FUi.ClassContains('nodur') then Exit;
   FDrag := 1;
+  FSeekSent := -1E9;   // 누른 순간은 항상 탐색
+  // 끄는 동안 일시정지 — 재생 중이면 탐색 사이사이 영상이 앞으로 갔다가 다음 탐색에 되돌아가며 떨렸다 (2026-10-08 문의).
+  // 베젤은 안 띄움 (FBzPause 를 새 값으로 맞춰 CheckOsd 가 변화로 안 봄)
+  FDragResume := IsPlay;
+  if FDragResume then
+  begin
+    MPVPlayer.SetPropertyBool('pause', True);
+    FBzPause := 1;
+  end;
   FUi.ClassSet('seeking', True);
   DragTo(AEvent.MouseX, False);
 end;
 
 // 진행바 위 시간 말풍선 — 커서 시간, 진행바 안으로 당김
 procedure TFrmKPlayer.ProgressMouseMove(Sender: TObject; AEvent: TKEvent);
+begin
+  UpdateHover(AEvent.MouseX);
+end;
+
+// 미리보기: 켜져 있고 영상 있는 로컬 파일만 (스트림은 두 번째 연결이 대역폭을 먹는다)
+function TFrmKPlayer.PreviewUsable: Boolean;
+begin
+  Result := (FThumb <> nil) and (MPVPlayer.VideoWidth > 0) and (FLastPath <> '') and (Pos('://', FLastPath) = 0);
+end;
+
+// 말풍선·미리보기를 커서(뷰 좌표 AX) 시각으로 — 진행바 위에 올렸을 때와 끄는 중 둘 다. 상자는 진행바 안으로 당김
+procedure TFrmKPlayer.UpdateHover(AX: Single);
 var
   R, T: TKRect;
   Dur, X: Double;
 begin
-  Dur := 0;
-  MPVPlayer.GetPropertyDouble('duration', Dur, False);
+  Dur := FLastDur;   // RefreshUI 가 둔 값 — 끄는 중 동기 조회는 탐색 중인 코어를 기다린다
   if Dur <= 0 then Exit;
   R := FElProgress.BoundingRect;
   if R.W <= 0 then Exit;
-  X := EnsureRange(AEvent.MouseX - R.X, 0, R.W);
+  X := EnsureRange(AX - R.X, 0, R.W);
   FElTip.Text := FormatTime(X / R.W * Dur);
+  if PreviewUsable then   // 끄는 중에도 (사용자 요청 2026-10-08 — 본 영상은 키프레임만 띄엄띄엄 따라온다)
+  begin
+    FThumb.Request(FLastPath, X / R.W * Dur);
+    FElPreview.Attr['style'] := 'left:' + FormatFloat('0.0', EnsureRange(X, 81, Math.Max(81, R.W - 81)), InvFmt) +
+                                'px;height:' + IntToStr(FPvH) + 'px';   // 81 = 폭 160/2 + 테두리 1
+  end;
   T := FElTip.BoundingRect;
   X := EnsureRange(X, T.W / 2, Math.Max(T.W / 2, R.W - T.W / 2));
   FElTip.Attr['style'] := 'left:' + FormatFloat('0.0', X, InvFmt) + 'px';
+end;
+
+// 환경설정 '진행바 미리보기' — 켜면 미리보기 스레드(두 번째 mpv)를 만들고, 끄면 없앤다
+procedure TFrmKPlayer.SetSeekPreview(AOn: Boolean);
+begin
+  if AOn = (FThumb <> nil) then Exit;
+  if AOn then
+    FThumb := TThumbnailer.Create(ThumbReady)
+  else
+  begin
+    FreeAndNil(FThumb);
+    if FUi <> nil then FUi.ClassSet('haspv', False);
+  end;
+end;
+
+// 미리보기 프레임 도착 (Thumb 스레드 → Queue). 이미지 이름을 번갈아 등록하고 상자 높이를 영상 비율로
+procedure TFrmKPlayer.ThumbReady(const ABytes: TBytes; AW, AH: Integer);
+var
+  Name: string;
+begin
+  if (FThumb = nil) or (FUi = nil) or (AW <= 0) then Exit;
+  FPvAlt := not FPvAlt;
+  if FPvAlt then Name := 'pv-a.bmp' else Name := 'pv-b.bmp';
+  FView.SetImage(Name, ABytes);
+  FElPreviewImg.Attr['src'] := Name;
+  FPvH := Round(160 * AH / AW);
+  FUi.ClassSet('haspv', True);
 end;
 
 // 음량 슬라이더도 누른 채 끈다
@@ -1860,10 +2275,11 @@ begin
   DragTo(AEvent.MouseX, False);
 end;
 
-// 드래그 중엔 키프레임 탐색(가벼움), 놓을 때 1회 exact — 매번 정확 탐색은 끊긴다 (Lua drag_seek)
+// 진행바 끌기: 키프레임 탐색을 한 번에 하나만 (SendDragSeek). 끝나면(MpvRestart) 그동안 움직인 마지막 위치 하나만 다시.
+// 움직일 때마다 보내면 탐색이 쌓여 지나간 위치를 전부 밟으며 버벅였다 (2026-10-08 문의 — 동기 mpv_command 는 UI 까지 잡았고,
+// 비동기로 바꿔도 쌓임은 그대로). 놓을 때 1회 exact. 끄는 동안 진행바·시간은 손끝 위치로 직접 (DragPaint — mpv 에 묻는
+// 동기 호출은 탐색 중인 코어를 기다린다).
 procedure TFrmKPlayer.DragTo(AX: Single; AExact: Boolean);
-const
-  SeekFlag: array[Boolean] of string = ('absolute+keyframes', 'absolute+exact');
 var
   R: TKRect;
   Ratio, Dur: Double;
@@ -1878,7 +2294,21 @@ begin
     if (R.W <= 0) or (Dur <= 0) then Exit;
     Ratio := EnsureRange((AX - R.X) / R.W, 0, 1);
     FDragPos := Ratio * Dur;
-    MPVPlayer.Command(['seek', FormatFloat('0.000', FDragPos, InvFmt), SeekFlag[AExact]]);
+    FSeekStep := Math.Max(1.0, Dur / R.W * 3);
+    if AExact then
+    begin
+      FSeekPending := False;
+      MPVPlayer.Command(['seek', FormatFloat('0.000', FDragPos, InvFmt), 'absolute+exact'], SeekReplyId);
+    end
+    else
+    begin
+      // 작은 움직임은 버림 — 키프레임 탐색이라 근처 위치는 앞뒤 키프레임으로 튀며 떨렸다 (2026-10-08 문의)
+      if Abs(FDragPos - FSeekSent) >= FSeekStep then
+        if FSeekBusy then FSeekPending := True else SendDragSeek;
+      UpdateHover(AX);
+      DragPaint;
+      Exit;
+    end;
   end
   else if FDrag = 2 then
   begin

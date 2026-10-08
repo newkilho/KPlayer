@@ -20,6 +20,8 @@ html, body { margin: 0; width: 100%; height: 100%; background: transparent; }
 .i-sub   { background-image: url(sub.svg); }
 .i-set   { background-image: url(set.svg); }
 .i-list  { background-image: url(list.svg); }
+.i-pause { background-image: url(pause.svg); }
+.i-mute  { background-image: url(vol-off.svg); }
 #ui.playing #btn-play .ico { background-image: url(pause.svg); }
 #ui.muted #btn-mute .ico { background-image: url(vol-off.svg); }
 
@@ -93,6 +95,17 @@ html, body { margin: 0; width: 100%; height: 100%; background: transparent; }
        transform: translateX(-50%); }
 #progress:hover #tip, #ui.seeking #tip { display: block; }
 #ui.nodur #tip { display: none; }
+/* 미리보기 (환경설정 '진행바 미리보기'): 말풍선 위 4px, 폭 160 — 높이·left 는 Main 이 영상 비율·커서로.
+   haspv = 이 파일의 프레임을 한 번이라도 받음 (그 전엔 빈 상자 안 보이게). 끄는 중(seeking)에도 보인다 (사용자 요청) */
+#preview { display: none; position: absolute; bottom: 44px; left: 0; width: 160px; height: 90px; border-radius: 4px;
+           margin-left: -81px; overflow: hidden; background: #000; border: 1px solid rgba(255, 255, 255, .25);
+           pointer-events: none; }
+/* <img> 로 — div 배경(inset 0 + background-size 100%)은 그림이 상자의 일부(75×85)에만 그려졌다 (2026-10-08 캡처).
+   가운데 맞춤도 transform 대신 margin (폭 160 + 테두리 2 의 반) */
+#preview-img { display: block; width: 100%; height: 100%; }
+#ui.haspv #progress:hover #preview { display: block; }
+#ui.haspv.seeking #preview { display: block; }
+#ui.nodur #preview { display: none; }
 
 /* 버튼줄: 버튼 40×40 원, 칩 사이 8 */
 #row { position: absolute; left: 12px; right: 12px; top: 22px; height: 40px; display: flex; align-items: center; gap: 8px; }
@@ -117,7 +130,27 @@ html, body { margin: 0; width: 100%; height: 100%; background: transparent; }
 #vol-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; border-radius: 1px; background: #fff; }
 #vol-thumb { position: absolute; top: 4px; left: 100%; width: 12px; height: 12px; margin-left: -6px; border-radius: 6px; background: #fff; }
 
-#time { padding: 0 14px; display: flex; align-items: center; white-space: nowrap; }
+/* 시간: 7세그먼트 숫자 5×9 직접 그림 (Tools\MakeDigits.py — NLDDigiLabel 10×20·7×15 는 크고 흐림). 글자 간격 2.
+   '/' 는 14세그먼트식 사선 획 둘 (가운데 획 줄에서 끊김).
+   칸마다 dg-8(전 획)을 어둡게 깔고 그 위에 켜진 획 (LCD 처럼). 칸은 Main.SetTimeDigits 가 만든다 */
+/* 세로 가운데 정렬 금지 — 반 픽셀 위치면 1px 가로 획·점이 두 줄에 반씩 번진다 (7×15 때 12.5, 2026-10-08 캡처). 정수로 고정 */
+#time { padding: 0 14px; display: flex; align-items: flex-start; gap: 2px; }
+.dg, .dc, .ds { margin-top: 15px; }
+.dg { position: relative; width: 5px; height: 9px; flex: none; color: rgba(255, 255, 255, .15);
+      background-image: url(dg-8.svg); background-size: 100% 100%; }
+.dg div { position: absolute; left: 0; top: 0; right: 0; bottom: 0; color: #fff; background-size: 100% 100%; }
+.d0 { background-image: url(dg-0.svg); }
+.d1 { background-image: url(dg-1.svg); }
+.d2 { background-image: url(dg-2.svg); }
+.d3 { background-image: url(dg-3.svg); }
+.d4 { background-image: url(dg-4.svg); }
+.d5 { background-image: url(dg-5.svg); }
+.d6 { background-image: url(dg-6.svg); }
+.d7 { background-image: url(dg-7.svg); }
+.d8 { background-image: url(dg-8.svg); }
+.d9 { background-image: url(dg-9.svg); }
+.dc { width: 1px; height: 9px; flex: none; color: #fff; background-image: url(dg-col.svg); background-size: 100% 100%; }
+.ds { width: 5px; height: 9px; flex: none; margin-left: 2px; margin-right: 2px; color: #fff; background-image: url(dg-sl.svg); background-size: 100% 100%; }
 .spacer { flex: 1; }
 
 /* 자막 버튼: 트랙 있을 때만, 켜짐 흰색 / 꺼짐 회색. 아이콘만 28 (viewBox 확대 반영) */
@@ -125,3 +158,42 @@ html, body { margin: 0; width: 100%; height: 100%; background: transparent; }
 #ui.hassub #btn-sub { display: flex; }
 #btn-sub .ico { width: 28px; height: 28px; color: #888; }
 #ui.subon #btn-sub .ico { color: #fff; }
+
+/* ---- 화면 위 알림 (3단계). 컨트롤 페이드(.hidden)와 무관, 클릭은 통과. 상태 클래스 toast bezel bzvol alert info.
+   Lua \fs = 줄높이 기준 → em: Arial ×0.895 (upem 2048 / win 1854+434), 맑은 고딕 ×0.752 (2048/2724).
+   배경 #141414 .55 = Lua bar_bg (bg_alpha .55) */
+#toast, #bezel, #bezel-pill, #alert, #info { pointer-events: none; }
+
+/* 배속 토스트: 정중앙 96×34, 1초, 페이드 없음. Arial \fs22 → 20px */
+#toast { display: none; position: absolute; left: 50%; top: 50%; width: 96px; height: 34px; margin: -17px 0 0 -48px;
+         border-radius: 6px; background: rgba(20, 20, 20, .55); text-align: center; line-height: 34px;
+         font-family: Arial; font-weight: bold; font-size: 20px; }
+#ui.toast #toast { display: block; }
+
+/* 베젤: 원 지름 100 (검정 .7) + 아이콘 46, 1초 = 페이드인 .12 + 유지 + 페이드아웃 .25. 배율 .75↔1 (Lua ease-out, 나갈 땐 반대) */
+#bezel { position: absolute; left: 50%; top: 50%; width: 100px; height: 100px; margin: -50px 0 0 -50px; border-radius: 50px;
+         background: rgba(0, 0, 0, .7); display: flex; align-items: center; justify-content: center;
+         opacity: 0; transform: scale(.75); transition: opacity .25s linear, transform .25s ease-in; }
+#ui.bezel #bezel { opacity: 1; transform: scale(1); transition: opacity .12s linear, transform .12s ease-out; }
+#bezel-ico { width: 46px; height: 46px; }
+/* 음량일 때만 숫자 알약 96×36 (.8). y = 화면 높이 15%, 상단바(32)+8 아래로는 안 감. 배율 불변. Arial \fs24 → 21px */
+#bezel-pill { position: absolute; left: 50%; top: max(15%, 40px); width: 96px; height: 36px; margin-left: -48px;
+              border-radius: 10px; background: rgba(20, 20, 20, .8); text-align: center; line-height: 36px;
+              font-family: Arial; font-weight: bold; font-size: 21px; opacity: 0; transition: opacity .25s linear; }
+#ui.bezel.bzvol #bezel-pill { opacity: 1; transition: opacity .12s linear; }
+/* 시작 화면 로고와 같은 자리 → idle 엔 안 보임 */
+#ui.idle #bezel, #ui.idle #bezel-pill { display: none; }
+
+/* 중앙 알림: 베젤 자리 피해 96 아래, 높이 38, 4.5초 = 페이드인 .15 + 유지 + 페이드아웃 .6. 글자색 = Main.Alert 의 style.
+   맑은 고딕 \fs20 → 15px */
+#alert { position: absolute; left: 50%; top: 50%; height: 38px; margin-top: 77px; padding: 0 18px; border-radius: 8px;
+         background: rgba(20, 20, 20, .55); line-height: 38px; font-size: 15px; font-weight: bold; white-space: nowrap;
+         transform: translateX(-50%); opacity: 0; transition: opacity .6s linear; }
+#ui.alert #alert { opacity: 1; transition: opacity .15s linear; }
+
+/* TAB 정보 패널: 상단바 아래 8, 좌 14. 줄 20, 라벨 열 62 (#aaa). 값의 여러 칸 공백을 살리려고 pre */
+#info { display: none; position: absolute; left: 14px; top: 40px; max-width: calc(100% - 56px); padding: 10px 14px;
+        border-radius: 8px; background: rgba(20, 20, 20, .55); overflow: hidden; }
+#ui.info #info { display: block; }
+.row { display: flex; height: 20px; line-height: 20px; white-space: pre; }
+.k { width: 62px; flex: none; color: #aaa; }
