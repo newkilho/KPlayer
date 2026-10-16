@@ -7,7 +7,7 @@ interface
 uses
   Classes, SysUtils, Types, StrUtils, Math, Generics.Collections,
   Graphics, Controls, Forms, Dialogs, StdCtrls, ExtCtrls, Menus, LCLType, LCLIntf,
-  laz.VirtualTrees, VTScrollbar, IconButton, KTranslate, Media;
+  laz.VirtualTrees, VTScrollbar, IconButton, KTranslate, KTheme, Media;
 
 type
   TDeleteMode = (
@@ -88,6 +88,24 @@ type
 
     FPlaced: Boolean;   // 창 자리 잡음 (첫 표시). 안 띄운 채 종료면 위치 저장 안 함 (LFM 0,0 이 남으면 안 됨)
 
+    // 직접 그리는 캡션 (klib TKCaption, GUI-CAPTION.md) + 닫기 왼쪽 검색 단추 → 캡션 입력칸
+    FCap: TKCaption;
+    FBtnSearch: TGraphicControl;
+    FPnlSearch: TPanel;   // 검색 중 캡션 왼쪽 끝~닫기 단추를 덮는 바탕 (아이콘·제목·검색 단추 가림)
+    FEdtSearch: TEdit;
+    FFilter: string;    // 검색어 (소문자). 빈 값 = 거르지 않음. 보기만 거른다 — 재생 순서는 전체 목록 (GetNext 는 숨은 노드도 지남)
+    FTerms: TStringArray;   // FFilter 를 공백으로 나눈 단어 — 전부 들어 있어야 맞음 (AND)
+
+    procedure BtnSearchClick(Sender: TObject);
+    procedure EdtSearchChange(Sender: TObject);
+    procedure EdtSearchKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure EdtSearchExit(Sender: TObject);
+    procedure SearchExitAsync(Data: PtrInt);
+    procedure ListDeactivate(Sender: TObject);
+    procedure CloseSearch(AFocusList: Boolean = True);
+    procedure ApplyFilter;
+    function MatchesFilter(const AFileName: string): Boolean;
+
     function MakeButton(ATag, AImage, ALeft: Integer): TIconButton;
     procedure BtnMouseEnter(Sender: TObject);
     procedure BtnMouseLeave(Sender: TObject);
@@ -153,6 +171,7 @@ const
   COLOR_ICON_ACTIVE      = $0040A6FA;
 
   ListRowHeight = 24;   // 96dpi 기준 (Scale96ToForm)
+  CapButtonWidth = 32;  // 캡션 검색·닫기 단추 폭, 96dpi (OS 캡션 단추는 46)
 
 var
   FrmList: TFrmList;
@@ -161,7 +180,7 @@ implementation
 
 {$R *.lfm}
 
-uses Main, Config, OSUtil;
+uses Main, Config, OSUtil, LazUTF8;   // OSUtil 이 KTheme 뒤 — PopupNativeMenu 는 OSUtil 판
 
 {$I Const.inc}
 
@@ -263,6 +282,65 @@ begin
   TThread.Queue(nil, LResult.Apply);
 end;
 
+// 캡션 검색 단추 — 창 단추(KTheme.TKCapButton)와 같은 크기 (CapButtonWidth), hover/눌림 = 캡션 ButtonHotColor.
+// 그림은 Lucide 'search' (사용자 지정 2026-10-16) — Res\list-search.png 마스크 16px, 캡션 글자색.
+// 캡션 위 핸들 없는 컨트롤이라 판정은 khClient (TKCaption.PanelHit) → 패널을 거쳐 마우스가 온다.
+type
+  TSearchCapButton = class(TGraphicControl)
+  private
+    FCap: TKCaption;
+    FHot, FDown: Boolean;
+  protected
+    procedure Paint; override;
+    procedure MouseEnter; override;
+    procedure MouseLeave; override;
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+  end;
+
+procedure TSearchCapButton.Paint;
+begin
+  Canvas.Brush.Style := bsSolid;
+  if FDown or FHot then Canvas.Brush.Color := FCap.ButtonHotColor(FDown)
+  else Canvas.Brush.Color := FCap.Color;
+  Canvas.FillRect(ClientRect);
+  PaintIcon(Canvas, 5, ClientRect, FCap.Scale96ToForm(16), FCap.CurrentTextColor);   // 5 = 'search' (IconNames)
+end;
+
+procedure TSearchCapButton.MouseEnter;
+begin
+  inherited MouseEnter;
+  FHot := True;
+  Invalidate;
+end;
+
+procedure TSearchCapButton.MouseLeave;
+begin
+  inherited MouseLeave;
+  FHot := False;   // 눌림은 남긴다 — 나갔다 돌아와 떼면 클릭 (GUI-CAPTION 11장 #3)
+  Invalidate;
+end;
+
+procedure TSearchCapButton.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  inherited MouseDown(Button, Shift, X, Y);
+  if Button = mbLeft then
+  begin
+    FDown := True;
+    Invalidate;
+  end;
+end;
+
+procedure TSearchCapButton.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  if Button = mbLeft then
+  begin
+    FDown := False;
+    Invalidate;
+  end;
+  inherited MouseUp(Button, Shift, X, Y);
+end;
+
 function TFrmList.MakeButton(ATag, AImage, ALeft: Integer): TIconButton;
 begin
   Result := TIconButton.Create(Self);
@@ -277,6 +355,8 @@ begin
 end;
 
 procedure TFrmList.FormCreate(Sender: TObject);
+var
+  I: Integer;
 begin
   Randomize;
 
@@ -286,11 +366,52 @@ begin
   FCyclePlayed.CaseSensitive := False;
   FShufflePos := -1;
 
-  // BorderIcons 는 LFM 에서 (OnCreate 에서 바꾸면 핸들 재생성 — GUI.md 0장 #2)
-  SetDarkTitleBar(Handle);
-
+  // BorderIcons 는 LFM 에서 (OnCreate 에서 바꾸면 핸들 재생성 — GUI.md 0장 #2).
+  // 캡션은 앱이 그린다 (TKCaption — DWM 다크도 건다, 핸들 안 건드림). 내용이 어두워 아래 선은 다크 회색.
   Color := COLOR_BG_MAIN;
   Panel1.Color := COLOR_BG_MAIN;
+  SetCaptionTheme(True);
+  FCap := TKCaption.Create(Self);
+  FCap.ShowIcon := False;   // 왼쪽 앱 아이콘 없음 (사용자 결정 2026-10-16) — 제목은 왼쪽 12px 부터
+  // 창 단추 폭 46 → 32 (좁은 목록 창, 사용자 결정 2026-10-16). klib 은 생성자에서만 폭을 정한다 → 이 창의 것만 바꿈
+  for I := 0 to FCap.ControlCount - 1 do
+    if FCap.Controls[I] is TKCapButton then
+      FCap.Controls[I].Width := Scale96ToForm(CapButtonWidth);
+
+  FBtnSearch := TSearchCapButton.Create(Self);
+  TSearchCapButton(FBtnSearch).FCap := FCap;
+  FBtnSearch.Parent := FCap;
+  FBtnSearch.SetBounds(0, 0, Scale96ToForm(CapButtonWidth), FCap.Height - FCap.LineSize);
+  FBtnSearch.OnClick := BtnSearchClick;
+  FCap.KeepLeftOfButtons(FBtnSearch, 0);
+  FBtnSearch.Anchors := [akTop, akRight];   // 기본 akLeft 가 남으면 왼쪽 끝~닫기로 늘어나 제목·아이콘을 덮는다 (실측)
+
+  // 검색 중엔 캡션 왼쪽 끝 ~ 닫기 단추를 패널이 덮고 그 안에 입력칸 (사용자 결정 2026-10-16 — 아이콘·제목·검색 단추 위).
+  // 패널은 핸들 있는 자식이라 판정 HTCLIENT → 덮인 동안 그 자리 끌기 없음. 닫기는 Esc (검색 단추가 가려짐).
+  // 입력칸은 패널 안 세로 가운데 — Win32 한 줄 EDIT 는 글자를 위에 붙여 캡션 높이로 키울 수 없다.
+  FPnlSearch := TPanel.Create(Self);
+  FPnlSearch.Visible := False;
+  FPnlSearch.Parent := FCap;
+  FPnlSearch.BevelOuter := bvNone;
+  FPnlSearch.ParentBackground := False;
+  FPnlSearch.Color := $002D2D2D;
+  FPnlSearch.SetBounds(0, 0, Scale96ToForm(100), FCap.Height - FCap.LineSize);
+  FCap.KeepLeftOfButtons(FPnlSearch, 0);
+  FPnlSearch.Anchors := [akLeft, akTop, akRight];
+
+  FEdtSearch := TEdit.Create(Self);
+  FEdtSearch.Parent := FPnlSearch;
+  FEdtSearch.BorderStyle := bsNone;
+  FEdtSearch.Color := $002D2D2D;
+  FEdtSearch.Font.Color := COLOR_TEXT_NORMAL;
+  FEdtSearch.Left := Scale96ToForm(12);   // 아이콘 없는 캡션 제목과 같은 왼쪽 여백 (GUI-CAPTION 3장)
+  FEdtSearch.AnchorVerticalCenterTo(FPnlSearch);   // 계산한 Top 은 위로 치우쳤다 — bsNone 입력칸 높이가 만든 뒤 글꼴에 맞춰 줄어듦 (실측)
+  FEdtSearch.Width := FPnlSearch.Width - Scale96ToForm(24);
+  FEdtSearch.Anchors := FEdtSearch.Anchors + [akLeft, akRight];
+  FEdtSearch.OnChange := EdtSearchChange;
+  FEdtSearch.OnKeyDown := EdtSearchKeyDown;
+  FEdtSearch.OnExit := EdtSearchExit;
+  OnDeactivate := ListDeactivate;   // 다른 창으로 가면 OnExit 가 안 온다 (실측: 플레이어 창 클릭)
 
   BtnRepeat := MakeButton(1, 0, 10);
   BtnRandom := MakeButton(2, 2, 32);
@@ -349,8 +470,8 @@ begin
   // 파일 드롭 = LFM 의 AllowDropFiles + OnDropFiles (FormDropFiles). 관리자 실행이어도 탐색기 드롭 허용.
   AllowDropFromLowerIntegrity(Handle);
 
-  // 저장 목록 먼저, 명령줄 파일 뒤에. 재생은 명령줄 파일이 가져감
-  // (HandleStartupParams 가 그것만 Play) — 연결 파일 더블클릭 시 지난 목록 첫 곡 시작 방지.
+  // 저장 목록 먼저, 명령줄 파일이 있으면 HandleStartupParams 가 그걸 비우고 대체 (ReplaceFiles)
+  // — 연결 파일 더블클릭 시 지난 목록 첫 곡 시작 방지.
   LoadPlaylist;
 
   FrmKPlayer.HandleStartupParams;
@@ -474,6 +595,95 @@ begin
       3: PopupNativeMenu(PopAdd, Handle);
       4: PopupNativeMenu(PopDel, Handle);
     end;
+  end;
+end;
+
+procedure TFrmList.BtnSearchClick(Sender: TObject);
+begin
+  FPnlSearch.Visible := True;
+  FEdtSearch.SetFocus;
+end;
+
+procedure TFrmList.EdtSearchChange(Sender: TObject);
+begin
+  FFilter := UTF8LowerCase(Trim(FEdtSearch.Text));
+  FTerms := FFilter.Split([' '], TStringSplitOptions.ExcludeEmpty);
+  ApplyFilter;
+end;
+
+procedure TFrmList.EdtSearchKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if Key = VK_ESCAPE then
+  begin
+    CloseSearch;
+    Key := 0;
+  end;
+end;
+
+// 검색어 없이 포커스를 잃으면 취소. 포커스 이동 도중이라 숨기기는 뒤로 미루고, 목록으로 포커스를 끌어오지 않는다
+// (다른 컨트롤로 간 포커스를 뺏으면 안 됨).
+procedure TFrmList.EdtSearchExit(Sender: TObject);
+begin
+  if Trim(FEdtSearch.Text) = '' then
+    Application.QueueAsyncCall(SearchExitAsync, 0);
+end;
+
+// 다른 창(플레이어·다른 앱)으로 갈 때 — LCL 은 폼 사이 이동에 입력칸 OnExit 를 안 부른다 (ActiveControl 유지)
+procedure TFrmList.ListDeactivate(Sender: TObject);
+begin
+  if FPnlSearch.Visible and (Trim(FEdtSearch.Text) = '') then
+    CloseSearch(False);
+end;
+
+procedure TFrmList.SearchExitAsync(Data: PtrInt);
+begin
+  if FPnlSearch.Visible and not FEdtSearch.Focused and (Trim(FEdtSearch.Text) = '') then
+    CloseSearch(False);
+end;
+
+// 닫기 = 검색어 지우고(→ EdtSearchChange 가 전체 표시) 재생 항목으로 스크롤
+procedure TFrmList.CloseSearch(AFocusList: Boolean);
+begin
+  FPnlSearch.Visible := False;
+  FEdtSearch.Text := '';
+  if AFocusList and ListData.CanFocus then ListData.SetFocus;
+  if Assigned(ListData.FocusedNode) then
+    ListData.ScrollIntoView(ListData.FocusedNode, False);
+end;
+
+function TFrmList.MatchesFilter(const AFileName: string): Boolean;
+var
+  LName: string;
+  I: Integer;
+begin
+  Result := True;
+  if FFilter = '' then Exit;
+  LName := UTF8LowerCase(ExtractFileName(AFileName));
+  for I := 0 to High(FTerms) do
+    if Pos(FTerms[I], LName) = 0 then Exit(False);
+end;
+
+// 안 맞는 노드는 숨기고 선택도 푼다 — 숨은 선택이 Del(dmSelected)로 지워지면 안 된다.
+// 재생 중 항목은 Play 가 다시 선택할 수 있다 → DelFile 이 숨은 노드를 건너뛴다.
+procedure TFrmList.ApplyFilter;
+var
+  Node: PVirtualNode;
+  Item: PItemData;
+  LShow: Boolean;
+begin
+  ListData.BeginUpdate;
+  try
+    Node := ListData.GetFirst;
+    while Assigned(Node) do
+    begin
+      Item := ListData.GetNodeData(Node);
+      LShow := Assigned(Item) and MatchesFilter(Item^.FileName);
+      ListData.IsVisible[Node] := LShow;
+      if not LShow then ListData.Selected[Node] := False;
+      Node := ListData.GetNext(Node);
+    end;
+  finally
+    ListData.EndUpdate;
   end;
 end;
 
@@ -675,7 +885,8 @@ var
   SelData, NewData: PItemData;
   TempData: TItemData;
 begin
-  if not (ssLeft in Shift) then
+  // 거르는 중엔 끌어 옮기기 없음 — 이웃(GetNext)이 숨은 항목이라 보이지 않는 곳과 자리가 바뀐다
+  if not (ssLeft in Shift) or (FFilter <> '') then
     Exit;
 
   if not Assigned(FDragNode) then
@@ -1156,6 +1367,8 @@ begin
   Item^.FileName := AFileName;
   Item^.IsActive := False;
   Item^.Missing := False;   // 확인 전엔 있다고 본다 (StartVerify 가 정정)
+  if not MatchesFilter(AFileName) then
+    ListData.IsVisible[Node] := False;   // 거르는 중 추가된 항목
 end;
 
 // 목록 전체를 배경 스레드로 넘겨 존재 여부를 확인시킨다. 이전 검사는 세대 증가로 취소.
@@ -1324,7 +1537,7 @@ begin
     Play(Item^.FileName);
 end;
 
-// 본체 창 드롭 전용 — 기존 목록을 버리고 떨군 것만 남긴다 (목록 창 드롭은 AddFiles = 덧붙임).
+// 본체 창 드롭·연결 파일 열기(시작 인자·넘겨받은 첫 묶음) — 기존 목록을 버리고 그것만 남긴다 (목록 창 드롭은 AddFiles = 덧붙임).
 // 재생 시작은 양쪽 같다.
 // 넣을 게 하나도 없으면(미지원 확장자만) 목록을 지우지 않는다 — 전엔 비우고 재생이 멈췄다 (1.1.1.0).
 procedure TFrmList.ReplaceFiles(const AFiles: TStringArray);
@@ -1384,6 +1597,10 @@ begin
           ShouldDelete := not FileExists(Item^.FileName);
       end;
     end;
+
+    // 거르는 중: 선택/선택 외 삭제는 보이는 항목만 (안 그러면 '선택 외' 가 숨은 항목을 통째로 지운다)
+    if ShouldDelete and (AMode in [dmSelected, dmUnselected]) and not ListData.IsVisible[Node] then
+      ShouldDelete := False;
 
     if ShouldDelete then
     begin
@@ -1458,6 +1675,8 @@ procedure TFrmList.ApplyTexts;
 begin
   BtnAdd.Hint := _('추가 — 파일 / 폴더');
   BtnDel.Hint := _('삭제 — 선택 / 선택 외 / 전체 / 없는 파일 (Del 키: 선택 항목)');
+  FBtnSearch.Hint := _('목록 검색');
+  FEdtSearch.TextHint := _('검색 (ESC)');
   UpdateModeIcons;   // 반복·랜덤 힌트
 end;
 

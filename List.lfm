@@ -2,11 +2,11 @@ object FrmList: TFrmList
   Left = 0
   Height = 321
   Top = 0
-  Width = 198
+  Width = 240
   BorderIcons = [biSystemMenu]
   Caption = '재생목록'
   ClientHeight = 321
-  ClientWidth = 198
+  ClientWidth = 240
   Color = clBtnFace
   Font.Height = -12
   Font.Name = 'Segoe UI'
@@ -20,7 +20,7 @@ object FrmList: TFrmList
     Left = 0
     Height = 41
     Top = 280
-    Width = 198
+    Width = 240
     Align = alBottom
     BevelOuter = bvNone
     ParentBackground = False

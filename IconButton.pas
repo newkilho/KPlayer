@@ -38,7 +38,11 @@ type
 
 const
   // ImageIndex 순서 = Delphi 판 TSVGIconImageList 순서
-  IconNames: array[0..4] of string = ('repeat', 'repeat-one', 'random', 'plus', 'minus');
+  IconNames: array[0..5] of string = ('repeat', 'repeat-one', 'random', 'plus', 'minus', 'search');
+
+// 아이콘 하나를 ASize 정사각으로 칠해 ARect 가운데에 그린다 — 바탕을 직접 칠하는 컨트롤용 (List 캡션 검색 단추).
+// 캐시 없음: 그릴 때마다 축소 (16px 기준 수 ms 미만).
+procedure PaintIcon(ACanvas: TCanvas; AIndex: Integer; const ARect: TRect; ASize: Integer; AColor: TColor);
 
 implementation
 
@@ -126,6 +130,25 @@ begin
     ADest.LoadFromIntfImage(Dst);
   finally
     Dst.Free;
+  end;
+end;
+
+procedure PaintIcon(ACanvas: TCanvas; AIndex: Integer; const ARect: TRect; ASize: Integer; AColor: TColor);
+var
+  B: TBitmap;
+begin
+  if (AIndex < Low(IconNames)) or (AIndex > High(IconNames)) or (ASize <= 0) then Exit;
+  B := TBitmap.Create;
+  try
+    try
+      RenderTinted(LoadMask(AIndex), ASize, AColor, B);
+    except
+      Exit;   // 리소스 누락 — 그리지 않음
+    end;
+    ACanvas.Draw(ARect.Left + (ARect.Right - ARect.Left - ASize) div 2,
+      ARect.Top + (ARect.Bottom - ARect.Top - ASize) div 2, B);
+  finally
+    B.Free;
   end;
 end;
 

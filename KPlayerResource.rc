@@ -3,11 +3,13 @@
    (windres is not used: the one shipped with Lazarus has no C preprocessor.)
    File names are lower case and use '/' on purpose: macOS is case sensitive. */
 translate RCDATA "translate.txt"
+notices RCDATA "THIRD-PARTY-NOTICES.txt"
 list-repeat RCDATA "Res/list-repeat.png"
 list-repeat-one RCDATA "Res/list-repeat-one.png"
 list-random RCDATA "Res/list-random.png"
 list-plus RCDATA "Res/list-plus.png"
 list-minus RCDATA "Res/list-minus.png"
+list-search RCDATA "Res/list-search.png"
 ui-html RCDATA "ui/player.html"
 ui-css RCDATA "ui/player.css"
 icon-cap-close RCDATA "ui/icons/cap-close.svg"

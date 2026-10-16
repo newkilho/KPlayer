@@ -130,7 +130,7 @@ object FrmSetup: TFrmSetup
       Width = 99
       Height = 30
       Anchors = [akLeft, akBottom]
-      Caption = '기본값 복원'
+      Caption = '초기화'
       TabOrder = 0
       OnClick = BtnResetClick
     end
@@ -1428,17 +1428,97 @@ object FrmSetup: TFrmSetup
         Top = 0
         Width = 667
         Height = 504
-        object MemAbout: TMemo
+        object ImgAbout: TImage
           Left = 24
           Top = 16
+          Width = 64
+          Height = 64
+          Center = True
+        end
+        object LblAppName: TLabel
+          Left = 100
+          Top = 35
+          Width = 70
+          Height = 25
+          Caption = 'KPlayer'
+          Font.Height = -19
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object LblVerCap: TLabel
+          Left = 24
+          Top = 102
+          Width = 26
+          Height = 15
+          Caption = '버전'
+        end
+        object LblVer: TLabel
+          Left = 600
+          Top = 102
+          Width = 43
+          Height = 15
+          Alignment = taRightJustify
+          Anchors = [akTop, akRight]
+          Caption = '0.0.0.0'
+        end
+        object LblAuthorCap: TLabel
+          Left = 24
+          Top = 142
+          Width = 39
+          Height = 15
+          Caption = '만든이'
+        end
+        object LblAuthor: TLabel
+          Left = 605
+          Top = 142
+          Width = 38
+          Height = 15
+          Alignment = taRightJustify
+          Anchors = [akTop, akRight]
+          Caption = '오길호'
+        end
+        object LblHomeCap: TLabel
+          Left = 24
+          Top = 182
+          Width = 52
+          Height = 15
+          Caption = '홈페이지'
+        end
+        object LblHome: TLabel
+          Left = 553
+          Top = 182
+          Width = 90
+          Height = 15
+          Cursor = crHandPoint
+          Alignment = taRightJustify
+          Anchors = [akTop, akRight]
+          Caption = 'https://kilho.net'
+          Font.Color = 14517309
+          ParentFont = False
+          OnClick = LblHomeClick
+        end
+        object LblLicense: TLabel
+          Left = 24
+          Top = 222
+          Width = 52
+          Height = 15
+          Caption = '라이선스'
+        end
+        object MemNotices: TMemo
+          Left = 24
+          Top = 248
           Width = 619
-          Height = 472
+          Height = 240
           Anchors = [akLeft, akTop, akRight, akBottom]
-          BorderStyle = bsNone
           Color = clWhite
+          Font.Color = 6710886
+          Font.Height = -12
+          Font.Name = 'Consolas'
+          ParentFont = False
           ReadOnly = True
           ScrollBars = ssVertical
           TabOrder = 0
+          WordWrap = False
         end
       end
     end

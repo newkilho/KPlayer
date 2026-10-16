@@ -155,7 +155,16 @@ type
     LblMWheelDown: TLabel;
     CboMWheelDown: TComboBox;
     CardAbout: TPage;
-    MemAbout: TMemo;
+    ImgAbout: TImage;
+    LblAppName: TLabel;
+    LblVerCap: TLabel;
+    LblVer: TLabel;
+    LblAuthorCap: TLabel;
+    LblAuthor: TLabel;
+    LblHomeCap: TLabel;
+    LblHome: TLabel;
+    LblLicense: TLabel;
+    MemNotices: TMemo;
     BtnReset: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -163,6 +172,7 @@ type
     procedure FormHide(Sender: TObject);
     procedure BtnNavClick(Sender: TObject);
     procedure BtnResetClick(Sender: TObject);
+    procedure LblHomeClick(Sender: TObject);
     procedure BtnShotDirClick(Sender: TObject);
     procedure BtnSubColorClick(Sender: TObject);
     procedure LvKeysSelectItem(Sender: TObject; Item: TListItem; Selected: Boolean);
@@ -300,7 +310,7 @@ implementation
 
 uses
   {$IFDEF WINDOWS}Windows, ShellApi,{$ENDIF}
-  Menus, StrUtils, Main, List, OSUtil;
+  Menus, StrUtils, Main, List, OSUtil, KUpdate;
 
 const
   // 아이콘 캐시 미조회 표시 (-1 = 셸이 못 줌)
@@ -451,10 +461,10 @@ begin
   FWatchTimer.Interval := 300;
   FWatchTimer.OnTimer := WatchTimerTick;
 
-  // 로그·정보 카드는 디버그 빌드 전용 (Config.IsDebugBuild).
-  // 훅 없으면 Assoc.pas 는 문자열도 안 만듦.
+  // 연결 로그는 디버그 빌드 전용 (Config.IsDebugBuild). 훅 없으면 Assoc.pas 는 문자열도 안 만듦.
   MemoAssocLog.Visible := IsDebugBuild;
-  BtnAbout.Visible := IsDebugBuild;
+
+  FillAbout;
 
   if IsDebugBuild then
   begin
@@ -561,9 +571,6 @@ end;
 procedure TFrmSetup.FormShow(Sender: TObject);
 begin
   HideCaptionIcon(Self);   // Delphi 판 bsDialog 처럼 캡션 아이콘 없음 (GUI.md 2.1, 모달은 매번)
-
-  if BtnAbout.Visible then
-    FillAbout;   // 감춘 카드에 mpv 버전 조회 불필요
 
   FillAssoc;
   LoadValues;
@@ -1645,33 +1652,45 @@ begin
   ControlChange(Sender);
 end;
 
-// 정보 카드 — 버전은 런타임에만 알 수 있어 여기서 채움.
+// 정보 카드 (ZipMania 설정 '정보' 와 같은 구성: 아이콘·이름, 버전·만든이·홈페이지, 라이선스 고지문).
+// 이름은 메인 폼 제목 = 프로그램 이름 (언어별, ApplyLanguage 가 다시 부름). 고지문 = RCDATA NOTICES (저장소 THIRD-PARTY-NOTICES.txt).
 procedure TFrmSetup.FillAbout;
 var
+  R: TResourceStream;
   S: string;
+  {$IFDEF WINDOWS}H: THandle;{$ENDIF}
 begin
-  MemAbout.Lines.Clear;
-  MemAbout.Lines.Add(AppName);
-  MemAbout.Lines.Add('');
+  LblAppName.Caption := Application.Title;
+  LblVer.Caption := VER('%d.%d.%d') + ' (x64)';   // x.x.x (사용자 지정) — 4번째 자리는 빌드 번호
+  if MemNotices.Lines.Count > 0 then Exit;   // 아이콘·고지문은 한 번
 
-  if (FrmKPlayer <> nil) and (FrmKPlayer.MPVPlayer <> nil) then
-  begin
-    S := '';
-    FrmKPlayer.MPVPlayer.GetPropertyString('mpv-version', S);
-    if S <> '' then
-      MemAbout.Lines.Add(S);
+  // 64px = KPlayer.ico 의 가장 큰 프레임 그대로 (ZipMania 는 48 이지만 우리 ico 엔 48 이 없다 — 64→48 축소는 흐릿했다, 사용자 지적).
+  // 배율이 다르면 표시 크기 그대로 LoadImageW 로 받는다 — TImage 늘이기는 보간이 없어 더 거칠다
+  {$IFDEF WINDOWS}
+  H := LoadImageW(HInstance, 'MAINICON', IMAGE_ICON, ImgAbout.Width, ImgAbout.Height, 0);
+  if H <> 0 then ImgAbout.Picture.Icon.Handle := H;
+  {$ELSE}
+  ImgAbout.Picture.Icon.LoadFromResourceName(HInstance, 'MAINICON');
+  {$ENDIF}
 
+  S := '';
+  try
+    R := TResourceStream.Create(HInstance, 'NOTICES', RT_RCDATA);
+    try
+      SetLength(S, R.Size);
+      if R.Size > 0 then R.ReadBuffer(S[1], R.Size);
+    finally
+      R.Free;
+    end;
+  except
     S := '';
-    FrmKPlayer.MPVPlayer.GetPropertyString('ffmpeg-version', S);
-    if S <> '' then
-      MemAbout.Lines.Add('FFmpeg ' + S);
   end;
+  MemNotices.Text := StringReplace(S, #9, '    ', [rfReplaceAll]);   // 탭 → 공백 4칸 (ZipMania 와 같음)
+end;
 
-  MemAbout.Lines.Add('');
-  MemAbout.Lines.Add(_('실행 파일') + ': ' + ParamStr(0));
-  MemAbout.Lines.Add('');
-  MemAbout.Lines.Add(_('이 프로그램은 libmpv (GPL-2.0-or-later) 를 사용합니다.'));
-  MemAbout.Lines.Add(_('재생 목록은 Virtual Treeview (MPL 1.1) 를 사용합니다.'));
+procedure TFrmSetup.LblHomeClick(Sender: TObject);
+begin
+  OpenURL(LblHome.Caption);
 end;
 
 // 값
@@ -1914,8 +1933,7 @@ begin
   for A := Low(TKeyAction) to High(TKeyAction) do
     LvKeys.Items[Ord(A)].Caption := _(KeyDefs[A].Name);
   LblKeyNote.Visible := False;
-  if BtnAbout.Visible then
-    FillAbout;
+  FillAbout;
   FillAssoc;
 
   LoadValues;

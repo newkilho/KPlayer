@@ -288,15 +288,15 @@ fr=À propos
 es=Acerca de
 ar=حول
 
-ko=기본값 복원
-en=Default
-ja=既定値
-zh=默认值
-ru=По умолчанию
-it=Predefiniti
-fr=Par défaut
-es=Predeterminados
-ar=الافتراضي
+ko=초기화
+en=Reset
+ja=リセット
+zh=重置
+ru=Сбросить
+it=Ripristina
+fr=Réinitialiser
+es=Restablecer
+ar=إعادة التعيين
 
 ko=자동
 en=Auto
@@ -707,36 +707,6 @@ it=Scegli una cartella per le schermate.
 fr=Choisissez un dossier pour les captures d'écran.
 es=Elige una carpeta para las capturas de pantalla.
 ar=اختر مجلدًا لحفظ لقطات الشاشة.
-
-ko=실행 파일
-en=Executable
-ja=実行ファイル
-zh=可执行文件
-ru=Исполняемый файл
-it=Eseguibile
-fr=Exécutable
-es=Ejecutable
-ar=الملف التنفيذي
-
-ko=이 프로그램은 libmpv (GPL-2.0-or-later) 를 사용합니다.
-en=This program uses libmpv (GPL-2.0-or-later).
-ja=このプログラムは libmpv (GPL-2.0-or-later) を使用しています。
-zh=本程序使用 libmpv (GPL-2.0-or-later)。
-ru=Эта программа использует libmpv (GPL-2.0-or-later).
-it=Questo programma usa libmpv (GPL-2.0-or-later).
-fr=Ce programme utilise libmpv (GPL-2.0-or-later).
-es=Este programa usa libmpv (GPL-2.0-or-later).
-ar=يستخدم هذا البرنامج libmpv (GPL-2.0-or-later).
-
-ko=재생 목록은 Virtual Treeview (MPL 1.1) 를 사용합니다.
-en=The playlist uses Virtual Treeview (MPL 1.1).
-ja=プレイリストは Virtual Treeview (MPL 1.1) を使用しています。
-zh=播放列表使用 Virtual Treeview (MPL 1.1)。
-ru=Плейлист использует Virtual Treeview (MPL 1.1).
-it=La playlist usa Virtual Treeview (MPL 1.1).
-fr=La liste de lecture utilise Virtual Treeview (MPL 1.1).
-es=La lista de reproducción usa Virtual Treeview (MPL 1.1).
-ar=تستخدم قائمة التشغيل Virtual Treeview (MPL 1.1).
 
 ko=libmpv 기반 미디어 플레이어
 en=libmpv based media player
@@ -1937,3 +1907,73 @@ it=KPlayer
 fr=KPlayer
 es=KPlayer
 ar=KPlayer
+
+ko=목록 검색
+en=Search playlist
+ja=プレイリストを検索
+zh=搜索播放列表
+ru=Поиск в списке
+it=Cerca nella playlist
+fr=Rechercher dans la playlist
+es=Buscar en la lista
+ar=البحث في القائمة
+
+ko=검색 (ESC)
+en=Search (ESC)
+ja=検索 (ESC)
+zh=搜索 (ESC)
+ru=Поиск (ESC)
+it=Cerca (ESC)
+fr=Rechercher (ESC)
+es=Buscar (ESC)
+ar=بحث (ESC)
+
+ko=버전
+en=Version
+ja=バージョン
+zh=版本
+ru=Версия
+it=Versione
+fr=Version
+es=Versión
+ar=الإصدار
+
+ko=만든이
+en=Author
+ja=作者
+zh=作者
+ru=Автор
+it=Autore
+fr=Auteur
+es=Autor
+ar=المؤلف
+
+ko=오길호
+en=Kilho Oh
+ja=Kilho Oh
+zh=Kilho Oh
+ru=Kilho Oh
+it=Kilho Oh
+fr=Kilho Oh
+es=Kilho Oh
+ar=Kilho Oh
+
+ko=홈페이지
+en=Website
+ja=ウェブサイト
+zh=网站
+ru=Сайт
+it=Sito web
+fr=Site web
+es=Sitio web
+ar=الموقع
+
+ko=라이선스
+en=License
+ja=ライセンス
+zh=许可证
+ru=Лицензия
+it=Licenza
+fr=Licence
+es=Licencia
+ar=الترخيص

@@ -35,6 +35,8 @@ ICONS = {
     ], [], 0),
     'plus': (24, [], ['M6 12H18M12 6V18'], 2),
     'minus': (24, [], ['M6 12L18 12'], 2),
+    # Lucide 'search' (ISC, lucide.dev/icons/search v1.57.0): circle cx11 cy11 r8 -> two arcs
+    'search': (24, [], ['M19 11A8 8 0 1 1 3 11A8 8 0 1 1 19 11', 'M21 21L16.66 16.66'], 2),
 }
 
 TOKEN = re.compile(r'[MmLlHhVvCcSsQqTtAaZz]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?')

@@ -1,0 +1,141 @@
+                             Open Source License
+                       -------------------------------
+
+   KPlayer itself is licensed under the GNU General Public License version 2
+   or later. The full text and the source code are at
+   https://github.com/newkilho/KPlayer .
+
+   KPlayer uses these open-source projects - many thanks to their creators.
+
+
+* mpv (libmpv) v0.41.0  https://mpv.io/
+
+	Copyright (C) 2000-2026 mpv contributors and the MPlayer project.
+
+	libmpv-2.dll is the Windows build made by mpv-winbuild-cmake
+	(https://github.com/shinchiro/mpv-winbuild-cmake). mpv is licensed under
+	the GNU General Public License version 2 or later; this build enables the
+	GPL and version-3 components of FFmpeg, so the DLL as a whole is
+	distributed under the GNU General Public License version 3 or later.
+
+	KPlayer loads libmpv-2.dll dynamically and does not modify it. The mpv
+	source code and its license are at https://github.com/mpv-player/mpv .
+	The DLL is loaded at run time from the installation folder, so you may
+	replace it with your own build of the same interface.
+
+	The DLL statically contains, among others:
+
+	  FFmpeg 8              https://ffmpeg.org/                GPL v3 or later (this build)
+	  libass                https://github.com/libass/libass   ISC
+	  libplacebo            https://libplacebo.org/            LGPL v2.1 or later
+	  x264                  https://www.videolan.org/x264/     GPL v2 or later
+	  davs2                 https://github.com/pkuvcl/davs2    GPL v2 or later
+	  libdvdnav, libdvdread https://www.videolan.org/          GPL v2 or later
+	  libbluray             https://www.videolan.org/          LGPL v2.1 or later
+	  dav1d                 https://code.videolan.org/videolan/dav1d   BSD 2-Clause
+	  libvpx                https://www.webmproject.org/       BSD 3-Clause
+	  libaom                https://aomedia.org/               BSD 2-Clause + AOM Patent License 1.0
+	  SVT-AV1               https://gitlab.com/AOMediaCodec/SVT-AV1   BSD 3-Clause Clear
+	  libsrt                https://github.com/Haivision/srt   MPL 2.0
+	  speex                 https://www.speex.org/             BSD 3-Clause
+	  SDL2                  https://www.libsdl.org/            zlib
+	  fontconfig            https://www.freedesktop.org/wiki/Software/fontconfig/   MIT-style
+	  FreeType              https://freetype.org/              FreeType License (BSD-style)
+	  HarfBuzz              https://harfbuzz.github.io/        MIT
+	  libjpeg-turbo 3.1.4   https://libjpeg-turbo.org/         IJG / BSD 3-Clause / zlib
+	  Little CMS 2          https://www.littlecms.com/         MIT
+	  LuaJIT 2.1            https://luajit.org/                MIT
+	  shaderc, SPIRV-Cross  https://github.com/google/shaderc  Apache License 2.0
+	  mingw-w64 runtime     https://www.mingw-w64.org/         MIT / public domain / ZPL
+
+	The complete list is printed by the DLL itself ("List of enabled
+	features") and by the mpv-winbuild-cmake project.
+
+
+* Free Pascal 3.2.2 run-time library  https://www.freepascal.org/
+* Lazarus 4.8 Component Library (LCL)  https://www.lazarus-ide.org/
+
+	Copyright (c) the Free Pascal and Lazarus development teams.
+
+	KPlayer is built with Free Pascal and Lazarus. Their run-time units are
+	compiled into KPlayer.exe.
+
+	GNU Lesser General Public License version 2 with a static linking
+	exception - see [Modified LGPL] below. The source code is at
+	https://gitlab.com/freepascal.org/fpc/source and
+	https://gitlab.com/freepascal.org/lazarus/lazarus .
+
+
+* LibMPVDelphi  https://github.com/nbuyer/libmpvdelphi
+
+	Copyright (c) 2022, nbuyer (Edward G.)
+
+	Pascal binding for libmpv and the base player class. Compiled into
+	KPlayer.exe.
+
+	BSD 2-Clause License - see [BSD 2-Clause License] below.
+
+
+* Virtual Treeview 5.5.3 (Lazarus port)  https://github.com/JAM-Software/Virtual-TreeView
+
+	Copyright (c) 1999-2001 digital publishing AG, Mike Lischke
+	Copyright (c) JAM Software GmbH, Luiz Americo and contributors
+
+	Used for the playlist and the file-association tree. Ships with Lazarus
+	(components/virtualtreeview) and is compiled into KPlayer.exe.
+
+	Dual licensed under the Mozilla Public License 1.1 and the GNU Lesser
+	General Public License 2.1 or later. KPlayer uses it under the
+	MPL 1.1 - https://www.mozilla.org/MPL/1.1/ .
+
+
+
+                           ---------------------------------
+
+
+[BSD 2-Clause License]
+
+	Copyright (c) 2022, nbuyer
+	All rights reserved.
+
+	Redistribution and use in source and binary forms, with or without
+	modification, are permitted provided that the following conditions are met:
+
+	1. Redistributions of source code must retain the above copyright notice, this
+	   list of conditions and the following disclaimer.
+
+	2. Redistributions in binary form must reproduce the above copyright notice,
+	   this list of conditions and the following disclaimer in the documentation
+	   and/or other materials provided with the distribution.
+
+	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+	FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+	DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+	SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+	OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+                           ---------------------------------
+
+
+[Modified LGPL]
+
+	These files are distributed under the GNU Library General Public License
+	version 2 (https://www.gnu.org/licenses/old-licenses/lgpl-2.0.html) with
+	the following modification:
+
+	As a special exception, the copyright holders of this library give you
+	permission to link this library with independent modules to produce an
+	executable, regardless of the license terms of these independent modules,
+	and to copy and distribute the resulting executable under terms of your
+	choice, provided that you also meet, for each linked independent module,
+	the terms and conditions of the license of that module. An independent
+	module is a module which is not derived from or based on this library. If
+	you modify this library, you may extend this exception to your version of
+	the library, but you are not obligated to do so. If you do not wish to do
+	so, delete this exception statement from your version.

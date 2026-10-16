@@ -14,10 +14,25 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
-  1.1.7.0
+  1.1.7.0 [!]
   [*] 다음 영상으로 넘어가도 메모리가 안 줄던 문제 - 진행바 미리보기 mpv 가 옛 파일을 계속 열어 둠 (4K AV1 → 1080p 전환 뒤 741 → 425MB).
       파일이 바뀌면 닫고 다음 호버 때 새로 엶 (Main.pas: RefreshUI)
   [*] 진행바 미리보기 디코딩 스레드 2개로 - 4K AV1 호버 메모리 +390 → +276MB (Thumb.pas: Open)
+  [+] 재생 중 작업 표시줄 버튼에 진행률 표시 - 일시정지는 노란색, 길이 없는 스트림·대기 화면은 끔 (Main.pas: UpdateTaskbar / OSUtil.pas: SetTaskbarProgress)
+  [+] 재생목록 창 캡션을 앱이 그림 (klib TKCaption) + 닫기 왼쪽 검색 단추 - 캡션 입력칸에 입력하는 대로 파일 이름으로 거름 (공백으로 나눈 단어 AND),
+      Esc·검색어 없이 포커스를 잃거나 다른 창으로 가면 닫음 (입력 중엔 제목·검색 단추를 덮음). 보기만 거르고 재생 순서는 전체 목록, 거르는 중엔 끌어 옮기기 없음·선택/선택 외 삭제는 보이는 항목만
+      왼쪽 앱 아이콘 없음, 검색·닫기 단추 폭 32px (OS 46), 기본 폭 198 → 240 (List.lfm), 아이콘은 Lucide search (Res\list-search.png, Tools\MakeListIcons.py)
+      (List.pas: FormCreate, TSearchCapButton, ApplyFilter, DelFile, ListDeactivate / IconButton.pas: PaintIcon / OSUtil.pas: SetDarkTitleBar 삭제 / translate.txt)
+  [+] 커버 없는 음악은 화면에 LP 가 돈다 (재생 위치 기준 10 rpm, 일시정지면 멈춤), 라벨 둘레에 제목을 원으로.
+      LP 디자인은 codepen joshbader/GqXbVZ 의 LP 부분.
+      커버가 있으면 mpv 가 그대로 보여 줌 (Main.pas: CheckAudioOnly, DiscTimerTick, BuildDiscTitle / ui\player.html #lp / player.css)
+  [+] 환경설정 '정보' 탭 (ZipMania 와 같은 구성) - 아이콘·이름, 버전·만든이·홈페이지, 라이선스 고지문. 디버그 전용 → 항상 표시.
+      고지문 원본을 저장소로 (THIRD-PARTY-NOTICES.txt → RCDATA NOTICES, KPlayer.iss 도 저장소 것). '기본값 복원' → '초기화'
+      (Setup.pas: FillAbout, LblHomeClick / Setup.lfm: CardAbout / KPlayerResource.rc / build.bat)
+  [*] 실행 직후 흰 창이 잠깐 보이던 문제 (Win11 라이트 모드) - 첫 그리기 전엔 창을 DWM 에서 가림, 영상 뷰 배경도 검정
+      (Main.pas: FormCreate, UncloakTimerTick / OSUtil.pas: SetWindowCloak)
+  [*] 탐색기 등에서 연결 파일로 열면 기존 목록을 지우고 연 파일만 남김 (다중 선택의 나머지·'목록에 추가' 모드는 덧붙임)
+      (Main.pas: HandleStartupParams, ForwardTimerTick / List.pas: ReplaceFiles)
 
   1.1.6.0
   [*] 재생 중 CPU 과다 - Main 의 mpv 옵션(vo/hwdec/scale 등)이 전부 무시돼 소프트웨어 디코딩. 바인딩 SetOptionString 이
@@ -193,7 +208,7 @@ interface
 uses
   Classes, SysUtils, Types, Math, Graphics, Controls, Forms, Dialogs,
   StdCtrls, ExtCtrls, Menus, LCLType, LCLIntf,
-  MPVBasePlayer, MPVPlayer, Config, Hotkey, KilhoView, Thumb;
+  MPVBasePlayer, MPVPlayer, Config, Hotkey, KilhoView, Thumb, OSUtil;
 
 const
   // 중앙 알림 색 (RGB hex). 기본 파라미터에 쓰여 클래스 선언보다 앞 필수.
@@ -269,6 +284,13 @@ type
     FTimeShape: string;               // FLastTime 의 숫자를 '0' 으로 — 바뀌면(자리수·시간 단위) 칸을 다시 만든다
     FTimeDigit: array of TKElement;   // 글자 자리별 켜진 획 요소 (숫자 아닌 자리는 nil)
     FLastPlayed, FLastVol: Integer;
+    FTbState: TTaskbarProgress;   // 작업 표시줄 진행률 마지막 값 (UpdateTaskbar)
+    FTbPos: Integer;
+    FElDisc: TKElement;     // 커버 없는 음악의 LP 라벨 (#lp-label) — DiscTimerTick 이 돌린다 (홈·반사광은 고정)
+    FDiscTimer: TTimer;
+    FAudioOnly: Boolean;    // #ui.audio — 오디오 트랙만 있고 영상(커버 포함) 없음
+    FDiscAngle: Integer;    // 마지막으로 쓴 각도 (0.1도)
+    FElDiscRing: TKElement; // LP 라벨 둘레 제목 (#lp-ring) — BuildDiscTitle
     FLastDur: Double;
     // 화면 위 알림 (3단계) — 배속 토스트·베젤·중앙 알림·TAB 정보. 표시는 FUi 클래스, 끄는 건 1회 타이머 (Tag 로 구분)
     FElToast, FElBezelIco, FElPill, FElAlert: TKElement;
@@ -299,6 +321,7 @@ type
     function EdgeCursor(AHit: Word): Boolean;
     procedure SizeFromEdge(AHit: PtrUInt; AL: PtrInt);
     procedure RaiseTimerTick(Sender: TObject);
+    procedure UncloakTimerTick(Sender: TObject);
 
     procedure ViewMouseDown(Sender: TObject; AEvent: TKEvent);
     procedure ViewWheel(Sender: TObject; AEvent: TKEvent);
@@ -326,6 +349,10 @@ type
     procedure HideTimerTick(Sender: TObject);
     procedure UiTimerTick(Sender: TObject);
     procedure RefreshUI;
+    procedure UpdateTaskbar(AIdle: Boolean);
+    procedure CheckAudioOnly(AIdle: Boolean);
+    procedure DiscTimerTick(Sender: TObject);
+    procedure BuildDiscTitle(const ATitle: string);
     procedure RebuildChapters;
     procedure SetTimeDigits(const S: string);
     function OneShot(AInterval: Integer): TTimer;
@@ -408,7 +435,7 @@ implementation
 
 uses
   {$IFDEF WINDOWS}Windows,{$ENDIF}
-  List, Setup, Assoc, Media, KTranslate, KTheme, KUpdate, OSUtil, Instance;
+  List, Setup, Assoc, Media, KTranslate, KTheme, KUpdate, Instance, LazUTF8;
 
 {$I Const.inc}
 
@@ -426,6 +453,15 @@ begin
 
   // BorderStyle = bsNone 은 LFM 에서 — 여기서 바꾸면 핸들 재생성 (mpv wid 무효·SetFormCorners 소실)
   SetFormCorners(Handle, True);
+
+  // Win11 은 칠하기 전 창을 흰색으로 채워 보인다 (라이트 모드 실측) → 첫 그리기 끝날 때까지 가림.
+  // WM_TIMER 는 WM_PAINT 보다 뒤에 처리되므로 1회 타이머에서 풀면 칠해진 뒤 나타난다.
+  SetWindowCloak(Handle, True);
+  with TTimer.Create(Self) do
+  begin
+    Interval := 10;
+    OnTimer := UncloakTimerTick;
+  end;
 
   LoadKeys(FConfig);   // 단축키 표 (Hotkey.pas) — FormKeyDown 이 본다
   LoadMouse(FConfig);
@@ -450,6 +486,7 @@ begin
   // 영상 위 UI. 투명 뷰는 Open 전에 Transparent (KilhoUI DComp 합성). 정적 링크라 실패할 일이 없다.
   FView := TKilhoView.Create(Self);
   FView.Transparent := True;
+  FView.Color := clBlack;   // 기본 clWindow(흰색)로 지워져 시작 때 mpv·UI 가 그리기 전 흰 창이 스쳤다 (LCL 창 클래스는 배경 브러시 없음)
   FView.Align := alClient;
   FView.TabStop := False;   // 켜 두면 폼 활성화 때 LCL 이 뷰를 ActiveControl 로 → 엔진 창이 키를 먹어 FormKeyDown 무반응 (2026-10-08 실측)
   FView.Parent := Self;
@@ -541,6 +578,12 @@ begin
   SetTopMost(FConfig.ReadInteger('topmost', 0) <> 0);
 
   // mpv 영상 창은 init 뒤 비동기로 생기고 VO 재생성 때 다시 생긴다 (통지 없음, OSUtil.IsTopChild) → 확인해서 뷰를 올림.
+  // LP 회전 — 커버 없는 음악이 보일 때만 켠다 (CheckAudioOnly). 100ms 폴링으로는 회전이 끊겨 보인다
+  FDiscTimer := TTimer.Create(Self);
+  FDiscTimer.Enabled := False;
+  FDiscTimer.Interval := 30;
+  FDiscTimer.OnTimer := DiscTimerTick;
+
   FRaiseTimer := TTimer.Create(Self);
   FRaiseTimer.Interval := 500;
   FRaiseTimer.OnTimer := RaiseTimerTick;
@@ -909,6 +952,12 @@ begin
   {$ENDIF}
 end;
 
+procedure TFrmKPlayer.UncloakTimerTick(Sender: TObject);
+begin
+  TTimer(Sender).Enabled := False;
+  SetWindowCloak(Handle, False);
+end;
+
 procedure TFrmKPlayer.RaiseTimerTick(Sender: TObject);
 begin
   if (FViewWnd <> 0) and not IsTopChild(FView.Handle, FViewWnd) then
@@ -918,7 +967,8 @@ end;
 // 넘겨받은 파일 처리 (instance_mode, Instance.pas).
 // 직전 '열기'(시작 인자·이전 묶음)에서 ForwardBurstMs 안이면 같은 다중 선택의 나머지 — 재생을 뺏지 않고 추가만.
 // 안 그러면 탐색기에서 A·B·C 를 함께 열 때 A 가 재생되다 B·C 가 차례로 가로챈다.
-// 목록에 추가 모드도 멈춰 있으면 재생 (HandleStartupParams 와 같은 not IsPlay). 창은 재생 모드·빈 인자일 때만 앞으로.
+// 재생 모드 첫 묶음은 기존 목록을 비운다 (ReplaceFiles, 1.1.7.0 — HandleStartupParams 와 같음).
+// 목록에 추가 모드는 덧붙임, 멈춰 있으면 재생 (not IsPlay). 창은 재생 모드·빈 인자일 때만 앞으로.
 procedure TFrmKPlayer.ForwardTimerTick(Sender: TObject);
 const
   ForwardBurstMs = 1500;
@@ -941,7 +991,7 @@ begin
   LBurst := GetTickCount64 - FLastOpenTick < ForwardBurstMs;
   FLastOpenTick := GetTickCount64;
   if (LMode <> imEnqueue) and not LBurst then
-    FrmList.AddFiles(LFiles, True, True)
+    FrmList.ReplaceFiles(LFiles)
   else
     FrmList.AddFiles(LFiles, not IsPlay);
 end;
@@ -1302,6 +1352,7 @@ end;
 // (재생목록을 열면 목록엔 들어오는데 재생이 안 걸려 더블클릭해야 시작됐다 — 2026-08-29 문의).
 // → 드롭과 같은 AddFiles 로 넘겨 '목록에 실제로 들어간 첫 항목' 부터 재생.
 // FileExists 로 거르지 않는다 — 폴더 인자가 통째로 무시됐다. 존재 확인은 AddFiles 의 배경 검사.
+// 저장 목록은 버린다 (ReplaceFiles, 1.1.7.0 사용자 결정 — 전엔 덧붙였다). 미지원 인자뿐이면 목록 유지.
 procedure TFrmKPlayer.HandleStartupParams;
 var
   Files: TStringArray;
@@ -1313,7 +1364,7 @@ begin
     Exit;
 
   FLastOpenTick := GetTickCount64;
-  FrmList.AddFiles(Files, not IsPlay, True);
+  FrmList.ReplaceFiles(Files);
 end;
 
 procedure TFrmKPlayer.HandleSettings;
@@ -1545,7 +1596,7 @@ end;
 procedure TFrmKPlayer.ViewContextMenu(Sender: TObject; AEvent: TKEvent);
 begin
   AEvent.PreventDefault;
-  PopupNativeMenu(PopMenu, Handle);
+  OSUtil.PopupNativeMenu(PopMenu, Handle);   // KTheme 에도 같은 이름 (impl uses 가 가림)
 end;
 
 // ---- 컨트롤 UI·화면 알림. 디자인 원본 KPlayer.lua (git 에만, 1.1.6.0 에서 삭제) — 마크업·치수는 ui\player.html / player.css.
@@ -1635,6 +1686,8 @@ begin
   FElAlert := FView.GetElementById('alert');
   FElPreview := FView.GetElementById('preview');
   FElPreviewImg := FView.GetElementById('preview-img');
+  FElDisc := FView.GetElementById('lp-label');
+  FElDiscRing := FView.GetElementById('lp-ring');
   FPvH := 90;
   for I := 0 to High(FElInfo) do
     FElInfo[I] := FView.GetElementById('iv' + IntToStr(I));
@@ -1939,6 +1992,7 @@ begin
     begin
       FLastTitle := S;
       FElTitle.Text := S;
+      BuildDiscTitle(S);
     end;
     FLastDur := -1;   // 챕터 다시
     FUi.ClassSet('haspv', False);   // 옛 파일 미리보기 안 보이게 — 새 프레임이 오면 다시
@@ -1946,6 +2000,9 @@ begin
     if FThumb <> nil then FThumb.Request('', 0);
     if FLastPath <> '' then ShowControls;   // 새 파일 = 컨트롤 잠깐 표시 (Lua file-loaded)
   end;
+
+  UpdateTaskbar(Idle);   // 컨트롤 숨김 중에도
+  CheckAudioOnly(Idle);
 
   if FCtlHidden then Exit;
 
@@ -1998,6 +2055,124 @@ begin
     FElPlayed.Attr['style'] := 'width:' + S;
     FElThumb.Attr['style'] := 'left:' + S;
   end;
+end;
+
+// 커버 없는 음악 판정. 커버(내장 audio-display·폴더 cover-art-auto)는 mpv 가 영상 트랙으로 보여 준다 → 영상 트랙 없음 = 커버 없음.
+// 오디오 트랙도 있어야 한다 — 파일을 여는 중엔 둘 다 없어서, 동영상을 열 때 LP 가 잠깐 비치지 않는다.
+procedure TFrmKPlayer.CheckAudioOnly(AIdle: Boolean);
+var
+  S: string;
+  B: Boolean;
+begin
+  B := False;
+  if not AIdle then
+  begin
+    S := '';
+    B := (MPVPlayer.GetPropertyString('current-tracks/audio/id', S, False) >= 0) and
+         (MPVPlayer.GetPropertyString('current-tracks/video/id', S, False) < 0);
+  end;
+  if B = FAudioOnly then Exit;
+  FAudioOnly := B;
+  FUi.ClassSet('audio', B);
+  FDiscTimer.Enabled := B;
+  if B then
+  begin
+    FDiscAngle := -1;
+    DiscTimerTick(nil);
+  end;
+end;
+
+// 회전각 = 재생 위치 × 60도/초 (10 rpm, 6초에 한 바퀴 — 33⅓ rpm 은 너무 빠르다는 사용자 의견 2026-10-16). 일시정지면 위치가 멈춰 그대로, 탐색하면 그만큼 돈다. 바뀔 때만 쓴다.
+procedure TFrmKPlayer.DiscTimerTick(Sender: TObject);
+var
+  Pos: Double;
+  N: Integer;
+begin
+  if FElDisc = nil then Exit;
+  Pos := 0;
+  MPVPlayer.GetPropertyDouble('time-pos', Pos, False);
+  N := Round(Frac(Pos * 60 / 360) * 3600) mod 3600;
+  if N = FDiscAngle then Exit;
+  FDiscAngle := N;
+  FElDisc.Attr['style'] := 'transform: rotate(' + FormatFloat('0.0', N / 10, InvFmt) + 'deg)';
+end;
+
+// LP 라벨 둘레에 제목을 원으로 — 엔진에 textPath 가 없어 글자마다 요소를 두고 중심 기준으로 돌린다 (player.css .ch).
+// 간격 = 글자 폭 추정 (한글·한자 1em, 그 밖 0.6em, 공백 0.4em) × 15도 — 1em 이 글자 원 반지름에서 약 15도
+// (라벨 6em, 글자 0.6em, 글자 중심 반지름 ≈ 2.34em — 단위는 #lp 의 em). 고정 간격이면 한글은 겹치고 영문은 듬성했다.
+// 합이 340도를 넘으면 비율대로 좁힘, 56자 넘으면 '…' 로 자름. 위 가운데가 제목 가운데.
+procedure TFrmKPlayer.BuildDiscTitle(const ATitle: string);
+const
+  MaxChars = 56;
+  DegPerEm = 15;
+var
+  S, C: string;
+  N, I, L: Integer;
+  W: array of Double;
+  Total, K, A: Double;
+  E: TKElement;
+begin
+  if FElDiscRing = nil then Exit;
+  while FElDiscRing.FirstChild <> nil do
+    FElDiscRing.FirstChild.Remove;
+  S := ATitle;
+  if UTF8Length(S) > MaxChars then
+    S := UTF8Copy(S, 1, MaxChars - 1) + '…';
+  N := UTF8Length(S);
+  if N = 0 then Exit;
+  SetLength(W, N);
+  Total := 0;
+  for I := 0 to N - 1 do
+  begin
+    C := UTF8Copy(S, I + 1, 1);
+    if C = ' ' then W[I] := 0.4
+    else if UTF8CodepointToUnicode(PChar(C), L) >= $1100 then W[I] := 1
+    else W[I] := 0.6;
+    Total := Total + W[I] * DegPerEm;
+  end;
+  K := 1;
+  if Total > 340 then K := 340 / Total;
+  A := -Total * K / 2;
+  for I := 0 to N - 1 do
+  begin
+    E := FView.CreateElement('div');
+    E.ClassAdd('ch');
+    E.Attr['style'] := 'transform: rotate(' + FormatFloat('0.0', A + W[I] * DegPerEm * K / 2, InvFmt) + 'deg)';
+    E.Text := UTF8Copy(S, I + 1, 1);
+    FElDiscRing.AppendChild(E);
+    A := A + W[I] * DegPerEm * K;
+  end;
+end;
+
+// 작업 표시줄 진행률. 바뀔 때만, 0.1% 단위로 끊어 (1만 분할이면 100ms 마다 COM 호출).
+procedure TFrmKPlayer.UpdateTaskbar(AIdle: Boolean);
+var
+  Dur, Pos: Double;
+  B: Boolean;
+  St: TTaskbarProgress;
+  N: Integer;
+begin
+  Dur := 0;
+  Pos := 0;
+  B := False;
+  if not AIdle then
+  begin
+    MPVPlayer.GetPropertyDouble('duration', Dur, False);
+    MPVPlayer.GetPropertyDouble('time-pos', Pos, False);
+    MPVPlayer.GetPropertyBool('pause', B, False);
+  end;
+  N := 0;
+  if Dur <= 0 then
+    St := tpNone
+  else
+  begin
+    if B then St := tpPaused else St := tpNormal;
+    N := EnsureRange(Round(Pos / Dur * 1000), 0, 1000) * 10;
+  end;
+  if (St = FTbState) and (N = FTbPos) then Exit;
+  FTbState := St;
+  FTbPos := N;
+  SetTaskbarProgress(St, N);
 end;
 
 // 시간 칩 = 7세그먼트 칸 (player.css .dg/.dc/.ds). 숫자 칸 = 어두운 전 획 위에 켜진 획 자식(.d0~.d9).

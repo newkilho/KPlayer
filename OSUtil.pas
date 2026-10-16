@@ -20,8 +20,9 @@ function StartWindowDrag(AForm: TCustomForm): Boolean;
 // 관리자 ↔ 일반 프로세스 간 파일 드롭 허용 (UIPI). Delphi K.DragFile 이 하던 것.
 procedure AllowDropFromLowerIntegrity(AHandle: THandle);
 
-// 다크 타이틀바 (Windows 10 1809+)
-procedure SetDarkTitleBar(AHandle: THandle);
+// DWM 합성에서 창을 빼기/되돌리기 (DWMWA_CLOAK, Windows 8+). 첫 그리기 전 노출 막기용 — Win11 은 칠하기 전 창을
+// 흰색으로 채운다 (라이트 모드, 외부 PC 2026-10-16. Win10 은 뒤 화면이 비쳐 안 보임). 비-Windows 는 no-op.
+procedure SetWindowCloak(AHandle: THandle; ACloak: Boolean);
 
 // 바탕화면 폴더 (끝 구분자 포함). 못 얻으면 exe 폴더.
 function DesktopPath: string;
@@ -57,10 +58,17 @@ function IsTopChild(AParent, AChild: THandle): Boolean;
 // 안 나온다 → 같은 항목(캡션·사용·체크·하위·구분선)을 Win32 메뉴로 복제해 띄우고 고른 항목을 Click. 비-Windows 는 AMenu.PopUp.
 procedure PopupNativeMenu(AMenu: TPopupMenu; AOwner: THandle);
 
+type
+  TTaskbarProgress = (tpNone, tpNormal, tpPaused);
+
+// 작업 표시줄 버튼 진행률 (ITaskbarList3). APos = 0..10000. 버튼 주인 = MainFormOnTaskBar 면 본체 창,
+// 아니면(LCL 기본 False) Application 숨은 창. 버튼 생기기 전 호출은 그냥 실패 — 호출부가 값 바뀔 때 다시 부름. 비-Windows 는 no-op.
+procedure SetTaskbarProgress(AState: TTaskbarProgress; APos: Integer);
+
 implementation
 
 uses
-  {$IFDEF WINDOWS}Windows, ShlObj,{$ENDIF}
+  {$IFDEF WINDOWS}Windows, ShlObj, ActiveX,{$ENDIF}
   LCLType, LCLIntf;
 
 {$IFDEF WINDOWS}
@@ -121,7 +129,7 @@ begin
 end;
 {$ENDIF}
 
-procedure SetDarkTitleBar(AHandle: THandle);
+procedure SetWindowCloak(AHandle: THandle; ACloak: Boolean);
 {$IFDEF WINDOWS}
 type
   TDwmSetWindowAttribute = function(hwnd: HWND; dwAttribute: DWORD; pvAttribute: Pointer;
@@ -129,7 +137,7 @@ type
 var
   Lib: HMODULE;
   F: TDwmSetWindowAttribute;
-  UseDark: BOOL;
+  Cloak: BOOL;
 begin
   Lib := LoadLibrary('dwmapi.dll');
   if Lib = 0 then Exit;
@@ -137,8 +145,8 @@ begin
     F := TDwmSetWindowAttribute(GetProcAddress(Lib, 'DwmSetWindowAttribute'));
     if Assigned(F) then
     begin
-      UseDark := True;
-      F(AHandle, 20, @UseDark, SizeOf(UseDark));   // DWMWA_USE_IMMERSIVE_DARK_MODE
+      Cloak := ACloak;
+      F(AHandle, 13, @Cloak, SizeOf(Cloak));   // DWMWA_CLOAK
     end;
   finally
     FreeLibrary(Lib);
@@ -328,6 +336,38 @@ begin
     L.Free;
   end;
 end;
+
+var
+  GTaskbar: ITaskbarList3;
+  GTaskbarTried: Boolean;
+
+// COM 은 LCL win32 가 OleInitialize 해 둠 (win32object.inc AppInit)
+procedure SetTaskbarProgress(AState: TTaskbarProgress; APos: Integer);
+const
+  Flags: array[TTaskbarProgress] of TBPFLAG = (TBPF_NOPROGRESS, TBPF_NORMAL, TBPF_PAUSED);
+var
+  W: HWND;
+begin
+  if not GTaskbarTried then
+  begin
+    GTaskbarTried := True;
+    if Succeeded(CoCreateInstance(CLSID_TaskbarList, nil, CLSCTX_INPROC_SERVER, ITaskbarList3, GTaskbar)) then
+    begin
+      if not Succeeded(GTaskbar.HrInit) then GTaskbar := nil;
+    end
+    else
+      GTaskbar := nil;
+  end;
+  if GTaskbar = nil then Exit;
+
+  if Application.MainFormOnTaskBar and (Application.MainForm <> nil) then
+    W := Application.MainForm.Handle
+  else
+    W := Application.Handle;
+  GTaskbar.SetProgressState(W, Flags[AState]);
+  if AState <> tpNone then
+    GTaskbar.SetProgressValue(W, APos, 10000);
+end;
 {$ELSE}
 function HookWindowMessages(AHandle: THandle; AEvent: TWndHookEvent): TObject;
 begin
@@ -351,6 +391,10 @@ end;
 procedure PopupNativeMenu(AMenu: TPopupMenu; AOwner: THandle);
 begin
   AMenu.PopUp;
+end;
+
+procedure SetTaskbarProgress(AState: TTaskbarProgress; APos: Integer);
+begin
 end;
 {$ENDIF}
 

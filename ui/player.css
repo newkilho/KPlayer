@@ -1,6 +1,6 @@
 /* 영상 위 UI — 디자인 원본은 KPlayer.lua (치수·색·전환 시간 그대로, 단위 CSS px).
    글꼴은 지정하지 않는다 = 엔진 기본(Segoe UI + DirectWrite 대체 글꼴 = Windows 셸과 같음). 크기 12px (사용자 결정).
-   상태는 Main 이 #ui 의 클래스로 준다: hidden idle fs pinned playing muted hassub subon seeking voldrag nodur nocursor */
+   상태는 Main 이 #ui 의 클래스로 준다: hidden idle audio fs pinned playing muted hassub subon seeking voldrag nodur nocursor */
 
 html, body { margin: 0; width: 100%; height: 100%; background: transparent; }
 
@@ -28,6 +28,48 @@ html, body { margin: 0; width: 100%; height: 100%; background: transparent; }
 /* 시작 화면 (idle) — 기운 워드마크 위 반투명 원 + 재생 삼각형. 원·삼각형은 Lua bezel 과 같은 크기(지름 100, 46) */
 #logo { display: none; position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
 #ui.idle #logo { display: block; }
+
+/* 커버 없는 음악 (audio) — 도는 LP. 모양 기준은 사용자 첨부 이미지 (2026-10-16: 검은 원판·가는 홈, 가운데 매끈한 검정 원 + 가는 테두리,
+   그 안 둘레에 어두운 회색 제목, 작은 밝은 점, 가운데를 지나는 사선 반사광). 홈 치수(1/16em 띠 53줄)와 반사광·모서리 그림자는
+   codepen.io/joshbader/pen/GqXbVZ 의 .album 에서 가져옴. 원판 15em (글자 크기 = 지름/15 — calc(min()/15) 는 엔진이 버려 12px 로 떨어졌다, 실측).
+   홈 53겹(원본은 inset box-shadow)은 radial-gradient 단색 띠로 — 엔진이 둥근 상자의 inset spread 그림자를 그리지 않는다(실측).
+   띠 색은 원본 rgba 를 바탕 #111 위에 미리 섞은 값. 그라디언트 정지점 상한 16(넘으면 선언째 버려짐) 이라 7띠씩 동심원 .g0~.g7.
+   이 블록은 생성물 — 치수를 바꾸려면 원본 띠 표에서 다시 만든다. 반사광은 선언 토큰 상한(128) 때문에 #lp-shine/#lp-shade 둘로.
+   홈·반사광은 고정, 라벨만 돈다 — Main.DiscTimerTick 이 #lp-label 의 transform (재생 위치 기준 10 rpm, 일시정지면 멈춤;
+   엔진에 animation-play-state 가 없다). 커버가 있으면 mpv 가 그것을 영상 트랙으로 보여 주고 이 클래스는 붙지 않는다 */
+#ui.audio { background-color: #1c1c1c; }   /* 원판 가장자리가 보이게 — 검정 위에선 묻힌다 (사용자 의견) */
+#lp { display: none; position: absolute; left: 50%; top: 50%; font-size: min(5.067vw, 5.067vh); width: 15em; height: 15em;
+      transform: translate(-50%, -50%); pointer-events: none; }
+#ui.audio #lp { display: block; }
+#lp-disc { position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 50%; background-color: #111;
+           box-shadow: 0 0.0625em 0.1875em #00000080, 0 0.25em 1em 0.5em #00000026; }
+#lp .g { position: absolute; border-radius: 50%; }
+#lp .g0 { left: 0em; top: 0em; right: 0em; bottom: 0em; background: radial-gradient(circle, transparent 64.818%, #080808 64.818% 65.407%, #585858 65.407% 65.997%, #080808 65.997% 66.586%, #414141 66.586% 67.175%, #080808 67.175% 68.943%, #ffffff 68.943% 70.121%, #080808 70.121% 70.711%, transparent 70.711%); }
+#lp .g1 { left: 0.625em; top: 0.625em; right: 0.625em; bottom: 0.625em; background: radial-gradient(circle, transparent 66.211%, #414141 66.211% 66.854%, #080808 66.854% 67.497%, #585858 67.497% 68.139%, #080808 68.139% 68.782%, #585858 68.782% 69.425%, #080808 69.425% 70.068%, #414141 70.068% 70.711%, transparent 70.711%); }
+#lp .g2 { left: 1.0625em; top: 1.0625em; right: 1.0625em; bottom: 1.0625em; background: radial-gradient(circle, transparent 65.905%, #585858 65.905% 66.592%, #080808 66.592% 67.278%, #414141 67.278% 67.965%, #414141 67.965% 68.651%, #080808 68.651% 69.338%, #585858 69.338% 70.024%, #080808 70.024% 70.711%, transparent 70.711%); }
+#lp .g3 { left: 1.5em; top: 1.5em; right: 1.5em; bottom: 1.5em; background: radial-gradient(circle, transparent 65.555%, #080808 65.555% 66.291%, #414141 66.291% 67.028%, #080808 67.028% 67.764%, #414141 67.764% 68.501%, #080808 68.501% 69.238%, #585858 69.238% 69.974%, #080808 69.974% 70.711%, transparent 70.711%); }
+#lp .g4 { left: 1.9375em; top: 1.9375em; right: 1.9375em; bottom: 1.9375em; background: radial-gradient(circle, transparent 65.149%, #292929 65.149% 65.944%, #414141 65.944% 66.738%, #080808 66.738% 67.533%, #292929 67.533% 68.327%, #080808 68.327% 69.122%, #080808 69.122% 69.916%, #585858 69.916% 70.711%, transparent 70.711%); }
+#lp .g5 { left: 2.375em; top: 2.375em; right: 2.375em; bottom: 2.375em; background: radial-gradient(circle, transparent 64.674%, #080808 64.674% 65.537%, #414141 65.537% 66.399%, #080808 66.399% 67.261%, #414141 67.261% 68.124%, #080808 68.124% 68.986%, #585858 68.986% 69.848%, #080808 69.848% 70.711%, transparent 70.711%); }
+#lp .g6 { left: 2.8125em; top: 2.8125em; right: 2.8125em; bottom: 2.8125em; background: radial-gradient(circle, transparent 64.111%, #080808 64.111% 65.054%, #414141 65.054% 65.997%, #080808 65.997% 66.939%, #080808 66.939% 67.882%, #585858 67.882% 68.825%, #080808 68.825% 69.768%, #414141 69.768% 70.711%, transparent 70.711%); }
+#lp .g7 { left: 3.25em; top: 3.25em; right: 3.25em; bottom: 3.25em; background: radial-gradient(circle, transparent 66.551%, #585858 66.551% 67.591%, #080808 67.591% 68.631%, #292929 68.631% 69.671%, #414141 69.671% 70.711%, transparent 70.711%); }
+#lp-shine, #lp-shade { position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 50%; }
+/* 반사광 — 가운데를 지나는 사선 빛 (사용자 첨부 이미지 기준). 모서리 그림자(#lp-shade) 위에 둔다 — 아래에 두면 그림자가 빛을 덮어
+   가운데 밝기가 바탕보다 5~9 밖에 안 올랐다 (실측). 세기는 원본 그대로(.125/.075) — 더 밝게 하면 너무 밝다는 의견. 색 지점 위치는 모두 적는다 */
+#lp-shine { background: linear-gradient(315deg, #ffffff00 32%, #ffffff20 50%, #ffffff00 68%),
+                              linear-gradient(310deg, #ffffff00 46%, #ffffff13 50%, #ffffff00 54%),
+                              linear-gradient(320deg, #ffffff00 46%, #ffffff13 50%, #ffffff00 54%); }
+#lp-shade { background: radial-gradient(circle at top left, #000000ff 20%, #00000000 80%),
+                              radial-gradient(circle at bottom right, #000000ff 20%, #00000000 80%); }
+/* 가운데 원(6em) — 바탕 없이 가는 원 테두리만, 홈·반사광이 비친다 (첨부 이미지). 반사광·그림자 겹 아래에 둔다 (HTML 순서).
+   테두리는 border — 엔진이 둥근 상자의 inset 그림자를 그리지 않는다 */
+#lp-label { position: absolute; left: 4.5em; top: 4.5em; width: 6em; height: 6em; border-radius: 50%;
+            background-color: #111; border: 0.0625em solid #ffffff1c; box-sizing: border-box; }
+/* 원 안쪽 둘레 제목 — 글자마다 .ch 하나 (Main.BuildDiscTitle). 위 끝(top 6%) 에서 중심(50%) 까지의 막대를 중심 기준으로 돌린다 */
+#lp-ring { position: absolute; left: 0; top: 0; right: 0; bottom: 0; font-size: 0.6em; font-weight: 400; color: #f0f0f0; }
+#lp-ring .ch { position: absolute; left: 50%; top: 6%; width: 2em; height: 44%; margin-left: -1em;
+               text-align: center; line-height: 1; white-space: nowrap; transform-origin: 50% 100%; }
+/* 스핀들 — 가운데 작은 밝은 점 */
+#lp-hole { position: absolute; left: 7.4em; top: 7.4em; width: 0.2em; height: 0.2em; border-radius: 50%; background-color: #bbb; }
 /* Lua \fs = 줄높이 기준 → Arial Black em 은 ×0.709 (upem 2048 / win 2254+634). fs = min(W×1.6/3.8, H×0.45) */
 #logo-mark { position: absolute; left: 50%; top: 50%; white-space: nowrap;
              transform: translate(-50%, -50%) translateY(-45px) rotate(-18deg);
