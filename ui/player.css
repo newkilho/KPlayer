@@ -34,7 +34,7 @@ html, body { margin: 0; width: 100%; height: 100%; background: transparent; }
    codepen.io/joshbader/pen/GqXbVZ 의 .album 에서 가져옴. 원판 15em (글자 크기 = 지름/15 — calc(min()/15) 는 엔진이 버려 12px 로 떨어졌다, 실측).
    홈 53겹(원본은 inset box-shadow)은 radial-gradient 단색 띠로 — 엔진이 둥근 상자의 inset spread 그림자를 그리지 않는다(실측).
    띠 색은 원본 rgba 를 바탕 #111 위에 미리 섞은 값. 그라디언트 정지점 상한 16(넘으면 선언째 버려짐) 이라 7띠씩 동심원 .g0~.g7.
-   이 블록은 생성물 — 치수를 바꾸려면 원본 띠 표에서 다시 만든다. 반사광은 선언 토큰 상한(128) 때문에 #lp-shine/#lp-shade 둘로.
+   .g 띠 값은 원본 띠에서 계산해 넣은 것 — 생성 스크립트는 버림 (2026-10-16), 고치려면 직접. 반사광은 선언 토큰 상한(128) 때문에 #lp-shine/#lp-shade 둘로.
    홈·반사광은 고정, 라벨만 돈다 — Main.DiscTimerTick 이 #lp-label 의 transform (재생 위치 기준 10 rpm, 일시정지면 멈춤;
    엔진에 animation-play-state 가 없다). 커버가 있으면 mpv 가 그것을 영상 트랙으로 보여 주고 이 클래스는 붙지 않는다 */
 #ui.audio { background-color: #1c1c1c; }   /* 원판 가장자리가 보이게 — 검정 위에선 묻힌다 (사용자 의견) */
