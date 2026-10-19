@@ -14,7 +14,23 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
-  1.1.7.0 [!]
+  1.1.8.0
+  [*] '항상 위' 가 안 먹거나 반대로 동작 - LCL win32 가 직접 건 TOPMOST 를 앱 비활성 때 풀고(HWND_BOTTOM), 환경설정(ShowModal) 닫을 때
+      열기 전 상태로 되살림. 원하는 상태와 어긋나는 Z순서 변경을 서브클래스에서 막음. 목록 창은 첫 표시 때 건다
+      (OSUtil.pas: SetWindowTopMost, TopMostProc / List.pas: ShowPlaced)
+  [*] 총 재생시간이 1초 길게 표시 (02:00 인데 01:59 에서 끝남) - duration 은 마지막 프레임 길이까지 포함 → 1프레임 빼서 표기, 팟플레이어와 같음
+      (Main.pas: RefreshUI, RefreshInfo, DragPaint, UpdateHover)
+  [*] 캡션 '항상 위' 아이콘을 Lucide pin / pin-off 로 - 16px 격자에 다시 그린 1px 선 (FileIndex 캡션 단추와 같은 굵기) (ui\icons\pin*.svg / player.css)
+  [*] AVX 는 있고 AVX2 는 없는 CPU 에서 재생 중 크래시 (Illegal Instruction in libmpv-2.dll + 05A653C1) - 번들 zimg 가 AVX 만 보고 AVX2 색변환을 고름
+      (zimg 0e56801f9 에서 수정). libmpv 교체 v0.41.0-173 → v0.41.0-1205 (shinchiro 20261018, 비-v3 판)
+  [*] 재생 후 종료할 때 Access violation - 작업 표시줄 진행률 인터페이스를 COM 해제(OleUninitialize) 뒤에 Release 함 → 참조만 버림
+      (OSUtil.pas: finalization)
+  [*] 폴더를 목록에 넣다가 Stack overflow - 하위 폴더 전개 재귀에 끝이 없었음. 깊이 32 로 제한, 정션·심볼릭 링크 폴더는 건너뜀
+      (List.pas: AddFile)
+  [*] 종료가 바로 안 되고 버벅거림 - 정리(mpv 해제 등)하는 동안 멈춘 창이 보였음. 닫는 순간 재생을 멈추고 창부터 숨김
+      (Main.pas: FormClose)
+
+  1.1.7.0
   [*] 다음 영상으로 넘어가도 메모리가 안 줄던 문제 - 진행바 미리보기 mpv 가 옛 파일을 계속 열어 둠 (4K AV1 → 1080p 전환 뒤 741 → 425MB).
       파일이 바뀌면 닫고 다음 호버 때 새로 엶 (Main.pas: RefreshUI)
   [*] 진행바 미리보기 디코딩 스레드 2개로 - 4K AV1 호버 메모리 +390 → +276MB (Thumb.pas: Open)
@@ -238,6 +254,7 @@ type
     MnuSettings: TMenuItem;
     N1: TMenuItem;
     MnuExit: TMenuItem;
+    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormDropFiles(Sender: TObject; const FileNames: array of string);
@@ -292,6 +309,7 @@ type
     FDiscAngle: Integer;    // 마지막으로 쓴 각도 (0.1도)
     FElDiscRing: TKElement; // LP 라벨 둘레 제목 (#lp-ring) — BuildDiscTitle
     FLastDur: Double;
+    FShownDur: Double;      // 표기용 총 길이 (duration − 1프레임) — RefreshUI 가 채움
     // 화면 위 알림 (3단계) — 배속 토스트·베젤·중앙 알림·TAB 정보. 표시는 FUi 클래스, 끄는 건 1회 타이머 (Tag 로 구분)
     FElToast, FElBezelIco, FElPill, FElAlert: TKElement;
     FElInfo: array[0..8] of TKElement;
@@ -609,6 +627,15 @@ begin
   SyncFileAssoc;
 
   StartUpdateCheck;
+end;
+
+// 닫는 순간 창부터 숨김. LCL 은 본체 창 Close 때 Application.Terminate 만 하고 안 숨김 → 정리(미리보기·본체 mpv
+// terminate_destroy, FreeLibrary ≈ 0.2~0.3초+, 2026-10-19 실측) 동안 멈춘 창이 보여 '버벅' 거림. 소리도 먼저 끊는다
+procedure TFrmKPlayer.FormClose(Sender: TObject; var CloseAction: TCloseAction);
+begin
+  if MPVPlayer <> nil then MPVPlayer.Command(['stop']);
+  FrmList.Hide;
+  Hide;
 end;
 
 procedure TFrmKPlayer.FormDestroy(Sender: TObject);
@@ -1890,7 +1917,7 @@ begin
   if Length(W) > 60 then S := UTF8Encode(Copy(W, 1, 60)) + '...' else S := UTF8Encode(W);
   R[0] := S;
   R[1] := P('file-format') + '   ' + Size;
-  R[2] := FormatTime(Num('time-pos')) + ' / ' + FormatTime(Num('duration')) + '   x' +
+  R[2] := FormatTime(Num('time-pos')) + ' / ' + FormatTime(FShownDur) + '   x' +
           FormatFloat('0.##', Math.Max(Num('speed'), 0.0), InvFmt);
 
   Fps := Num('container-fps');
@@ -1970,7 +1997,7 @@ procedure TFrmKPlayer.RefreshUI;
 var
   B, Idle: Boolean;
   S: string;
-  Dur, Pos, V: Double;
+  Dur, Pos, V, Fps: Double;
   N: Integer;
 begin
   if (MPVPlayer = nil) or (FUi = nil) then Exit;
@@ -2044,7 +2071,14 @@ begin
     RebuildChapters;
   end;
 
-  S := FormatTime(Pos) + ' / ' + FormatTime(Dur);
+  // 총 길이 표기 = duration − 1프레임 (마지막 프레임 시작 시각). duration 은 마지막 프레임 길이까지 포함 →
+  // 02:00 인데 01:59 에서 끝남, 팟플레이어는 01:59 (제보 2026-10-19). 오디오 전용은 fps 없음 → 그대로.
+  FShownDur := Dur;
+  Fps := 0;
+  if (Dur > 0) and (MPVPlayer.GetPropertyDouble('container-fps', Fps, False) = 0) and (Fps > 0) then
+    FShownDur := Math.Max(Dur - 1 / Fps, 0);
+
+  S := FormatTime(Pos) + ' / ' + FormatTime(FShownDur);
   if S <> FLastTime then SetTimeDigits(S);
 
   if Dur > 0 then N := EnsureRange(Round(Pos / Dur * 10000), 0, 10000) else N := 0;
@@ -2382,7 +2416,7 @@ begin
   FElPlayed.Attr['style'] := 'width:' + S;
   FElThumb.Attr['style'] := 'left:' + S;
   FLastPlayed := -1;   // 끝나면 RefreshUI 가 다시 씀
-  S := FormatTime(FDragPos) + ' / ' + FormatTime(FLastDur);
+  S := FormatTime(Math.Min(FDragPos, FShownDur)) + ' / ' + FormatTime(FShownDur);
   if S <> FLastTime then SetTimeDigits(S);
 end;
 
@@ -2426,7 +2460,7 @@ begin
   R := FElProgress.BoundingRect;
   if R.W <= 0 then Exit;
   X := EnsureRange(AX - R.X, 0, R.W);
-  FElTip.Text := FormatTime(X / R.W * Dur);
+  FElTip.Text := FormatTime(Math.Min(X / R.W * Dur, FShownDur));   // 끝 = 총 길이 표기와 같게
   if PreviewUsable then   // 끄는 중에도 (사용자 요청 2026-10-08 — 본 영상은 키프레임만 띄엄띄엄 따라온다)
   begin
     FThumb.Request(FLastPath, X / R.W * Dur);

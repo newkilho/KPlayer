@@ -111,8 +111,8 @@ html, body { margin: 0; width: 100%; height: 100%; background: transparent; }
 #ui.fs .g-res { display: block; }
 .g-close { position: absolute; left: 18px; top: 11px; width: 10px; height: 10px;
            background-image: url(cap-close.svg); background-size: 100% 100%; }
-/* 압정 12.5px (반경 ×2.5), 도형 세로 중심 13.5/24 를 슬롯 중심에. 꺼짐 = 사선 */
-.g-pin   { position: absolute; left: 16.75px; top: 9px; width: 12.5px; height: 12.5px;
+/* 압정 = Lucide pin / pin-off 를 16px 격자에 다시 그린 1px 선 (FileIndex 캡션 단추와 같은 크기·굵기). 정수 위치 — 반 픽셀이면 선이 번짐 */
+.g-pin   { position: absolute; left: 15px; top: 8px; width: 16px; height: 16px;
            background-image: url(pin-off.svg); background-size: 100% 100%; }
 #ui.pinned .g-pin { background-image: url(pin.svg); }
 

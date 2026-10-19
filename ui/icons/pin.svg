@@ -1,1 +1,2 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M6.5 4L17.5 4L17.5 6L6.5 6ZM7.9 6L9.9 6L9.1 15L7.1 15ZM14.1 6L16.1 6L16.9 15L14.9 15ZM4 15L20 15L20 17L4 17ZM11 17L13 17L13 23L11 23Z"/></svg>
+<!-- Lucide pin (ISC) 를 16px 격자에 다시 그림 — 1px 선을 .5 좌표에 (FileIndex 캡션 단추와 같은 굵기) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 11.5V14.5"/><path d="M6.5 4.5V7.5L3.5 9.5V11.5H13.5V9.5L10.5 7.5V4.5"/><path d="M6 1.5H11A1.5 1.5 0 0 1 11 4.5H6A1.5 1.5 0 0 1 6 1.5Z"/></svg>

@@ -77,26 +77,6 @@ const
   MSGFLT_ALLOW = 1;
 {$ENDIF}
 
-procedure SetWindowTopMost(AForm: TCustomForm; AState: Boolean);
-{$IFDEF WINDOWS}
-const
-  SWP_FLAGS = SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE;
-var
-  LAfter: HWND;
-begin
-  if (AForm = nil) or not AForm.HandleAllocated then Exit;
-  if AState then
-    LAfter := HWND_TOPMOST
-  else
-    LAfter := HWND_NOTOPMOST;
-  Windows.SetWindowPos(AForm.Handle, LAfter, 0, 0, 0, 0, SWP_FLAGS);
-end;
-{$ELSE}
-begin
-  // TODO macOS: NSWindow level
-end;
-{$ENDIF}
-
 function StartWindowDrag(AForm: TCustomForm): Boolean;
 begin
   {$IFDEF WINDOWS}
@@ -196,6 +176,7 @@ function DefSubclassProc(hWnd: HWND; uMsg: UINT; wParam: WPARAM; lParam: LPARAM)
 
 const
   HookSubclassID = $4B48;   // 'KH'
+  TopMostSubclassID = $4B54;   // 'KT'
 
 type
   TWinHook = class
@@ -246,6 +227,48 @@ begin
   H.FEvent := AEvent;
   H.FHooked := SetWindowSubclass(AHandle, @HookProc, HookSubclassID, DWORD_PTR(H));
   Result := H;
+end;
+
+// LCL win32 가 TOPMOST 를 제멋대로 바꾼다 (fsStayOnTop 폼만 자기 것으로 앎):
+//  앱 비활성(WM_ACTIVATEAPP) → RemoveStayOnTopFlags 가 스레드의 TOPMOST 창을 HWND_BOTTOM 으로 = 해제 + 맨 아래, 활성 때 복원.
+//  ShowModal(환경설정) 시작 때 목록 저장 → 끝날 때 HWND_TOPMOST 복원 = 설정에서 끈 걸 되살림 ("반대로 동작" 제보, 2026-10-19).
+// → 원하는 상태(dwRefData 1/0)와 어긋나는 Z순서 변경에 SWP_NOZORDER. 우리 SetWindowPos 는 상태를 먼저 바꾸고 부르므로 통과.
+function TopMostProc(hWnd: HWND; uMsg: UINT; wParam: WPARAM; lParam: LPARAM;
+  uIdSubclass: UINT_PTR; dwRefData: DWORD_PTR): LRESULT; stdcall;
+var
+  P: PWindowPos;
+begin
+  if uMsg = WM_WINDOWPOSCHANGING then
+  begin
+    P := PWindowPos(lParam);
+    if (P^.flags and SWP_NOZORDER) = 0 then
+      if dwRefData <> 0 then
+      begin
+        if (P^.hwndInsertAfter = HWND_BOTTOM) or (P^.hwndInsertAfter = HWND_NOTOPMOST) then
+          P^.flags := P^.flags or SWP_NOZORDER;
+      end
+      else if P^.hwndInsertAfter = HWND_TOPMOST then
+        P^.flags := P^.flags or SWP_NOZORDER;
+  end
+  else if uMsg = WM_NCDESTROY then
+    RemoveWindowSubclass(hWnd, @TopMostProc, TopMostSubclassID);
+  Result := DefSubclassProc(hWnd, uMsg, wParam, lParam);
+end;
+
+procedure SetWindowTopMost(AForm: TCustomForm; AState: Boolean);
+const
+  SWP_FLAGS = SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE;
+var
+  LAfter: HWND;
+begin
+  if (AForm = nil) or not AForm.HandleAllocated then Exit;
+  // 같은 proc·ID 로 다시 부르면 dwRefData 만 바뀐다
+  SetWindowSubclass(AForm.Handle, @TopMostProc, TopMostSubclassID, DWORD_PTR(Ord(AState)));
+  if AState then
+    LAfter := HWND_TOPMOST
+  else
+    LAfter := HWND_NOTOPMOST;
+  Windows.SetWindowPos(AForm.Handle, LAfter, 0, 0, 0, 0, SWP_FLAGS);
 end;
 
 procedure SetSizingFrame(AHandle: THandle; AOn: Boolean);
@@ -374,6 +397,11 @@ begin
   Result := nil;
 end;
 
+procedure SetWindowTopMost(AForm: TCustomForm; AState: Boolean);
+begin
+  // TODO macOS: NSWindow level
+end;
+
 procedure RunSizingLoop(AHandle: THandle; AHit: PtrUInt; APos: PtrInt);
 begin
 end;
@@ -398,4 +426,9 @@ begin
 end;
 {$ENDIF}
 
+{$IFDEF WINDOWS}
+finalization
+  // Release 금지 — COM 은 이미 내려감 (Application.Terminate → AppTerminate → OleUninitialize) → AV (1.1.7.0 종료 크래시). 버림
+  Pointer(GTaskbar) := nil;
+{$ENDIF}
 end.

@@ -141,7 +141,7 @@ type
     procedure ApplyTexts;
     procedure SavePlaylist;
     procedure LoadPlaylist;
-    procedure AddFile(AFileName: string; ACheckDisk: Boolean = True);
+    procedure AddFile(AFileName: string; ACheckDisk: Boolean = True; ADepth: Integer = 0);
     // AExpand = '열기' 경로(탐색기 인자·본체 드롭·열기 대화상자) — 파일 하나면 같은 폴더 파일 자동 추가 (ExpandFolder)
     procedure AddFiles(const AFiles: TStringArray; APlay: Boolean; AExpand: Boolean = False);
     procedure OpenFiles;   // 파일 열기 대화상자 → AddFiles+재생 ([추가] 버튼, Ctrl+O, 본체 우클릭)
@@ -523,6 +523,8 @@ begin
       SetBounds(L, T, Width, Height);
     end;
     FPlaced := True;
+    // 본체 FormCreate 의 SetTopMost 때는 이 폼이 아직 없다 → 첫 표시에 건다 (안 걸면 LCL 이 이 창만 맨 아래로 보냄)
+    SetWindowTopMost(Self, FrmKPlayer.Config.ReadInteger('topmost', 0) <> 0);
   end;
   Show;
 end;
@@ -1291,7 +1293,12 @@ end;
 // 디스크를 때려 UI 가 멈췄다. 없는 파일 표시는 StartVerify 스레드가 나중에 켠다.
 // 디스크를 보는 경우는 둘뿐: 미디어 확장자가 아닌 경로의 폴더 여부(폴더 드롭 전개)와
 // 재생목록 파일 읽기. 미디어 파일만 잔뜩 떨구면 디스크 접근 0회.
-procedure TFrmList.AddFile(AFileName: string; ACheckDisk: Boolean);
+// ADepth = 폴더 전개 재귀 깊이 (내부용). 1.1.6.0 폴더 드롭 EStackOverflow (pk=315229) — 스택 16MB 를 다 씀 = 1만 단계+.
+// 경로 260자 제한(longPathAware=false)이라 정션 순환만으론 못 감 → 정규화로 같은 폴더가 되는 이름(끝 점·공백) 추정, 미확인.
+// 그래서 원인 무관하게 깊이로 막고, 정션·심볼릭 링크 폴더는 안 들어감 (순환 시 중복 추가 방지)
+procedure TFrmList.AddFile(AFileName: string; ACheckDisk: Boolean; ADepth: Integer);
+const
+  MaxFolderDepth = 32;
 var
   Node: PVirtualNode;
   Item: PItemData;
@@ -1305,16 +1312,16 @@ begin
       Exit;
 
     // 확장자로 안 걸린 것만 폴더인지 물어본다.
-    if not DirectoryExists(AFileName) then
+    if (ADepth >= MaxFolderDepth) or not DirectoryExists(AFileName) then
       Exit;
 
     LDir := IncludeTrailingPathDelimiter(AFileName);
     if FindFirst(LDir + '*', faAnyFile, SearchRec) = 0 then
     try
       repeat
-        if (SearchRec.Name = '.') or (SearchRec.Name = '..') then
+        if (SearchRec.Name = '.') or (SearchRec.Name = '..') or ((SearchRec.Attr and faSymLink) <> 0) then
           Continue;
-        AddFile(LDir + SearchRec.Name);
+        AddFile(LDir + SearchRec.Name, True, ADepth + 1);
       until FindNext(SearchRec) <> 0;
     finally
       FindClose(SearchRec);
