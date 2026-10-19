@@ -17,8 +17,8 @@
     <VersionInfo>
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="1"/>
-      <MinorVersionNr Value="1"/>
-      <RevisionNr Value="9"/>
+      <MinorVersionNr Value="2"/>
+      <RevisionNr Value="0"/>
       <StringTable CompanyName="Kilhonet" FileDescription="KPlayer" InternalName="KPlayer" OriginalFilename="KPlayer.exe" ProductName="KPlayer"/>
     </VersionInfo>
     <BuildModes>

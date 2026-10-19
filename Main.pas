@@ -14,6 +14,13 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
+  1.2.0.0
+  [*] 일부 PC 에서 'MPV DLL 로드 실패' 로 실행 안 됨 - 1.1.8.0 에서 바꾼 libmpv 가 vulkan-1.dll 을 직접 import → Vulkan 을 지원하는
+      그래픽 드라이버가 없는 PC 에서 DLL 자체가 안 열림. Khronos Vulkan 로더(LunarG 1.4.363.0)를 함께 배포
+      (KPlayer.iss: [Files])
+  [+] DLL 로드 실패 메시지에 원인 표시 - 파일 없음 / Windows 오류 문구·코드, 126 이면 의존 DLL 없음 안내 + 경로
+      (Main.pas: MPVLoadError)
+
   1.1.9.0
   [*] 1.1.8.0 을 덮어 설치하면 libmpv 가 안 바뀌어 AVX2 없는 CPU 에서 Illegal Instruction 그대로 - 새·옛 DLL 이진 버전이 둘 다
       2.0.0.0 이라 설치본이 같은 버전으로 보고 건너뜀. 버전 비교 없이 항상 덮어씀
@@ -457,10 +464,52 @@ implementation
 {$R *.lfm}
 
 uses
-  {$IFDEF WINDOWS}Windows,{$ENDIF}
+  {$IFDEF WINDOWS}Windows, MPVClient,{$ENDIF}
   List, Setup, Assoc, Media, KTranslate, KTheme, KUpdate, Instance, LazUTF8;
 
 {$I Const.inc}
+
+// 'MPV DLL 로드 실패' 뒤에 붙일 원인. 문구 하나로는 파일 없음(백신 격리 등)·의존 DLL 없음(126 — 1.1.8.0 libmpv 는
+// vulkan-1.dll 을 직접 import, 드라이버에 Vulkan 없는 PC 에서 실패 추정)·손상(193)이 안 갈린다 → 다시 열어 오류 코드를 본다
+function MPVLoadError: string;
+{$IFDEF WINDOWS}
+var
+  LPath: string;
+  H: HMODULE;
+  Err: DWORD;
+  Buf: array[0..511] of WideChar;
+  N: DWORD;
+  W: WideString;
+  OldMode: UINT;
+begin
+  LPath := ExtractFilePath(ParamStr(0)) + MPVDLL;
+  if not FileExists(LPath) then
+    Exit(_('파일이 없습니다') + LineEnding + LPath);
+  OldMode := SetErrorMode(SEM_FAILCRITICALERRORS or SEM_NOOPENFILEERRORBOX);
+  try
+    H := LoadLibraryW(PWideChar(UTF8Decode(LPath)));
+    Err := GetLastError;
+  finally
+    SetErrorMode(OldMode);
+  end;
+  if H <> 0 then
+  begin
+    FreeLibrary(H);
+    Exit(LPath);
+  end;
+  // SysErrorMessage 는 A 판(CP949) → 깨짐. W 판으로
+  N := FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM or FORMAT_MESSAGE_IGNORE_INSERTS, nil, Err, 0, @Buf[0], Length(Buf), nil);
+  SetString(W, PWideChar(@Buf[0]), N);
+  Result := Trim(UTF8Encode(W)) + Format(' (%d)', [Err]);
+  if Err = ERROR_MOD_NOT_FOUND then
+    Result := Result + LineEnding + _('필요한 다른 DLL 이 없습니다 (그래픽 드라이버의 vulkan-1.dll 등)');
+  Result := Result + LineEnding + LPath;
+end;
+{$ELSE}
+begin
+  Result := '';
+end;
+{$ENDIF}
 
 procedure TFrmKPlayer.FormCreate(Sender: TObject);
 var
@@ -501,7 +550,7 @@ begin
 
   if not MPVLibLoaded(ExtractFilePath(ParamStr(0))) then
   begin
-    ShowMessage(_('MPV DLL 로드 실패'));
+    ShowMessage(_('MPV DLL 로드 실패') + LineEnding + LineEnding + MPVLoadError);
     Application.Terminate;
     Exit;
   end;

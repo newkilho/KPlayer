@@ -18,6 +18,26 @@ fr=Échec du chargement de la DLL MPV
 es=No se pudo cargar la DLL de MPV
 ar=فشل تحميل مكتبة MPV
 
+ko=파일이 없습니다
+en=The file is missing
+ja=ファイルがありません
+zh=文件不存在
+ru=Файл отсутствует
+it=Il file è mancante
+fr=Le fichier est introuvable
+es=Falta el archivo
+ar=الملف غير موجود
+
+ko=필요한 다른 DLL 이 없습니다 (그래픽 드라이버의 vulkan-1.dll 등)
+en=A required DLL is missing (such as vulkan-1.dll from the graphics driver)
+ja=必要な別の DLL がありません (グラフィックドライバーの vulkan-1.dll など)
+zh=缺少所需的其他 DLL (例如显卡驱动程序的 vulkan-1.dll)
+ru=Отсутствует необходимая DLL (например, vulkan-1.dll из графического драйвера)
+it=Manca una DLL necessaria (ad esempio vulkan-1.dll del driver grafico)
+fr=Une DLL requise est absente (par exemple vulkan-1.dll du pilote graphique)
+es=Falta una DLL necesaria (por ejemplo, vulkan-1.dll del controlador gráfico)
+ar=مكتبة DLL مطلوبة مفقودة (مثل vulkan-1.dll من برنامج تشغيل الرسومات)
+
 ko=필수 파일이 없습니다.
 en=A required file is missing.
 ja=必要なファイルがありません。
