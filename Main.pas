@@ -14,6 +14,11 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
+  1.1.9.0
+  [*] 1.1.8.0 을 덮어 설치하면 libmpv 가 안 바뀌어 AVX2 없는 CPU 에서 Illegal Instruction 그대로 - 새·옛 DLL 이진 버전이 둘 다
+      2.0.0.0 이라 설치본이 같은 버전으로 보고 건너뜀. 버전 비교 없이 항상 덮어씀
+      (KPlayer.iss: [Files])
+
   1.1.8.0
   [*] '항상 위' 가 안 먹거나 반대로 동작 - LCL win32 가 직접 건 TOPMOST 를 앱 비활성 때 풀고(HWND_BOTTOM), 환경설정(ShowModal) 닫을 때
       열기 전 상태로 되살림. 원하는 상태와 어긋나는 Z순서 변경을 서브클래스에서 막음. 목록 창은 첫 표시 때 건다

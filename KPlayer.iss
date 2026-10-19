@@ -12,7 +12,7 @@
 
 [Files]
 Source: "{#MyAppExe}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MySrcDir}\libmpv-2.dll"; DestDir: "{app}"
+Source: "{#MySrcDir}\libmpv-2.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Setup]
