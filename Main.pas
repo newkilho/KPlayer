@@ -14,6 +14,10 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
+  1.2.2.0
+  [*] 재실행할 때마다 창이 배율만큼 커짐 (110% 등 100% 아닌 배율, 모니터 1대여도) - LCL 이 복원한 창 크기를 DPI 배율로
+      또 키움. 본체 창의 LCL 자동 배율 조정을 끄고 저장한 위치·크기를 그대로 복원 (Main.lfm: Scaled / Main.pas: RestoreWindow)
+
   1.2.1.0
   [*] 재실행할 때마다 창이 커짐 (Win10 듀얼 모니터) - 배율 다른 모니터로 옮길 때 WM_DPICHANGED 가 크기를 배율비만큼 바꾼 값이 저장됨.
       옮긴 뒤 저장 크기를 다시 적용 (Main.pas: RestoreWindow)
@@ -1321,6 +1325,9 @@ end;
 // ('지정 크기' 는 넣었다 뺐다 — 2026-09-11 사용자 결정. 우클릭 '화면 크기' 배율로 충분.)
 // mpv autofit/geometry 는 wid 임베드라 무효 (창 주인이 우리) → 여기서 직접.
 // 시작 시 크기·위치는 항상 마지막 값. 문의 (2026-09-11): 640×400 고정이라 매번 늘려야 했다.
+// 저장·복원 모두 실제 픽셀 그대로, DPI 계산 없음 → Main.lfm `Scaled = False` 필수. 켜 두면 LCL 이 복원한 크기를
+// 배율만큼 또 키워 실행마다 누적 (OnCreate 뒤 AfterConstruction·Show·WM_DPICHANGED 의 AutoAdjustLayout. 110% 면
+// 106/96 ≈ 10%씩, 문의 2026-10-20 — 1.2.1.0·1.2.2.0 의 시점 우회는 외부 PC 에서 실패). 본체 창 UI 는 KilhoUI 가 배율 처리.
 procedure TFrmKPlayer.RestoreWindow;
 var
   R: TRect;
@@ -1348,10 +1355,6 @@ begin
   H := Min(H, R.Bottom - R.Top);
   L := EnsureRange(L, R.Left, R.Right - W);
   T := EnsureRange(T, R.Top, R.Bottom - H);
-  // 두 번: 창은 주 모니터 배율로 생성 → 배율 다른 모니터로 옮기면 WM_DPICHANGED 가 크기를 배율비만큼 바꿈 →
-  // 그 크기가 저장돼 실행마다 커졌다 (문의 2026-10-20, Win10 듀얼 모니터, 약 10%씩·화면 밖으로). 저장값은 그
-  // 모니터 기준 실제 픽셀 → 옮긴 뒤 다시 적용. 같은 모니터라 두 번째는 배율 안 바뀜 (List.ShowPlaced 와 같은 대응).
-  SetBounds(L, T, W, H);
   SetBounds(L, T, W, H);
 end;
 
