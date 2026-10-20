@@ -69,7 +69,8 @@ type
   TMouseFunc = (mfNone, mfFullScreen, mfStretch, mfPause, mfNextFile, mfPrevFile,
     mfSeekFwd, mfSeekBack, mfVolUp, mfVolDown);
 
-  TMouseEvent = (meLClick, meDblClick, meMClick, meWheelUp, meWheelDown);   // 가로 휠은 넣었다 뺌 (2026-09-11, 사용자 환경에서 동작 안 함)
+  TMouseEvent = (meLClick, meDblClick, meMClick, meWheelUp, meWheelDown,   // 가로 휠은 넣었다 뺌 (2026-09-11, 사용자 환경에서 동작 안 함)
+    meXBack, meXForward);   // 측면 버튼 (문의 2026-10-20) — KilhoUI MouseButton 3/4 (Main.ViewMouseDown)
 
   TMouseDef = record
     Id: string;
@@ -88,7 +89,9 @@ const
     (Id: 'dblclick';    Name: '왼쪽 버튼 두 번 클릭'; Def: mfFullScreen),
     (Id: 'mclick';      Name: '가운데 버튼 클릭';     Def: mfNone),
     (Id: 'wheel_up';    Name: '휠 위로';              Def: mfVolUp),
-    (Id: 'wheel_down';  Name: '휠 아래로';            Def: mfVolDown)
+    (Id: 'wheel_down';  Name: '휠 아래로';            Def: mfVolDown),
+    (Id: 'xback';       Name: '뒤로 가기 버튼';       Def: mfNone),
+    (Id: 'xforward';    Name: '앞으로 가기 버튼';     Def: mfNone)
   );
 
 var

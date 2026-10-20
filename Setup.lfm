@@ -391,13 +391,15 @@ object FrmSetup: TFrmSetup
               '실행 중인 창 목록에 추가')
           end
           object EdtShotDir: TEdit
-            Left = 325
+            Left = 473
             Top = 219
-            Width = 250
+            Width = 170
             Height = 23
             Anchors = [akTop, akRight]
             ReadOnly = True
             TabOrder = 5
+            OnEnter = ShotDirEnter
+            OnExit = ShotDirExit
           end
           object BtnShotDir: TButton
             AnchorSideTop.Control = EdtShotDir
@@ -409,7 +411,9 @@ object FrmSetup: TFrmSetup
             Anchors = [akTop, akRight]
             Caption = '찾기'
             TabOrder = 6
+            Visible = False
             OnClick = BtnShotDirClick
+            OnExit = ShotDirExit
           end
           object CboShotFmt: TComboBox
             Left = 473
@@ -692,7 +696,7 @@ object FrmSetup: TFrmSetup
           object TrkVolume: TTrackBar
             Left = 453
             Top = 16
-            Width = 190
+            Width = 198
             Height = 28
             Anchors = [akTop, akRight]
             Max = 100
@@ -982,7 +986,7 @@ object FrmSetup: TFrmSetup
           object TrkSubSize: TTrackBar
             Left = 453
             Top = 96
-            Width = 190
+            Width = 198
             Height = 28
             Anchors = [akTop, akRight]
             Max = 100
@@ -996,18 +1000,18 @@ object FrmSetup: TFrmSetup
             OnChange = TrackChange
           end
           object EdtSubLang: TEdit
-            Left = 393
+            Left = 473
             Top = 139
-            Width = 250
+            Width = 170
             Height = 23
             Anchors = [akTop, akRight]
             TabOrder = 3
             OnChange = ControlChange
           end
           object CboSubFont: TComboBox
-            Left = 393
+            Left = 473
             Top = 179
-            Width = 250
+            Width = 170
             Height = 23
             Style = csDropDownList
             Anchors = [akTop, akRight]
@@ -1040,7 +1044,7 @@ object FrmSetup: TFrmSetup
           object TrkSubBorder: TTrackBar
             Left = 453
             Top = 336
-            Width = 190
+            Width = 198
             Height = 28
             Anchors = [akTop, akRight]
             Max = 5
@@ -1063,7 +1067,7 @@ object FrmSetup: TFrmSetup
           object TrkSubShadow: TTrackBar
             Left = 453
             Top = 376
-            Width = 190
+            Width = 198
             Height = 28
             Anchors = [akTop, akRight]
             Max = 5
@@ -1076,7 +1080,7 @@ object FrmSetup: TFrmSetup
           object TrkSubPos: TTrackBar
             Left = 453
             Top = 416
-            Width = 190
+            Width = 198
             Height = 28
             Anchors = [akTop, akRight]
             Max = 100
@@ -1370,6 +1374,26 @@ object FrmSetup: TFrmSetup
             Caption = '휠 아래로'
             Transparent = True
           end
+          object LblMXBack: TLabel
+            AnchorSideTop.Control = CboMXBack
+            AnchorSideTop.Side = asrCenter
+            Left = 24
+            Top = 223
+            Width = 84
+            Height = 15
+            Caption = '뒤로 가기 버튼'
+            Transparent = True
+          end
+          object LblMXForward: TLabel
+            AnchorSideTop.Control = CboMXForward
+            AnchorSideTop.Side = asrCenter
+            Left = 24
+            Top = 263
+            Width = 96
+            Height = 15
+            Caption = '앞으로 가기 버튼'
+            Transparent = True
+          end
           object CboMLClick: TComboBox
             Left = 473
             Top = 19
@@ -1418,6 +1442,26 @@ object FrmSetup: TFrmSetup
             Style = csDropDownList
             Anchors = [akTop, akRight]
             TabOrder = 4
+            OnChange = ControlChange
+          end
+          object CboMXBack: TComboBox
+            Left = 473
+            Top = 219
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 5
+            OnChange = ControlChange
+          end
+          object CboMXForward: TComboBox
+            Left = 473
+            Top = 259
+            Width = 170
+            Height = 23
+            Style = csDropDownList
+            Anchors = [akTop, akRight]
+            TabOrder = 6
             OnChange = ControlChange
           end
         end

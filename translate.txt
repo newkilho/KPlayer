@@ -1638,6 +1638,26 @@ fr=Molette vers le bas
 es=Rueda abajo
 ar=العجلة للأسفل
 
+ko=뒤로 가기 버튼
+en=Back button
+ja=戻るボタン
+zh=后退键
+ru=Кнопка «Назад»
+it=Tasto Indietro
+fr=Bouton Précédent
+es=Botón Atrás
+ar=زر الرجوع
+
+ko=앞으로 가기 버튼
+en=Forward button
+ja=進むボタン
+zh=前进键
+ru=Кнопка «Вперёд»
+it=Tasto Avanti
+fr=Bouton Suivant
+es=Botón Adelante
+ar=زر التقدم
+
 ko=아무 작동 안함
 en=Do nothing
 ja=何もしない

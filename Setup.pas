@@ -154,6 +154,10 @@ type
     CboMWheelUp: TComboBox;
     LblMWheelDown: TLabel;
     CboMWheelDown: TComboBox;
+    LblMXBack: TLabel;
+    CboMXBack: TComboBox;
+    LblMXForward: TLabel;
+    CboMXForward: TComboBox;
     CardAbout: TPage;
     ImgAbout: TImage;
     LblAppName: TLabel;
@@ -174,6 +178,10 @@ type
     procedure BtnResetClick(Sender: TObject);
     procedure LblHomeClick(Sender: TObject);
     procedure BtnShotDirClick(Sender: TObject);
+    procedure ShotDirEnter(Sender: TObject);
+    procedure ShotDirExit(Sender: TObject);
+    procedure ShotDirCollapse(Data: PtrInt);
+    procedure SetShotDirExpanded(AOn: Boolean);
     procedure BtnSubColorClick(Sender: TObject);
     procedure LvKeysSelectItem(Sender: TObject; Item: TListItem; Selected: Boolean);
     procedure EdtKeyKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -232,6 +240,7 @@ type
     FGroupText: array[TAssocGroup] of string;
     FBadgeText: string;
     FNoneText: string;   // 단축키 '없음' (목록 행마다 _() 금지 — 위와 같은 이유)
+    FShotPicking: Boolean;   // 폴더 대화상자 중 — 스크린샷 폴더 줄 접지 않음 (ShotDirCollapse)
     FMouseCbo: array[TMouseEvent] of TComboBox;   // 마우스 카드 콤보 (이벤트 순, FillMouse 가 채움)
 
     procedure FillAbout;
@@ -1637,7 +1646,12 @@ begin
     Dlg.Options := Dlg.Options + [ofPathMustExist];
     if DirectoryExists(EdtShotDir.Text) then
       Dlg.InitialDir := EdtShotDir.Text;
-    if not Dlg.Execute then Exit;
+    FShotPicking := True;
+    try
+      if not Dlg.Execute then Exit;
+    finally
+      FShotPicking := False;
+    end;
     Dir := Dlg.FileName;
   finally
     Dlg.Free;
@@ -1650,6 +1664,35 @@ begin
     Config.WriteString('shot_dir', Dir);
 
   ControlChange(Sender);
+end;
+
+// 스크린샷 폴더 줄: 평소 [찾기] 숨김·Edit = 콤보 폭 (사용자 결정 2026-10-20). Edit 포커스 때만 펼침 —
+// Edit 를 왼쪽으로 250 까지 넓히고 [찾기] 표시 (콤보 폭 안에 버튼까지 넣으면 Edit 102px, 경로 안 보임).
+procedure TFrmSetup.SetShotDirExpanded(AOn: Boolean);
+begin
+  BtnShotDir.Visible := AOn;
+  if AOn then
+    EdtShotDir.SetBounds(BtnShotDir.Left - Scale96ToForm(8 + 250), EdtShotDir.Top, Scale96ToForm(250), EdtShotDir.Height)
+  else
+    EdtShotDir.SetBounds(CboShotFmt.Left, EdtShotDir.Top, CboShotFmt.Width, EdtShotDir.Height);
+end;
+
+procedure TFrmSetup.ShotDirEnter(Sender: TObject);
+begin
+  SetShotDirExpanded(True);
+end;
+
+// [찾기] 누름도 Edit 의 Exit 를 부른다 (버튼이 포커스 가져감) → 바로 접으면 버튼이 사라져 클릭 무효.
+// 포커스 이동이 끝난 뒤 판정.
+procedure TFrmSetup.ShotDirExit(Sender: TObject);
+begin
+  Application.QueueAsyncCall(ShotDirCollapse, 0);
+end;
+
+procedure TFrmSetup.ShotDirCollapse(Data: PtrInt);
+begin
+  if FShotPicking or EdtShotDir.Focused or BtnShotDir.Focused then Exit;
+  SetShotDirExpanded(False);
 end;
 
 // 정보 카드 (ZipMania 설정 '정보' 와 같은 구성: 아이콘·이름, 버전·만든이·홈페이지, 라이선스 고지문).
@@ -2040,6 +2083,8 @@ begin
   FMouseCbo[meMClick]     := CboMMClick;
   FMouseCbo[meWheelUp]    := CboMWheelUp;
   FMouseCbo[meWheelDown]  := CboMWheelDown;
+  FMouseCbo[meXBack]      := CboMXBack;
+  FMouseCbo[meXForward]   := CboMXForward;
 
   for E := Low(TMouseEvent) to High(TMouseEvent) do
   begin

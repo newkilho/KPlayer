@@ -14,6 +14,11 @@ Icon: https://www.flaticon.com/free-icon/play_2377793
 
 히스토리:
 ========
+  1.2.1.0
+  [*] 재실행할 때마다 창이 커짐 (Win10 듀얼 모니터) - 배율 다른 모니터로 옮길 때 WM_DPICHANGED 가 크기를 배율비만큼 바꾼 값이 저장됨.
+      옮긴 뒤 저장 크기를 다시 적용 (Main.pas: RestoreWindow)
+  [+] 환경설정 '마우스' 카드에 측면 뒤로/앞으로 버튼 기능 지정 (Hotkey.pas: MouseDefs / Main.pas: ViewMouseDown / Setup.pas: CboMXBack, CboMXForward)
+
   1.2.0.0
   [*] 일부 PC 에서 'MPV DLL 로드 실패' 로 실행 안 됨 - 1.1.8.0 에서 바꾼 libmpv 가 vulkan-1.dll 을 직접 import → Vulkan 을 지원하는
       그래픽 드라이버가 없는 PC 에서 DLL 자체가 안 열림. Khronos Vulkan 로더(LunarG 1.4.363.0)를 함께 배포
@@ -1343,6 +1348,10 @@ begin
   H := Min(H, R.Bottom - R.Top);
   L := EnsureRange(L, R.Left, R.Right - W);
   T := EnsureRange(T, R.Top, R.Bottom - H);
+  // 두 번: 창은 주 모니터 배율로 생성 → 배율 다른 모니터로 옮기면 WM_DPICHANGED 가 크기를 배율비만큼 바꿈 →
+  // 그 크기가 저장돼 실행마다 커졌다 (문의 2026-10-20, Win10 듀얼 모니터, 약 10%씩·화면 밖으로). 저장값은 그
+  // 모니터 기준 실제 픽셀 → 옮긴 뒤 다시 적용. 같은 모니터라 두 번째는 배율 안 바뀜 (List.ShowPlaced 와 같은 대응).
+  SetBounds(L, T, W, H);
   SetBounds(L, T, W, H);
 end;
 
@@ -1617,6 +1626,11 @@ begin
   if AEvent.MouseButton = 1 then
   begin
     ExecMouse(meMClick);
+    Exit;
+  end;
+  if AEvent.MouseButton in [3, 4] then   // 측면 뒤로/앞으로 (KilhoUI 2026-10-20 — 엔진이 받으므로 WM_APPCOMMAND 는 안 옴)
+  begin
+    if AEvent.MouseButton = 3 then ExecMouse(meXBack) else ExecMouse(meXForward);
     Exit;
   end;
   if AEvent.MouseButton <> 0 then Exit;
